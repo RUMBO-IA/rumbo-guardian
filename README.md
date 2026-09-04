@@ -1,6 +1,6 @@
-﻿# RUMBO Guardian
+# RUMBO Guardian
 
-**RUMBO Security Intelligence** · v0.5.0
+**RUMBO Security Intelligence** · v0.6.0
 
 [![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
 [![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)
@@ -79,3 +79,7 @@ This portfolio release does not grant an open-source license. Source is publishe
 
 
 
+
+## V0.6.0 ? Nested redirect analysis
+
+Guardian now inspects common redirect parameters such as `url`, `redirect`, `continue`, `next`, `target` and `destination`. When one of those parameters contains an absolute HTTP(S) destination on a different domain, Guardian analyzes that nested destination locally and surfaces both the cross-domain redirect and any risk signals found inside it. Ordinary query parameters that merely contain URL-shaped text are not treated as redirects.

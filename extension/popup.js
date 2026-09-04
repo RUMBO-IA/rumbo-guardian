@@ -1,4 +1,4 @@
-﻿const $=id=>document.getElementById(id);
+const $=id=>document.getElementById(id);
 const Core=globalThis.RumboGuardianCore;
 let current={domain:'',report:null};
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -33,6 +33,6 @@ async function scan(){
   }catch(error){$('score').textContent='—';$('score').className='score neutral';$('label').textContent='No disponible';$('verdict').textContent='Esta superficie no permite inspección de pestaña.';$('details').innerHTML='<div class="item">Las páginas internas del navegador están protegidas.</div>';}
   finally{$('scan').disabled=false;$('scan').textContent='Analizar esta pestaña';}
 }
-function downloadReport(){if(!current.report)return;const blob=new Blob([JSON.stringify({product:'RUMBO Guardian',version:'0.5.0',...current.report},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rumbo-guardian-tab-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+function downloadReport(){if(!current.report)return;const blob=new Blob([JSON.stringify({product:'RUMBO Guardian',version:'0.6.0',...current.report},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rumbo-guardian-tab-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 $('scan').addEventListener('click',scan);$('trustDomainBtn').addEventListener('click',()=>setDomain('trusted'));$('blockDomainBtn').addEventListener('click',()=>setDomain('blocked'));$('neutralDomainBtn').addEventListener('click',()=>setDomain('neutral'));$('exportReportBtn').addEventListener('click',downloadReport);
 

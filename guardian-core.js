@@ -6,6 +6,7 @@
   const suspiciousTlds=new Set(['zip','mov','top','xyz','click','loan','work','gq','tk','cf','ml','ga']);
   const shorteners=new Set(['bit.ly','tinyurl.com','t.co','is.gd','cutt.ly','rb.gy','rebrand.ly','shorturl.at']);
   const brandDomains=['openai.com','google.com','microsoft.com','whatsapp.com','meta.com','netflix.com','mercadopago.com','correoargentino.com.ar','arca.gob.ar','afip.gob.ar'];
+  const redirectParams=new Set(['url','u','redirect','redirect_url','redirect_uri','return','returnto','continue','next','target','dest','destination']);
   const urgency=[/urgente/i,/últim[oa] aviso/i,/suspendid[ao]/i,/bloquead[ao]/i,/ahora mismo/i,/inmediatamente/i,/24 horas/i,/vence hoy/i];
   const credential=[/contraseña/i,/password/i,/código de verificación/i,/\botp\b/i,/inici[áa] sesi[oó]n/i,/verific[aá] tu cuenta/i,/credencial/i];
   const money=[/transfer/i,/pago/i,/factura/i,/premio/i,/ganaste/i,/cripto/i,/bitcoin/i,/wallet/i,/tarjeta/i,/reembolso/i,/mercado ?pago/i];
@@ -48,7 +49,7 @@
     if(score>=30) return {level:'caution',label:'Medio',verdict:'Se detectaron señales que justifican una verificación adicional.',guide:'Validá identidad, dominio y contexto antes de compartir datos o ejecutar acciones.'};
     return {level:'safe',label:'Bajo',verdict:'No se detectaron señales fuertes con las reglas locales actuales.',guide:'Mantené la verificación contextual para acciones sensibles.'};
   }
-  function analyzeUrl(raw,lists={}){
+  function analyzeUrl(raw,lists={},depth=0){
     let value=String(raw||'').trim();
     if(/^www\./i.test(value)) value='https://'+value;
     const reasons=[]; let score=0,url;
@@ -67,10 +68,28 @@
     if(value.length>180){score+=8;add(reasons,8,'URL inusualmente larga','La longitud dificulta la inspección visual.','long_url');}
     if(/login|verify|account|secure|update|password|payment|wallet|unlock|support/i.test(url.pathname+url.search)){score+=12;add(reasons,12,'Ruta sensible','Contiene términos asociados con acceso, verificación o pagos.','sensitive_path');}
     if(url.port&&!['80','443'].includes(url.port)){score+=8;add(reasons,8,'Puerto no habitual','Utiliza un puerto diferente de los estándares web.','unusual_port');}
+    const redirectTargets=[];
+    if(depth<1){
+      for(const [param,rawTarget] of url.searchParams.entries()){
+        if(!redirectParams.has(param.toLowerCase())) continue;
+        let target=String(rawTarget||'').trim();
+        if(target.startsWith('//')) target=url.protocol+target;
+        if(!/^https?:\/\//i.test(target)) continue;
+        let nested;
+        try{nested=analyzeUrl(target,lists,depth+1);}catch{continue;}
+        if(!nested.domain) continue;
+        const external=!domainMatches(nested.domain,domain)&&!domainMatches(domain,nested.domain);
+        redirectTargets.push({param,url:target,domain:nested.domain,score:nested.score,label:nested.label,reasons:nested.reasons.map(r=>r.code)});
+        if(external){
+          score+=18;add(reasons,18,'Redireccion hacia dominio externo',`El parametro ${param} apunta a ${nested.domain}, distinto de ${domain}.`,'external_redirect_target');
+          if(nested.score>=20){const p=Math.min(28,nested.score);score+=p;add(reasons,p,'Destino de redireccion con senales de riesgo',`${nested.domain} obtiene ${nested.score}/100 al analizarse de forma independiente.`,'nested_target_risk');}
+        }
+      }
+    }
     if(domainStatus==='blocked'){score=Math.max(score,95);add(reasons,40,'Dominio bloqueado localmente','Está en la lista de bloqueo definida por el operador.','local_block');}
     if(domainStatus==='trusted'){add(reasons,0,'Dominio reconocido localmente','Está en la lista de confianza, sin anular otras señales técnicas.','local_trust');}
     score=clamp(score);
-    return {score,...riskMeta(score),domain,domainStatus,url:value,reasons};
+    return {score,...riskMeta(score),domain,domainStatus,url:value,reasons,redirectTargets};
   }
   function analyzeMessage(text,kind='auto',lists={}){
     const value=String(text||''), links=urlsIn(value), reasons=[]; let score=0;

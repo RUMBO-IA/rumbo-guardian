@@ -1,6 +1,6 @@
 # Security Model
 
-RUMBO Guardian V0.5.0 is designed as a local-first, operator-controlled analysis layer.
+RUMBO Guardian V0.6.0 is designed as a local-first, operator-controlled analysis layer.
 
 ## Data handling
 - Message and URL analysis runs in the local application.
@@ -20,3 +20,5 @@ A risk score is an analytical signal, not a definitive malware verdict. Single w
 ## Evidence Ledger integrity boundary
 
 V0.4.0 chains local evidence entries with SHA-256 to expose in-place mutation and broken sequence continuity. This is tamper-evidence inside the local dataset, not remote attestation, notarization, trusted timestamping or immutable custody. An actor with complete control of browser storage can replace the entire ledger and recompute a new chain.
+## Nested redirect boundary
+V0.6.0 inspects only a bounded allowlist of common redirect-parameter names and only absolute HTTP(S) targets. It does not follow network redirects, fetch remote content, or claim that every external redirect is malicious. Same-site targets are not penalized as external redirects.

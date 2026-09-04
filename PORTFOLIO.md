@@ -1,7 +1,7 @@
 # RUMBO Guardian — Portfolio Brief
 
 **Product family:** RUMBO Security Intelligence
-**Current release:** V0.5.0
+**Current release:** V0.6.0
 **Status:** Verified local product build
 
 ## Problem
@@ -10,7 +10,7 @@ Phishing, impersonation and suspicious-navigation decisions are often opaque, ou
 ## Product
 RUMBO Guardian is an independent, privacy-first security layer that analyzes messages, URLs and browser context, assigns an explainable risk score and preserves evidence locally.
 
-## What V0.5.0 demonstrates
+## What V0.6.0 demonstrates
 - Shared risk engine used by the web application and browser extension.
 - Explainable 0–100 scoring for messages, URLs and active-page context.
 - Active-page inspection initiated explicitly by the operator.
@@ -24,10 +24,13 @@ RUMBO Guardian is an independent, privacy-first security layer that analyzes mes
 The web application and Manifest V3 extension consume the same deterministic risk engine. Page inspection uses `activeTab`; context analysis uses explicit `contextMenus`. Sensitive context is handed to an extension report through a short-lived random-token session record rather than a content-bearing URL.
 
 ## Verification evidence
-The V0.5.0 integration baseline loaded the unpacked extension in an isolated Brave 152 profile, produced 88/100 on a controlled phishing fixture, then invoked the context-analysis service-worker path on `http://openai.com.evil.test/login`. Guardian opened the internal report and classified it 46/100, Riesgo Medio. Unit, syntax, evidence, URL-deception and context-menu regressions also pass.
+The V0.6.0 integration baseline loaded the unpacked extension in an isolated Brave 152 profile, produced 88/100 on a controlled phishing fixture, then invoked the context-analysis service-worker path on `http://openai.com.evil.test/login`. Guardian opened the internal report and classified it 46/100, Riesgo Medio. Unit, syntax, evidence, URL-deception and context-menu regressions also pass.
 
 ## Portfolio value
 This project demonstrates browser-extension engineering, privacy-aware data flow, security heuristics, explainable risk systems, local-first product architecture, evidence integrity, automated verification and controlled browser integration.
 
 ## Boundary
 RUMBO Guardian is a risk-analysis layer, not an antivirus and not a definitive malicious-site verdict. Context-menu analysis is local and user initiated; it does not provide external reputation or malware execution analysis.
+
+## V0.6.0 material capability
+The shared app/extension core can now expose deceptive redirect wrappers before navigation by parsing common redirect parameters, comparing outer and nested domains, and reusing the deterministic local risk engine on the nested destination.
