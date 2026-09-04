@@ -1,32 +1,37 @@
-# Verification Evidence — V0.3.0
+# Verification Evidence — V0.3.1
 
 Verification date: 2026-09-04
 
 ## Automated checks
 
-- JavaScript syntax: PASS for application, shared core, service worker, server, extension and tests.
-- Unit tests: `RUMBO Guardian V0.3 tests: PASS`.
+- JavaScript syntax: PASS for application, shared core, service worker, server, extension and portfolio test.
+- V0.3 baseline regression tests: PASS.
 - Portfolio portability test: PASS.
-- Web manifest: PASS.
-- Extension manifest: PASS.
-- HTTP serving: PASS (200) for application, shared core, app script and stylesheet.
-- Portfolio positioning audit: PASS.
-- Pre-publication secret/path scan: no publishable-source matches.
+- V0.3.1 portfolio-polish test: PASS.
+- Web manifest: PASS through repository parsing and serving baseline.
+- Extension manifest: RUMBO Guardian 0.3.1.
+- Pre-publication secret/path scan remains part of the release gate.
 
 ## Browser-extension integration
 
-The extension was loaded in an isolated Brave 152 profile and exercised against a controlled phishing fixture through the repeatable integration harness.
+The repeatable integration harness loaded the unpacked extension in an isolated Brave 152 profile and exercised it against a controlled phishing fixture.
 
 Observed result:
-- Extension: RUMBO Guardian 0.3.0.
+- Extension: RUMBO Guardian 0.3.1.
 - Popup: opened successfully.
 - Risk score: 88/100.
 - Classification: Riesgo Alto.
 - Signals: insecure HTTP, direct-IP URL, unusual port, urgency, credential request, payment language and password form.
 - Integration test: PASS.
-- Test profile: removed after execution.
+- Test profile: isolated and disposable.
+
+## Portfolio evidence
+- Reproducible dashboard capture: `scripts/capture-portfolio.ps1`.
+- Synthetic dashboard fixture only; no personal or customer data.
+- Screenshot: `portfolio/dashboard-v031.png`.
+- Screenshot SHA-256: `DC40D1A941AC5EBA3740CB248C1C24581C9D60833535838015B07A5E4C495985`.
+- Captured dashboard result: 91/100, Riesgo Alto.
+
 ## Release provenance
 
-The canonical ZIP is generated from Git-tracked files after the release commit is finalized. Its SHA-256 is recorded in the external release metadata rather than embedded here, avoiding a self-referential package digest.
-
-Git history is the source of truth for commit-level provenance.
+Git history is the source of truth for commit-level provenance. The release ZIP is generated from Git-tracked files after the release commit is finalized, and its digest is recorded in GitHub Release metadata to avoid a self-referential package digest.

@@ -65,8 +65,8 @@ $('trustBtn').addEventListener('click',()=>addDomain('trusted'));
 $('blockBtn').addEventListener('click',()=>addDomain('blocked'));
 $('domainInput').addEventListener('keydown',e=>{if(e.key==='Enter')addDomain('trusted');});
 $('clearHistoryBtn').addEventListener('click',()=>{localStorage.removeItem(HISTORY_KEY);drawHistory();});
-$('exportBtn').addEventListener('click',()=>downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.3.0',exportedAt:new Date().toISOString(),domainContext:getLists(),history:getHistory()}));
-$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.3.0',report:state.last});});
+$('exportBtn').addEventListener('click',()=>downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.3.1',exportedAt:new Date().toISOString(),domainContext:getLists(),history:getHistory()}));
+$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.3.1',report:state.last});});
 $('copyBtn').addEventListener('click',async()=>{
   if(!state.last)return;const r=state.last;
   const report=`RUMBO Guardian · Security Intelligence\nRisk: ${r.label} (${r.score}/100)\n${r.verdict}\n${r.reasons.map(x=>'- '+x.title+': '+x.detail).join('\n')}`;

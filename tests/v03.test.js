@@ -32,10 +32,10 @@ assert.ok(html.includes('private by design'));
 assert.ok(html.includes('domainlists'));
 
 const manifest = JSON.parse(read('extension/manifest.json'));
-assert.equal(manifest.version, '0.3.0');
+assert.match(manifest.version, /^0\.3\.\d+$/);
 assert.ok(manifest.permissions.includes('storage'));
 const popup = read('extension/popup.html');
 assert.ok(popup.includes('rankedLinks'));
 assert.ok(popup.includes('trustDomainBtn'));
 assert.ok(popup.includes('blockDomainBtn'));
-console.log('RUMBO Guardian V0.3 tests: PASS');
+console.log('RUMBO Guardian V0.3 baseline tests: PASS');
