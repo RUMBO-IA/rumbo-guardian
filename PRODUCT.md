@@ -1,7 +1,7 @@
-﻿# RUMBO Guardian
+# RUMBO Guardian
 
-**Category:** RUMBO Security Intelligence  
-**Version:** 0.4.2  
+**Category:** RUMBO Security Intelligence
+**Version:** 0.5.0
 **Positioning:** Independent security layer for phishing, fraud, impersonation and suspicious-navigation analysis.
 
 ## Product principles
@@ -12,9 +12,9 @@
 - Operator-controlled context without suppressing technical indicators.
 
 ## Portfolio narrative
-RUMBO Guardian demonstrates a modular security architecture: a shared risk engine, an operator-facing web application, a tamper-evident evidence ledger with SHA-256 hash chaining, domain context controls and a browser extension that performs explicit, on-demand page inspection.
+RUMBO Guardian demonstrates a modular security architecture: shared deterministic risk logic, an operator-facing web application, a tamper-evident Evidence Ledger with independent verification, domain-context controls and a Manifest V3 extension.
 
-## V0.4.0 scope
-The product scores and explains suspicious messages and URLs, ranks visible links, stores trusted/blocked domain context locally, produces exportable evidence, and surfaces high-risk alerts in the browser extension.
+## V0.5.0 scope
+The product scores and explains suspicious messages and URLs, ranks visible links, detects URL-deception patterns, stores trusted/blocked domain context locally, exports verifiable evidence, inspects the active tab on demand, and adds explicit right-click analysis for links and selected text.
 
-
+The context-menu workflow uses ephemeral extension session storage and a random non-sensitive token to move analysis payloads into an internal report page without embedding the selected content in the report URL. No broad host permissions are introduced.

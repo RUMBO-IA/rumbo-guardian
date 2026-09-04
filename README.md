@@ -1,6 +1,6 @@
 ﻿# RUMBO Guardian
 
-**RUMBO Security Intelligence** · v0.4.2
+**RUMBO Security Intelligence** · v0.5.0
 
 [![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
 [![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)
@@ -23,6 +23,7 @@ It follows a **privacy-first, local-first** architecture: technical analysis run
 - Individual risk-report export.
 - Installable PWA for desktop use.
 - Brave / Chrome extension for explicit, on-demand inspection of the active tab.
+- Context-menu analysis for links and selected text before navigation or follow-up action.
 - Ranking of visible links by risk.
 - High-risk local alerts.
 
@@ -42,8 +43,9 @@ The application can also be served with the included Node.js local server.
 3. Choose **Load unpacked**.
 4. Select the `extension` directory.
 5. Open Guardian from a normal web page and choose **Analizar esta pestaña**.
+6. Or right-click a link / selected text and choose **Analizar … con RUMBO Guardian**.
 
-The extension requests only `activeTab`, `scripting` and `storage` permissions. Page inspection is initiated explicitly by the operator.
+The extension requests `activeTab`, `scripting`, `storage` and `contextMenus`, with no broad `host_permissions`. Page inspection and context analysis are initiated explicitly by the operator. Context-menu payloads are passed through ephemeral `storage.session` entries and removed after the report consumes them.
 
 ## Verification
 
@@ -63,7 +65,7 @@ See `EVIDENCE.md` for the verified baseline and `SECURITY.md` for security bound
 
 ## Offline evidence verification
 
-V0.4.2 includes a standalone Node.js verifier for exported Evidence Ledgers. It recalculates the SHA-256 chain without opening Guardian or trusting the embedded integrity field.
+V0.4.2 introduced a standalone Node.js verifier for exported Evidence Ledgers. It recalculates the SHA-256 chain without opening Guardian or trusting the embedded integrity field.
 
 ```powershell
 node tools/verify-ledger.js portfolio/demo-ledger-v042.json

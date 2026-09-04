@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RUMBO Guardian · Context Analysis</title>
+  <link rel="stylesheet" href="report.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow">RUMBO SECURITY INTELLIGENCE</div>
+    <h1>Context Analysis</h1>
+    <p class="sub">Análisis local de un enlace o texto seleccionado antes de continuar.</p>
+    <section class="panel">
+      <div class="riskline">
+        <div id="score" class="score neutral">—</div>
+        <div><strong id="label">Cargando…</strong><p id="verdict">Recuperando evidencia local.</p></div>
+      </div>
+      <div id="subject" class="subject"></div>
+      <div id="guide" class="guide"></div>
+    </section>
+    <section class="panel">
+      <div class="section-title">Señales detectadas</div>
+      <div id="reasons" class="reasons"></div>
+    </section>
+    <section class="panel privacy">
+      <strong>Private by design</strong>
+      <p>El contenido se analiza dentro de la extensión. Esta vista no realiza consultas de red.</p>
+    </section>
+  </main>
+  <script src="core.js"></script>
+  <script src="report.js"></script>
+</body>
+</html>

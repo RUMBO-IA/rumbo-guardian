@@ -1,11 +1,13 @@
 # Security Model
 
-RUMBO Guardian V0.3 is designed as a local-first, operator-controlled analysis layer.
+RUMBO Guardian V0.5.0 is designed as a local-first, operator-controlled analysis layer.
 
 ## Data handling
 - Message and URL analysis runs in the local application.
 - Browser-page inspection occurs only after an explicit extension action.
-- The extension uses `activeTab` and `scripting` permissions rather than persistent host access.
+- Link and selected-text context analysis occurs only after an explicit context-menu action.
+- The extension uses `activeTab`, `scripting`, `storage` and `contextMenus` without broad persistent host permissions.
+- Context-menu payloads use short-lived `storage.session` records and are deleted when the report consumes them.
 - Trusted and blocked domain context is stored locally.
 - Evidence exports are created only when requested by the operator.
 

@@ -53,6 +53,20 @@ async function evalIn(wsUrl, expression) {
   assert(Number.isFinite(score) && score >= 60, 'El fixture de alto riesgo no produjo score alto');
   assert(/Alto/i.test(snapshot.label || ''), 'El popup no clasificó riesgo Alto');
   assert(/intervención|alto|riesgo|phishing|estafa/i.test(snapshot.verdict || ''), 'El veredicto de alto riesgo no es explícito');
+  const debugTargets = await fetch(base + '/json/list').then(r => r.json());
+  const worker = debugTargets.find(t => t.type === 'service_worker' && t.url === `chrome-extension://${extension.id}/background.js`);
+  assert(worker?.webSocketDebuggerUrl, 'No se encontró el service worker de contexto');
+  const tokenExpr = "openAnalysis('url','http://openai.com.evil.test/login').then(()=> 'OPENED')";
+  await evalIn(worker.webSocketDebuggerUrl, tokenExpr);
+  await delay(900);
+  const afterContext = await fetch(base + '/json/list').then(r => r.json());
+  const report = afterContext.find(t => t.url.startsWith(`chrome-extension://${extension.id}/report.html?token=`));
+  assert(report, 'No se abrió la vista Context Analysis');
+  const contextSnapshot = await evalIn(report.webSocketDebuggerUrl, "({score:document.querySelector('#score')?.textContent,label:document.querySelector('#label')?.textContent,subject:document.querySelector('#subject')?.textContent})");
+  assert(Number(contextSnapshot.score) >= 30, 'El enlace engañoso no produjo riesgo material');
+  assert(/Riesgo/i.test(contextSnapshot.label || ''), 'Context Analysis no mostró clasificación');
+  assert(/openai\.com\.evil\.test/i.test(contextSnapshot.subject || ''), 'Context Analysis perdió el enlace analizado');
+  console.log('CONTEXT_ANALYSIS', JSON.stringify(contextSnapshot));
   console.log('RUMBO Guardian extension integration: PASS');
 })().catch(err => {
   console.error('RUMBO Guardian extension integration: FAIL');  console.error(err && err.stack ? err.stack : err);

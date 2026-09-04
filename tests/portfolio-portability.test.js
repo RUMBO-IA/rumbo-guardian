@@ -1,19 +1,17 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const root = path.resolve(__dirname, '..');
 const tracked = [
   'README.md','PRODUCT.md','PORTFOLIO.md','SECURITY.md','EVIDENCE.md',
   'app.js','guardian-core.js','evidence-chain.js','server.js','START_GUARDIAN.cmd',
   'extension/manifest.json','extension/popup.html','extension/popup.js','extension/core.js',
-  'tests/extension-integration.js','tests/ledger-browser-integration.js','tests/run-ledger-browser-integration.ps1','tests/v03.test.js','tests/v040-ledger-integration.test.js'
+  'extension/background.js','extension/report.html','extension/report.js','extension/report.css',
+  'tests/extension-integration.js','tests/ledger-browser-integration.js','tests/run-ledger-browser-integration.ps1',
+  'tests/v03.test.js','tests/v040-ledger-integration.test.js','tests/context-menu.test.js'
 ];
-const bannedText = [
-  String.raw`C:\Users\Usuario`,
-  String.raw`C:\\Users\\Usuario`,
-  'fscfede@gmail.com',
-  'Verso Labs',
-  'verso@labs.local'
-];
+const userPath = ['C:', 'Users', 'Usuario'].join('\\');
+const escapedUserPath = userPath.replaceAll('\\', '\\\\');
+const bannedText = [userPath, escapedUserPath, 'fscfede@gmail.com', 'Verso Labs', 'verso@labs.local'];
 let failures = [];
 for (const rel of tracked) {
   const file = path.join(root, rel);

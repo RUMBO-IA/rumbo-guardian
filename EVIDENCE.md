@@ -1,4 +1,4 @@
-﻿# Verification Evidence — V0.4.2
+﻿# Verification Evidence — V0.5.0
 
 Verification date: 2026-09-04
 
@@ -9,7 +9,7 @@ Verification date: 2026-09-04
 - Portfolio portability test: PASS.
 - V0.4.0 portfolio-polish test: PASS.
 - Web manifest: PASS through repository parsing and serving baseline.
-- Extension manifest: RUMBO Guardian 0.4.0.
+- Extension manifest: RUMBO Guardian 0.5.0.
 - Pre-publication secret/path scan remains part of the release gate.
 
 ## Browser-extension integration
@@ -17,7 +17,7 @@ Verification date: 2026-09-04
 The repeatable integration harness loaded the unpacked extension in an isolated Brave 152 profile and exercised it against a controlled phishing fixture.
 
 Observed result:
-- Extension: RUMBO Guardian 0.4.0.
+- Extension: RUMBO Guardian 0.5.0.
 - Popup: opened successfully.
 - Risk score: 88/100.
 - Classification: Riesgo Alto.
@@ -85,3 +85,22 @@ Verification evidence:
 - Synthetic fixture root hash: `907d7915d5946bd8f06a47731bca9914f4ab4ba190589650d79cb2cec02a8484`.
 
 This closes an evidence-portability gap: a reviewer can now verify an exported ledger independently of the browser UI and localStorage state.
+
+## V0.5.0 — Context-menu pre-navigation analysis
+
+V0.5.0 adds an explicit browser context workflow for analyzing links and selected text without first navigating to the target.
+
+Verification evidence:
+- TDD red phase: `tests/context-menu.test.js` failed before `contextMenus` permission and background/report files existed.
+- Static contract: exactly two context actions (`link`, `selection`), no broad `host_permissions`, no fetch/XHR/WebSocket in the new background/report path.
+- Payload transport: random UUID token in the internal report URL; selected content is stored under `chrome.storage.session` and removed after consumption.
+- Full Node regression suite: PASS.
+- JavaScript syntax gate: PASS.
+- Isolated Brave 152 extension load: PASS as RUMBO Guardian 0.5.0.
+- Existing controlled phishing fixture: 88/100, Riesgo Alto.
+- Real extension service-worker context path invoked against `http://openai.com.evil.test/login`.
+- Internal Context Analysis report opened and preserved the subject.
+- Context result: 46/100, Riesgo Medio, with URL-deception evidence.
+- Real-browser integration: PASS.
+
+The context workflow is user initiated and local. It is designed for pre-navigation inspection, not for automatic browsing interception or remote reputation lookup.

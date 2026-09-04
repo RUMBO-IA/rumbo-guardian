@@ -1,35 +1,33 @@
-﻿# RUMBO Guardian — Portfolio Brief
+# RUMBO Guardian — Portfolio Brief
 
-**Product family:** RUMBO Security Intelligence  
-**Current release:** V0.4.2  
+**Product family:** RUMBO Security Intelligence
+**Current release:** V0.5.0
 **Status:** Verified local product build
 
 ## Problem
 Phishing, impersonation and suspicious-navigation decisions are often opaque, outsourced to third-party scoring systems or detached from the operator's actual context.
 
 ## Product
-RUMBO Guardian is an independent, privacy-first security layer that analyzes messages, URLs and active browser pages, assigns an explainable risk score and preserves evidence locally.
+RUMBO Guardian is an independent, privacy-first security layer that analyzes messages, URLs and browser context, assigns an explainable risk score and preserves evidence locally.
 
-## What V0.4.0 demonstrates
+## What V0.5.0 demonstrates
 - Shared risk engine used by the web application and browser extension.
-- Explainable 0–100 risk scoring with evidence-level reasons.
+- Explainable 0–100 scoring for messages, URLs and active-page context.
 - Active-page inspection initiated explicitly by the operator.
-- Visible-link ranking and suspicious-link prioritization.
-- Trusted and blocked domain context stored locally.
-- Tamper-evident Evidence Ledger with SHA-256 chaining, integrity status and JSON export.
-- High-risk browser alerts and portfolio-oriented product UX.
+- Right-click analysis of links before navigation and selected text before follow-up action.
+- Ephemeral `storage.session` handoff for context-menu payloads, removed after consumption.
+- No broad extension `host_permissions` for the new workflow.
+- URL-deception signals, visible-link ranking and local trusted/blocked domain context.
+- Tamper-evident Evidence Ledger plus independent offline verification.
 
 ## Architecture
-The web application and Manifest V3 extension consume the same deterministic risk-engine logic. Browser inspection is on-demand and uses active-tab access rather than broad persistent page access. Operator context is separated from technical indicators so trusted-domain decisions remain explicit and auditable.
+The web application and Manifest V3 extension consume the same deterministic risk engine. Page inspection uses `activeTab`; context analysis uses explicit `contextMenus`. Sensitive context is handed to an extension report through a short-lived random-token session record rather than a content-bearing URL.
 
 ## Verification evidence
-The V0.4.0 verification baseline loaded the unpacked extension in an isolated Brave profile, opened its popup against a controlled phishing fixture and produced an 88/100 high-risk result. Unit tests, JavaScript syntax checks, manifests, HTTP serving and portfolio-copy audits were also verified before packaging.
+The V0.5.0 integration baseline loaded the unpacked extension in an isolated Brave 152 profile, produced 88/100 on a controlled phishing fixture, then invoked the context-analysis service-worker path on `http://openai.com.evil.test/login`. Guardian opened the internal report and classified it 46/100, Riesgo Medio. Unit, syntax, evidence, URL-deception and context-menu regressions also pass.
 
 ## Portfolio value
-This project demonstrates browser-extension engineering, security heuristics, explainable risk systems, local-first product architecture, evidence handling, automated verification and controlled browser integration under the RUMBO product family.
+This project demonstrates browser-extension engineering, privacy-aware data flow, security heuristics, explainable risk systems, local-first product architecture, evidence integrity, automated verification and controlled browser integration.
 
 ## Boundary
-RUMBO Guardian is a risk-analysis layer, not an antivirus and not a claim that any target is malicious solely because one heuristic fires. High-confidence decisions require multiple signals and operator context.
-
-
-
+RUMBO Guardian is a risk-analysis layer, not an antivirus and not a definitive malicious-site verdict. Context-menu analysis is local and user initiated; it does not provide external reputation or malware execution analysis.
