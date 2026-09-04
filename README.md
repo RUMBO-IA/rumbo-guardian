@@ -24,6 +24,7 @@ It follows a **privacy-first, local-first** architecture: technical analysis run
 - Installable PWA for desktop use.
 - Brave / Chrome extension for explicit, on-demand inspection of the active tab.
 - Context-menu analysis for links and selected text before navigation or follow-up action.
+- Cross-origin form destination analysis, with stronger evidence when password fields submit off-site.
 - Ranking of visible links by risk.
 - High-risk local alerts.
 
@@ -80,6 +81,10 @@ This portfolio release does not grant an open-source license. Source is publishe
 
 
 
-## V0.6.0 ? Nested redirect analysis
+## V0.6.0 - Nested redirect analysis
 
 Guardian now inspects common redirect parameters such as `url`, `redirect`, `continue`, `next`, `target` and `destination`. When one of those parameters contains an absolute HTTP(S) destination on a different domain, Guardian analyzes that nested destination locally and surfaces both the cross-domain redirect and any risk signals found inside it. Ordinary query parameters that merely contain URL-shaped text are not treated as redirects.
+
+## V0.7.0 - Form Destination Integrity
+
+Guardian now inspects form submission destinations during explicit active-tab analysis. Cross-origin form actions are surfaced as explainable evidence, and password-bearing forms that submit to another site receive a stronger signal. Empty and same-site form actions remain non-penalized. No form is submitted by Guardian.

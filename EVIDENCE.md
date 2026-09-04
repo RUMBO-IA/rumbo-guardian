@@ -1,4 +1,4 @@
-# Verification Evidence — V0.6.0
+# Verification Evidence - V0.7.0
 
 Verification date: 2026-09-04
 
@@ -9,7 +9,7 @@ Verification date: 2026-09-04
 - Portfolio portability test: PASS.
 - V0.4.0 portfolio-polish test: PASS.
 - Web manifest: PASS through repository parsing and serving baseline.
-- Extension manifest: RUMBO Guardian 0.6.0.
+- Extension manifest: RUMBO Guardian 0.7.0.
 - Pre-publication secret/path scan remains part of the release gate.
 
 ## Browser-extension integration
@@ -17,11 +17,11 @@ Verification date: 2026-09-04
 The repeatable integration harness loaded the unpacked extension in an isolated Brave 152 profile and exercised it against a controlled phishing fixture.
 
 Observed result:
-- Extension: RUMBO Guardian 0.6.0.
+- Extension: RUMBO Guardian 0.7.0.
 - Popup: opened successfully.
-- Risk score: 88/100.
+- Risk score: 100/100.
 - Classification: Riesgo Alto.
-- Signals: insecure HTTP, direct-IP URL, unusual port, urgency, credential request, payment language and password form.
+- Signals: insecure HTTP, direct-IP URL, unusual port, urgency, credential request, payment language, password form and cross-origin form destination.
 - Integration test: PASS.
 - Test profile: isolated and disposable.
 
@@ -86,9 +86,9 @@ Verification evidence:
 
 This closes an evidence-portability gap: a reviewer can now verify an exported ledger independently of the browser UI and localStorage state.
 
-## V0.6.0 — Context-menu pre-navigation analysis
+## V0.5.0 - Context-menu pre-navigation analysis
 
-V0.6.0 adds an explicit browser context workflow for analyzing links and selected text without first navigating to the target.
+V0.5.0 adds an explicit browser context workflow for analyzing links and selected text without first navigating to the target.
 
 Verification evidence:
 - TDD red phase: `tests/context-menu.test.js` failed before `contextMenus` permission and background/report files existed.
@@ -96,7 +96,7 @@ Verification evidence:
 - Payload transport: random UUID token in the internal report URL; selected content is stored under `chrome.storage.session` and removed after consumption.
 - Full Node regression suite: PASS.
 - JavaScript syntax gate: PASS.
-- Isolated Brave 152 extension load: PASS as RUMBO Guardian 0.6.0.
+- Isolated Brave 152 extension load: PASS as RUMBO Guardian 0.5.0.
 - Existing controlled phishing fixture: 88/100, Riesgo Alto.
 - Real extension service-worker context path invoked against `http://openai.com.evil.test/login`.
 - Internal Context Analysis report opened and preserved the subject.
@@ -105,6 +105,22 @@ Verification evidence:
 
 The context workflow is user initiated and local. It is designed for pre-navigation inspection, not for automatic browsing interception or remote reputation lookup.
 
-## V0.6.0 ? Nested redirect detection
+## V0.6.0 - Nested redirect detection
 
 TDD red phase reproduced the missing capability against `https://trusted.example/redirect?url=https%3A%2F%2Fopenai.com.evil.example%2Flogin`. The implementation now detects the external redirect target, independently scores the nested destination, preserves app/extension parity, does not penalize same-site redirects, and ignores URL-shaped values in unrelated parameters such as `text`.
+
+## V0.7.0 - Form Destination Integrity
+
+TDD and verification evidence:
+- RED: `tests/form-destination.test.js` failed because `analyzeFormDestination` did not exist.
+- GREEN: shared app/extension form-destination analysis passes deterministic parity tests.
+- Popup integration RED then GREEN: active-tab scanning now collects form actions, methods and per-form password-field counts.
+- Full Node regression suite: PASS.
+- JavaScript syntax gate: PASS.
+- Isolated Brave 152 extension load: PASS as RUMBO Guardian 0.7.0.
+- Controlled fixture: 100/100, Riesgo Alto.
+- Popup exposed `Formulario hacia dominio externo` without submitting the form.
+- Existing context-menu path remained 46/100, Riesgo Medio.
+- Evidence Ledger browser tamper integration: PASS.
+
+Boundary: Guardian inspects form destinations only during explicit active-tab analysis. It does not submit forms or transmit captured form data.

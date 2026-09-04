@@ -1,9 +1,14 @@
 {
   "manifest_version": 3,
   "name": "RUMBO Guardian",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "RUMBO Security Intelligence para inspección local de pestañas, enlaces y texto seleccionado.",
-  "permissions": ["activeTab", "scripting", "storage", "contextMenus"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "contextMenus"
+  ],
   "background": {
     "service_worker": "background.js"
   },

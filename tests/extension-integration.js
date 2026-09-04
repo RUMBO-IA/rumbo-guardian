@@ -53,6 +53,7 @@ async function evalIn(wsUrl, expression) {
   assert(Number.isFinite(score) && score >= 60, 'El fixture de alto riesgo no produjo score alto');
   assert(/Alto/i.test(snapshot.label || ''), 'El popup no clasificó riesgo Alto');
   assert(/intervención|alto|riesgo|phishing|estafa/i.test(snapshot.verdict || ''), 'El veredicto de alto riesgo no es explícito');
+  assert(/dominio externo|dominio externo/i.test(snapshot.details || ''), 'Popup missing external form destination evidence');
   const debugTargets = await fetch(base + '/json/list').then(r => r.json());
   const worker = debugTargets.find(t => t.type === 'service_worker' && t.url === `chrome-extension://${extension.id}/background.js`);
   assert(worker?.webSocketDebuggerUrl, 'No se encontró el service worker de contexto');

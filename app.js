@@ -82,8 +82,8 @@ $('trustBtn').addEventListener('click',()=>addDomain('trusted'));
 $('blockBtn').addEventListener('click',()=>addDomain('blocked'));
 $('domainInput').addEventListener('keydown',e=>{if(e.key==='Enter')addDomain('trusted');});
 $('clearHistoryBtn').addEventListener('click',()=>{localStorage.removeItem(HISTORY_KEY);drawHistory();});
-$('exportBtn').addEventListener('click',async()=>{const history=await ensureHistoryChain(),integrity=await Chain.verifyChain(history);downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.6.0',exportedAt:new Date().toISOString(),domainContext:getLists(),integrity:integrity,history});});
-$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.6.0',report:state.last});});
+$('exportBtn').addEventListener('click',async()=>{const history=await ensureHistoryChain(),integrity=await Chain.verifyChain(history);downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.7.0',exportedAt:new Date().toISOString(),domainContext:getLists(),integrity:integrity,history});});
+$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.7.0',report:state.last});});
 $('copyBtn').addEventListener('click',async()=>{
   if(!state.last)return;const r=state.last;
   const report=`RUMBO Guardian · Security Intelligence\nRisk: ${r.label} (${r.score}/100)\n${r.verdict}\n${r.reasons.map(x=>'- '+x.title+': '+x.detail).join('\n')}`;

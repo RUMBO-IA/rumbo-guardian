@@ -91,6 +91,18 @@
     score=clamp(score);
     return {score,...riskMeta(score),domain,domainStatus,url:value,reasons,redirectTargets};
   }
+  function analyzeFormDestination(pageUrl,form={},lists={}){
+    const reasons=[];let score=0,page,target;
+    try{page=new URL(String(pageUrl||''));}catch{return {score:0,...riskMeta(0),pageDomain:'',targetDomain:'',action:'',method:String(form.method||'get').toLowerCase(),passwordFields:Number(form.passwordFields||0),reasons};}
+    const rawAction=String(form.action||'').trim();
+    try{target=new URL(rawAction||page.href,page.href);}catch{return {score:0,...riskMeta(0),pageDomain:normalizeDomain(page.hostname),targetDomain:'',action:rawAction,method:String(form.method||'get').toLowerCase(),passwordFields:Number(form.passwordFields||0),reasons};}
+    const pageDomain=normalizeDomain(page.hostname),targetDomain=normalizeDomain(target.hostname),passwordFields=Number(form.passwordFields||0),method=String(form.method||'get').toLowerCase();
+    const sameSite=targetDomain&&(domainMatches(targetDomain,pageDomain)||domainMatches(pageDomain,targetDomain));
+    if(!['http:','https:'].includes(target.protocol)){score+=30;add(reasons,30,'Destino de formulario no web','El formulario usa un esquema de destino no HTTP(S).','unsafe_form_scheme');}
+    else if(!sameSite){score+=22;add(reasons,22,'Formulario hacia dominio externo',`Los datos se enviar?an a ${targetDomain}, distinto de ${pageDomain}.`,'cross_origin_form');if(passwordFields>0){score+=30;add(reasons,30,'Contrase?a enviada a dominio externo','El formulario contiene un campo de contrase?a y apunta fuera del sitio actual.','external_password_form');}}
+    score=clamp(score);
+    return {score,...riskMeta(score),pageDomain,targetDomain,action:target.href,method,passwordFields,reasons};
+  }
   function analyzeMessage(text,kind='auto',lists={}){
     const value=String(text||''), links=urlsIn(value), reasons=[]; let score=0;
     const messageMode=kind==='message'||(kind==='auto'&&!(links.length===1&&value.trim()===links[0]));
@@ -112,5 +124,5 @@
   function rankLinks(links,lists={}){
     return unique((links||[]).filter(Boolean)).map(x=>analyzeUrl(x,lists)).sort((a,b)=>b.score-a.score||a.domain.localeCompare(b.domain));
   }
-  return {normalizeDomain,classifyDomain,urlsIn,analyzeUrl,analyzeMessage,rankLinks,riskMeta};
+  return {normalizeDomain,classifyDomain,urlsIn,analyzeUrl,analyzeFormDestination,analyzeMessage,rankLinks,riskMeta};
 });
