@@ -56,6 +56,7 @@
     try{url=new URL(value);}catch{return {score:0,level:'neutral',label:'No válida',domain:'',domainStatus:'neutral',url:value,reasons:[{points:0,title:'URL no válida',detail:'No se pudo interpretar el enlace.',code:'invalid_url'}]};}
     const host=url.hostname.toLowerCase(), domain=normalizeDomain(host), parts=host.split('.'), tld=parts.at(-1)||'';
     const domainStatus=classifyDomain(domain,lists);
+    if(['javascript:','data:','vbscript:'].includes(url.protocol)){score+=65;add(reasons,65,'Esquema de contenido activo','El enlace puede ejecutar o incrustar contenido sin una navegación HTTPS normal.','active_content_scheme');}
     const shadowedBrand=brandDomains.find(canonical=>host.includes(canonical+'.')&&!domainMatches(host,canonical));
     if(url.protocol==='http:'){score+=12;add(reasons,12,'Conexión sin HTTPS','La URL usa HTTP sin cifrado.','http');}
     if(shadowedBrand){score+=22;add(reasons,22,'Dominio de marca usado como señuelo',shadowedBrand+' aparece dentro de otro host; el dominio real es '+host+'.','brand_shadow');}

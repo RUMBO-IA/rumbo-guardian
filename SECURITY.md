@@ -1,6 +1,6 @@
 # Security Model
 
-RUMBO Guardian V0.7.0 is designed as a local-first, operator-controlled analysis layer.
+RUMBO Guardian V0.8.0 is designed as a local-first, operator-controlled analysis layer.
 
 ## Data handling
 - Message and URL analysis runs in the local application.

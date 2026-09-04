@@ -1,14 +1,14 @@
 {
   "name": "rumbo-guardian",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "RUMBO Security Intelligence — explainable phishing, fraud and suspicious-navigation analysis.",
   "scripts": {
-    "test": "node tests/v03.test.js && node tests/portfolio-portability.test.js && node tests/v031-portfolio.test.js && node tests/evidence-chain.test.js && node tests/v040-ledger-integration.test.js && node tests/url-deception.test.js && node tests/ledger-cli.test.js && node tests/context-menu.test.js && node tests/nested-redirect.test.js && node tests/form-destination.test.js && node tests/form-popup-integration.test.js",
+    "test": "node tests/v03.test.js && node tests/portfolio-portability.test.js && node tests/v031-portfolio.test.js && node tests/evidence-chain.test.js && node tests/v040-ledger-integration.test.js && node tests/url-deception.test.js && node tests/ledger-cli.test.js && node tests/context-menu.test.js && node tests/nested-redirect.test.js && node tests/form-destination.test.js && node tests/form-popup-integration.test.js && node tests/active-scheme.test.js",
     "test:unit": "node tests/v03.test.js && node tests/evidence-chain.test.js",
     "test:portfolio": "node tests/portfolio-portability.test.js && node tests/v031-portfolio.test.js",
     "verify:ledger": "node tools/verify-ledger.js",
-    "check": "node --check guardian-core.js && node --check evidence-chain.js && node --check app.js && node --check sw.js && node --check server.js && node --check extension/core.js && node --check extension/popup.js && node --check extension/background.js && node --check extension/report.js && node --check tests/evidence-chain.test.js && node --check tests/v040-ledger-integration.test.js && node --check tests/url-deception.test.js && node --check tools/verify-ledger.js && node --check tests/ledger-cli.test.js && node --check tests/context-menu.test.js && node --check tests/nested-redirect.test.js && node --check tests/form-destination.test.js && node --check tests/form-popup-integration.test.js"
+    "check": "node --check guardian-core.js && node --check evidence-chain.js && node --check app.js && node --check sw.js && node --check server.js && node --check extension/core.js && node --check extension/popup.js && node --check extension/background.js && node --check extension/report.js && node --check tests/evidence-chain.test.js && node --check tests/v040-ledger-integration.test.js && node --check tests/url-deception.test.js && node --check tools/verify-ledger.js && node --check tests/ledger-cli.test.js && node --check tests/context-menu.test.js && node --check tests/nested-redirect.test.js && node --check tests/form-destination.test.js && node --check tests/form-popup-integration.test.js && node --check tests/active-scheme.test.js"
   },
   "engines": {
     "node": ">=22"

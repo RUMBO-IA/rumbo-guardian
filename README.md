@@ -90,3 +90,7 @@ Guardian now inspects common redirect parameters such as `url`, `redirect`, `con
 ## V0.7.0 - Form Destination Integrity
 
 Guardian now inspects form submission destinations during explicit active-tab analysis. Cross-origin form actions are surfaced as explainable evidence, and password-bearing forms that submit to another site receive a stronger signal. Empty and same-site form actions remain non-penalized. No form is submitted by Guardian.
+
+## V0.8.0 - Active-content scheme detection
+
+Guardian now identifies `javascript:`, `data:` and `vbscript:` URL schemes as active-content navigation rather than treating them as ordinary low-risk URLs. The shared app/extension engine raises an explicit `active_content_scheme` signal while leaving normal HTTPS and non-active schemes such as `mailto:` outside this rule.
