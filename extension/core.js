@@ -73,14 +73,20 @@
     if(depth<1){
       for(const [param,rawTarget] of url.searchParams.entries()){
         if(!redirectParams.has(param.toLowerCase())) continue;
-        let target=String(rawTarget||'').trim();
+        let target=String(rawTarget||'').trim(),decodePasses=1;
+        while(decodePasses<3&&!/^https?:\/\//i.test(target)){
+          let decoded;
+          try{decoded=decodeURIComponent(target);}catch{break;}
+          if(decoded===target) break;
+          target=decoded.trim();decodePasses+=1;
+        }
         if(target.startsWith('//')) target=url.protocol+target;
         if(!/^https?:\/\//i.test(target)) continue;
         let nested;
         try{nested=analyzeUrl(target,lists,depth+1);}catch{continue;}
         if(!nested.domain) continue;
         const external=!domainMatches(nested.domain,domain)&&!domainMatches(domain,nested.domain);
-        redirectTargets.push({param,url:target,domain:nested.domain,score:nested.score,label:nested.label,reasons:nested.reasons.map(r=>r.code)});
+        redirectTargets.push({param,url:target,domain:nested.domain,score:nested.score,label:nested.label,reasons:nested.reasons.map(r=>r.code),decodePasses});
         if(external){
           score+=18;add(reasons,18,'Redireccion hacia dominio externo',`El parametro ${param} apunta a ${nested.domain}, distinto de ${domain}.`,'external_redirect_target');
           if(nested.score>=20){const p=Math.min(28,nested.score);score+=p;add(reasons,p,'Destino de redireccion con senales de riesgo',`${nested.domain} obtiene ${nested.score}/100 al analizarse de forma independiente.`,'nested_target_risk');}

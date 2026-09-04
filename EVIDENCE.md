@@ -1,4 +1,4 @@
-# Verification Evidence - V0.8.0
+# Verification Evidence - V0.9.0
 
 Verification date: 2026-09-04
 
@@ -9,7 +9,7 @@ Verification date: 2026-09-04
 - Portfolio portability test: PASS.
 - V0.4.0 portfolio-polish test: PASS.
 - Web manifest: PASS through repository parsing and serving baseline.
-- Extension manifest: RUMBO Guardian 0.8.0.
+- Extension manifest: RUMBO Guardian 0.9.0.
 - Pre-publication secret/path scan remains part of the release gate.
 
 ## Browser-extension integration
@@ -128,3 +128,7 @@ Boundary: Guardian inspects form destinations only during explicit active-tab an
 ## V0.8.0 - Active-content scheme detection
 
 TDD reproduced the prior false-low behavior for `javascript:` and `data:` URLs before implementation. The shared app/extension core now emits `active_content_scheme` and classifies these active-content schemes as high risk. Regression coverage proves app/extension parity and verifies that HTTPS and `mailto:` do not receive this signal. Full Node suite, syntax gate, isolated Brave 152 integration, Evidence Ledger tamper integration and `git diff --check` pass on the release candidate.
+
+## V0.9.0 - Multi-encoded redirect analysis
+
+TDD reproduced a false-low case where an external destination was hidden behind double percent-encoding in a recognized redirect parameter. The shared app/extension core now performs at most two additional decode passes, records `decodePasses`, and analyzes the recovered HTTP(S) target without network navigation. Same-site and unrelated-parameter regressions remain covered.

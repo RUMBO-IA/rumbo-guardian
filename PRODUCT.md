@@ -1,7 +1,7 @@
 # RUMBO Guardian
 
 **Category:** RUMBO Security Intelligence
-**Version:** 0.8.0
+**Version:** 0.9.0
 **Positioning:** Independent security layer for phishing, fraud, impersonation and suspicious-navigation analysis.
 
 ## Product principles
@@ -24,3 +24,6 @@ Guardian detects external destinations embedded in common redirect parameters an
 
 ## V0.7.0 scope
 Guardian analyzes form submission destinations during explicit active-tab inspection. External form targets become visible evidence, password-bearing cross-origin forms receive a stronger signal, and same-site/self-submit forms remain non-penalized.
+
+## V0.9.0 scope
+Guardian detects multi-encoded external destinations inside recognized redirect parameters using bounded local decoding. The destination is not fetched or followed.

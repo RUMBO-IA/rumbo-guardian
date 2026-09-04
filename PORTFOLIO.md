@@ -1,7 +1,7 @@
 # RUMBO Guardian — Portfolio Brief
 
 **Product family:** RUMBO Security Intelligence
-**Current release:** V0.8.0
+**Current release:** V0.9.0
 **Status:** Verified local product build
 
 ## Problem
@@ -10,7 +10,7 @@ Phishing, impersonation and suspicious-navigation decisions are often opaque, ou
 ## Product
 RUMBO Guardian is an independent, privacy-first security layer that analyzes messages, URLs and browser context, assigns an explainable risk score and preserves evidence locally.
 
-## What V0.8.0 demonstrates
+## What V0.9.0 demonstrates
 - Shared risk engine used by the web application and browser extension.
 - Explainable 0–100 scoring for messages, URLs and active-page context.
 - Active-page inspection initiated explicitly by the operator.
@@ -38,3 +38,6 @@ The shared app/extension core can now expose deceptive redirect wrappers before 
 
 ## V0.7.0 material capability
 Active-tab inspection now evaluates where forms submit, not only how many forms or password fields exist. The controlled Brave fixture exposes an external password-form destination without submitting any data.
+
+## V0.9.0 material capability
+Bounded multi-encoding analysis closes a practical evasive redirect case while preserving deterministic app/extension parity and explicit decode evidence.

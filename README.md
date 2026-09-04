@@ -1,6 +1,6 @@
 # RUMBO Guardian
 
-**RUMBO Security Intelligence** · v0.6.0
+**RUMBO Security Intelligence** · v0.9.0
 
 [![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
 [![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)
@@ -94,3 +94,7 @@ Guardian now inspects form submission destinations during explicit active-tab an
 ## V0.8.0 - Active-content scheme detection
 
 Guardian now identifies `javascript:`, `data:` and `vbscript:` URL schemes as active-content navigation rather than treating them as ordinary low-risk URLs. The shared app/extension engine raises an explicit `active_content_scheme` signal while leaving normal HTTPS and non-active schemes such as `mailto:` outside this rule.
+
+## V0.9.0 - Multi-encoded redirect analysis
+
+Guardian now performs bounded decoding of recognized redirect parameters before navigation analysis, allowing a destination hidden behind a second percent-encoding layer to be inspected locally. Decoding is capped, applies only to known redirect parameters, preserves same-site behavior, and does not fetch or follow the destination.
