@@ -1,6 +1,6 @@
-﻿# RUMBO Guardian
+# RUMBO Guardian
 
-**RUMBO Security Intelligence** · v0.4.0
+**RUMBO Security Intelligence** · v0.4.1
 
 [![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
 [![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)

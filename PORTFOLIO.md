@@ -1,7 +1,7 @@
-﻿# RUMBO Guardian — Portfolio Brief
+# RUMBO Guardian — Portfolio Brief
 
 **Product family:** RUMBO Security Intelligence  
-**Current release:** V0.4.0  
+**Current release:** V0.4.1  
 **Status:** Verified local product build
 
 ## Problem

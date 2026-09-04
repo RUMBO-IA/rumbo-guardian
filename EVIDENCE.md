@@ -1,4 +1,4 @@
-﻿# Verification Evidence — V0.4.0
+﻿# Verification Evidence — V0.4.1
 
 Verification date: 2026-09-04
 
@@ -49,3 +49,24 @@ Fresh isolated-Brave integration evidence:
 - Browser integration test: PASS.
 
 The chain is tamper-evident, not an external timestamp or remote attestation. A party with full local-storage control can replace the complete ledger; V0.4.0 detects mutations relative to the stored chain structure but does not claim immutable remote custody.
+## V0.4.1 — URL deception hardening
+
+V0.4.1 adds structural URL-deception signals while preserving the local-first architecture.
+
+Verified behaviors:
+- Detects a canonical brand domain used as a misleading prefix inside a different host (`brand_shadow`).
+- Detects authority confusion where domain-like text appears before `@` while navigation resolves to another host (`authority_confusion`).
+- Official canonical domains do not trigger either structural signal.
+- Web-app and extension cores are exercised against the same deception cases to prevent behavioral drift.
+- Existing URL, message, domain-context and Evidence Ledger regressions remain green.
+
+Integration reliability was also hardened: both Brave integration runners now provision and verify the local Guardian server when it is not already running, then clean it up after the run. This removes an implicit dependency on an operator-started server that previously caused false browser-integration failures.
+
+Fresh isolated-Brave verification:
+- Extension loaded as RUMBO Guardian 0.4.1.
+- Controlled phishing fixture: 88/100, Riesgo Alto.
+- Extension integration: PASS.
+- Evidence Ledger: `Integridad verificada · 2` before mutation.
+- Controlled ledger mutation: `Integridad comprometida · evento 1`.
+- Ledger browser integration: PASS.
+

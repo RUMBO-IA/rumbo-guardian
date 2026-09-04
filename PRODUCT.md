@@ -1,7 +1,7 @@
-﻿# RUMBO Guardian
+# RUMBO Guardian
 
 **Category:** RUMBO Security Intelligence  
-**Version:** 0.4.0  
+**Version:** 0.4.1  
 **Positioning:** Independent security layer for phishing, fraud, impersonation and suspicious-navigation analysis.
 
 ## Product principles
