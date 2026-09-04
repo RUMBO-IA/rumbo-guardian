@@ -3,26 +3,30 @@
 Verification date: 2026-09-04
 
 ## Automated checks
+
 - JavaScript syntax: PASS for application, shared core, service worker, server, extension and tests.
 - Unit tests: `RUMBO Guardian V0.3 tests: PASS`.
+- Portfolio portability test: PASS.
 - Web manifest: PASS.
 - Extension manifest: PASS.
-- Shared core parity between app and extension: verified before integration testing.
 - HTTP serving: PASS (200) for application, shared core, app script and stylesheet.
 - Portfolio positioning audit: PASS.
+- Pre-publication secret/path scan: no publishable-source matches.
 
 ## Browser-extension integration
-The extension was loaded in an isolated Brave 152 profile and exercised against a controlled phishing fixture.
+
+The extension was loaded in an isolated Brave 152 profile and exercised against a controlled phishing fixture through the repeatable integration harness.
 
 Observed result:
-- Extension: RUMBO Guardian 0.3.0
-- Popup: opened successfully
-- Risk score: 88/100
-- Classification: Riesgo Alto
-- Signals included insecure HTTP, direct-IP URL, unusual port, urgency, credential request, payment language and password form.
-- Integration test: PASS
+- Extension: RUMBO Guardian 0.3.0.
+- Popup: opened successfully.
+- Risk score: 88/100.
+- Classification: Riesgo Alto.
+- Signals: insecure HTTP, direct-IP URL, unusual port, urgency, credential request, payment language and password form.
+- Integration test: PASS.
+- Test profile: removed after execution.
+## Release provenance
 
-## Canonical package
-`RUMBO_Guardian_V0.3.zip`
+The canonical ZIP is generated from Git-tracked files after the release commit is finalized. Its SHA-256 is recorded in the external release metadata rather than embedded here, avoiding a self-referential package digest.
 
-SHA-256: `33A95611E29790331E6E7733B132A486DE24030A667D0E356ECD68E6D7E2A835`
+Git history is the source of truth for commit-level provenance.
