@@ -1,6 +1,6 @@
-# RUMBO Guardian
+﻿# RUMBO Guardian
 
-**RUMBO Security Intelligence** · v0.3.1
+**RUMBO Security Intelligence** · v0.4.0
 
 [![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
 [![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)
@@ -19,7 +19,7 @@ It follows a **privacy-first, local-first** architecture: technical analysis run
 - Explainable 0–100 risk scoring for messages and URLs.
 - Detection of urgency, credential requests, payment signals and suspicious domains.
 - Local trusted / blocked domain context.
-- Evidence Ledger with JSON export.
+- Tamper-evident Evidence Ledger with SHA-256 hash chaining, local integrity verification and JSON export.
 - Individual risk-report export.
 - Installable PWA for desktop use.
 - Brave / Chrome extension for explicit, on-demand inspection of the active tab.
@@ -47,9 +47,9 @@ The extension requests only `activeTab`, `scripting` and `storage` permissions. 
 
 ## Verification
 
-The repository includes repeatable unit, portability, portfolio and real-browser extension integration tests. The integration harness uses an isolated Brave profile and a controlled high-risk fixture.
+The repository includes repeatable unit, portability, portfolio, real-browser extension and real-browser Evidence Ledger integrity tests. The integration harness uses an isolated Brave profile and a controlled high-risk fixture.
 
-Run `npm run check` and `npm test`. On Windows, `tests/run-extension-integration.ps1` exercises the extension against an isolated Brave instance.
+Run `npm run check` and `npm test`. On Windows, `tests/run-extension-integration.ps1` exercises the extension and `tests/run-ledger-browser-integration.ps1` verifies ledger integrity and tamper detection in isolated Brave sessions.
 
 The portfolio screenshot is reproducible with `scripts/capture-portfolio.ps1` and uses synthetic test data only.
 
@@ -64,3 +64,4 @@ See `EVIDENCE.md` for the verified baseline and `SECURITY.md` for security bound
 ## Licensing status
 
 This portfolio release does not grant an open-source license. Source is published for evaluation and demonstration; all rights remain reserved unless a later release states otherwise.
+

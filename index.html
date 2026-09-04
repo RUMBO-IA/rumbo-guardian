@@ -71,7 +71,7 @@
 
   <section class="panel full">
     <div class="section-head">
-      <div><span class="section-kicker">Evidence Ledger</span><h2>Historial local</h2><p>Registro operativo de análisis realizados en este navegador.</p></div>
+      <div><span class="section-kicker">Evidence Ledger</span><h2>Historial local</h2><p>Registro operativo de análisis realizados en este navegador.</p></div><span id="ledgerIntegrity" class="badge neutral">Sin evidencia</span>
       <div class="controls compact"><button id="exportBtn" class="ghost" type="button">Exportar historial</button><button id="clearHistoryBtn" class="ghost danger-text" type="button">Borrar historial</button></div>
     </div>
     <div id="history" class="history empty">Todavía no hay análisis guardados.</div>
@@ -84,5 +84,7 @@
   </section>
 </main>
 <script src="guardian-core.js"></script>
+<script src="evidence-chain.js"></script>
 <script src="app.js"></script>
 </body></html>
+

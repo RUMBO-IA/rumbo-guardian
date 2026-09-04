@@ -25,7 +25,7 @@ jobs:
       - name: Build static portfolio demo
         run: |
           mkdir -p site
-          cp index.html styles.css guardian-core.js app.js sw.js manifest.webmanifest site/
+          cp index.html styles.css guardian-core.js evidence-chain.js app.js sw.js manifest.webmanifest site/
           touch site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

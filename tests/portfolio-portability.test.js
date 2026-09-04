@@ -1,11 +1,11 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 const root = path.resolve(__dirname, '..');
 const tracked = [
   'README.md','PRODUCT.md','PORTFOLIO.md','SECURITY.md','EVIDENCE.md',
-  'app.js','guardian-core.js','server.js','START_GUARDIAN.cmd',
+  'app.js','guardian-core.js','evidence-chain.js','server.js','START_GUARDIAN.cmd',
   'extension/manifest.json','extension/popup.html','extension/popup.js','extension/core.js',
-  'tests/extension-integration.js','tests/v03.test.js'
+  'tests/extension-integration.js','tests/ledger-browser-integration.js','tests/run-ledger-browser-integration.ps1','tests/v03.test.js','tests/v040-ledger-integration.test.js'
 ];
 const bannedText = [
   String.raw`C:\Users\Usuario`,

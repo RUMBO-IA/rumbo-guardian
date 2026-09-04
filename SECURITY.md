@@ -14,3 +14,7 @@ The current engine combines explainable heuristics such as transport security, d
 
 ## Safety boundary
 A risk score is an analytical signal, not a definitive malware verdict. Single weak indicators are insufficient to classify a site as malicious. The interface preserves reasons so an operator can independently evaluate the evidence.
+
+## Evidence Ledger integrity boundary
+
+V0.4.0 chains local evidence entries with SHA-256 to expose in-place mutation and broken sequence continuity. This is tamper-evidence inside the local dataset, not remote attestation, notarization, trusted timestamping or immutable custody. An actor with complete control of browser storage can replace the entire ledger and recompute a new chain.

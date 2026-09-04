@@ -1,4 +1,4 @@
-# Verification Evidence — V0.3.1
+﻿# Verification Evidence — V0.4.0
 
 Verification date: 2026-09-04
 
@@ -7,9 +7,9 @@ Verification date: 2026-09-04
 - JavaScript syntax: PASS for application, shared core, service worker, server, extension and portfolio test.
 - V0.3 baseline regression tests: PASS.
 - Portfolio portability test: PASS.
-- V0.3.1 portfolio-polish test: PASS.
+- V0.4.0 portfolio-polish test: PASS.
 - Web manifest: PASS through repository parsing and serving baseline.
-- Extension manifest: RUMBO Guardian 0.3.1.
+- Extension manifest: RUMBO Guardian 0.4.0.
 - Pre-publication secret/path scan remains part of the release gate.
 
 ## Browser-extension integration
@@ -17,7 +17,7 @@ Verification date: 2026-09-04
 The repeatable integration harness loaded the unpacked extension in an isolated Brave 152 profile and exercised it against a controlled phishing fixture.
 
 Observed result:
-- Extension: RUMBO Guardian 0.3.1.
+- Extension: RUMBO Guardian 0.4.0.
 - Popup: opened successfully.
 - Risk score: 88/100.
 - Classification: Riesgo Alto.
@@ -35,3 +35,17 @@ Observed result:
 ## Release provenance
 
 Git history is the source of truth for commit-level provenance. The release ZIP is generated from Git-tracked files after the release commit is finalized, and its digest is recorded in GitHub Release metadata to avoid a self-referential package digest.
+
+## Tamper-evident Evidence Ledger
+
+V0.4.0 adds SHA-256 hash chaining to local analysis history. Each event stores a sequence number, the previous entry hash and its own deterministic entry hash. Existing V0.3 history is migrated locally into a verified chain.
+
+Fresh isolated-Brave integration evidence:
+- Two analysis events appended successfully.
+- Integrity badge: `Integridad verificada · 2`.
+- Programmatic chain verification: `valid=true`.
+- Controlled mutation of event 1 score from its stored value to `99`.
+- Integrity badge after mutation: `Integridad comprometida · evento 1`.
+- Browser integration test: PASS.
+
+The chain is tamper-evident, not an external timestamp or remote attestation. A party with full local-storage control can replace the complete ledger; V0.4.0 detects mutations relative to the stored chain structure but does not claim immutable remote custody.

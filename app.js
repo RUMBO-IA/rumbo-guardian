@@ -1,5 +1,6 @@
-const $=id=>document.getElementById(id);
+﻿const $=id=>document.getElementById(id);
 const Core=globalThis.RumboGuardianCore;
+const Chain=globalThis.RumboGuardianEvidenceChain;
 const state={last:null,installPrompt:null};
 const LIST_KEY='rumboGuardianDomainListsV03';
 const HISTORY_KEY='rumboGuardianHistory';
@@ -28,15 +29,31 @@ function drawLists(){
   }
   document.querySelectorAll('.chip button').forEach(btn=>btn.addEventListener('click',()=>removeDomain(btn.dataset.kind,btn.dataset.domain)));
 }function getHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch{return[]}}
-function saveHistory(result){
+async function ensureHistoryChain(){
   const history=getHistory();
-  history.unshift({...result,text:(result.text||'').slice(0,280)});
-  localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(0,80)));drawHistory();
+  if(!history.length)return [];
+  if(history.every(item=>!item.entryHash)){
+    const migrated=await Chain.buildChain(history.slice().reverse());
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(migrated));
+    return migrated;
+  }
+  return history;
 }
-function drawHistory(){
-  const history=getHistory(),box=$('history');
-  box.className='history'+(history.length?'':' empty');
-  box.innerHTML=history.length?history.map(item=>`<div class="hist"><span class="dot ${item.level}"></span><div><strong>Riesgo ${escapeHtml(item.label)} · ${item.score}/100</strong><br><small>${escapeHtml((item.text||item.url||'').replace(/\s+/g,' ').slice(0,145))}</small></div><small>${new Date(item.date).toLocaleString()}</small></div>`).join(''):'Todavía no hay análisis guardados.';
+async function saveHistory(result){
+  let history=await ensureHistoryChain();
+  const integrity=await Chain.verifyChain(history);
+  if(!integrity.valid){await drawHistory();return false;}
+  history=await Chain.appendEntry(history,{...result,text:(result.text||'').slice(0,280)});
+  if(history.length>80)history=await Chain.buildChain(history.slice(-80));
+  localStorage.setItem(HISTORY_KEY,JSON.stringify(history));await drawHistory();return true;
+}
+async function drawHistory(){
+  const history=await ensureHistoryChain(),box=$('history'),integrity=await Chain.verifyChain(history),badge=$('ledgerIntegrity');
+  badge.textContent=!history.length?'Sin evidencia':integrity.valid?`Integridad verificada · ${history.length}`:`Integridad comprometida · evento ${integrity.brokenAt}`;
+  badge.className='badge '+(!history.length?'neutral':integrity.valid?'safe':'danger');
+  const visible=history.slice().reverse();
+  box.className='history'+(visible.length?'':' empty');
+  box.innerHTML=visible.length?visible.map(item=>`<div class="hist"><span class="dot ${item.level}"></span><div><strong>Riesgo ${escapeHtml(item.label)} · ${item.score}/100</strong><br><small>${escapeHtml((item.text||item.url||'').replace(/\s+/g,' ').slice(0,145))}</small></div><small> #${item.sequence} · ${new Date(item.date).toLocaleString()}</small></div>`).join(''):'Todavía no hay análisis guardados.';
 }
 function render(result){
   state.last=result;
@@ -59,14 +76,14 @@ function currentAnalysis(){
 function downloadJson(name,data){  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),link=document.createElement('a');
   link.href=URL.createObjectURL(blob);link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
 }
-$('analyzeBtn').addEventListener('click',()=>{const r=currentAnalysis();render(r);if($('input').value.trim())saveHistory(r);});
+$('analyzeBtn').addEventListener('click',async()=>{const r=currentAnalysis();render(r);if($('input').value.trim())await saveHistory(r);});
 $('clearBtn').addEventListener('click',()=>{$('input').value='';$('input').focus();});
 $('trustBtn').addEventListener('click',()=>addDomain('trusted'));
 $('blockBtn').addEventListener('click',()=>addDomain('blocked'));
 $('domainInput').addEventListener('keydown',e=>{if(e.key==='Enter')addDomain('trusted');});
 $('clearHistoryBtn').addEventListener('click',()=>{localStorage.removeItem(HISTORY_KEY);drawHistory();});
-$('exportBtn').addEventListener('click',()=>downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.3.1',exportedAt:new Date().toISOString(),domainContext:getLists(),history:getHistory()}));
-$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.3.1',report:state.last});});
+$('exportBtn').addEventListener('click',async()=>{const history=await ensureHistoryChain(),integrity=await Chain.verifyChain(history);downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.4.0',exportedAt:new Date().toISOString(),domainContext:getLists(),integrity:integrity,history});});
+$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.4.0',report:state.last});});
 $('copyBtn').addEventListener('click',async()=>{
   if(!state.last)return;const r=state.last;
   const report=`RUMBO Guardian · Security Intelligence\nRisk: ${r.label} (${r.score}/100)\n${r.verdict}\n${r.reasons.map(x=>'- '+x.title+': '+x.detail).join('\n')}`;
