@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);
+﻿const $=id=>document.getElementById(id);
 const Core=globalThis.RumboGuardianCore;
 const Chain=globalThis.RumboGuardianEvidenceChain;
 const state={last:null,installPrompt:null};
@@ -82,8 +82,8 @@ $('trustBtn').addEventListener('click',()=>addDomain('trusted'));
 $('blockBtn').addEventListener('click',()=>addDomain('blocked'));
 $('domainInput').addEventListener('keydown',e=>{if(e.key==='Enter')addDomain('trusted');});
 $('clearHistoryBtn').addEventListener('click',()=>{localStorage.removeItem(HISTORY_KEY);drawHistory();});
-$('exportBtn').addEventListener('click',async()=>{const history=await ensureHistoryChain(),integrity=await Chain.verifyChain(history);downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.4.1',exportedAt:new Date().toISOString(),domainContext:getLists(),integrity:integrity,history});});
-$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.4.1',report:state.last});});
+$('exportBtn').addEventListener('click',async()=>{const history=await ensureHistoryChain(),integrity=await Chain.verifyChain(history);downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'0.4.2',exportedAt:new Date().toISOString(),domainContext:getLists(),integrity:integrity,history});});
+$('exportCurrentBtn').addEventListener('click',()=>{if(state.last)downloadJson('rumbo-guardian-risk-report.json',{product:'RUMBO Guardian',version:'0.4.2',report:state.last});});
 $('copyBtn').addEventListener('click',async()=>{
   if(!state.last)return;const r=state.last;
   const report=`RUMBO Guardian · Security Intelligence\nRisk: ${r.label} (${r.score}/100)\n${r.verdict}\n${r.reasons.map(x=>'- '+x.title+': '+x.detail).join('\n')}`;
@@ -95,3 +95,4 @@ const incoming=new URLSearchParams(location.search).get('scan');
 if(incoming){$('input').value=incoming;const result={...Core.analyzeMessage(incoming,'auto',getLists()),text:incoming,date:new Date().toISOString()};render(result);}
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 drawLists();drawHistory();
+

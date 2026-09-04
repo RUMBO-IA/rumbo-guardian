@@ -1,6 +1,6 @@
-# RUMBO Guardian
+﻿# RUMBO Guardian
 
-**RUMBO Security Intelligence** · v0.4.1
+**RUMBO Security Intelligence** · v0.4.2
 
 [![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
 [![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)
@@ -61,7 +61,19 @@ See `EVIDENCE.md` for the verified baseline and `SECURITY.md` for security bound
 - `SECURITY.md` — defensive scope and security boundaries.
 - `EVIDENCE.md` — verification evidence and reproducibility notes.
 
+## Offline evidence verification
+
+V0.4.2 includes a standalone Node.js verifier for exported Evidence Ledgers. It recalculates the SHA-256 chain without opening Guardian or trusting the embedded integrity field.
+
+```powershell
+node tools/verify-ledger.js portfolio/demo-ledger-v042.json
+node tools/verify-ledger.js <exported-ledger.json> --json
+```
+
+Exit code `0` means the chain is valid, `2` means the ledger is structurally invalid or tampered, and `1` means the file could not be read. The committed demo ledger is synthetic and reproducible.
 ## Licensing status
 
 This portfolio release does not grant an open-source license. Source is published for evaluation and demonstration; all rights remain reserved unless a later release states otherwise.
+
+
 

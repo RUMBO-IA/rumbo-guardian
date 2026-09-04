@@ -1,7 +1,7 @@
-# RUMBO Guardian — Portfolio Brief
+﻿# RUMBO Guardian — Portfolio Brief
 
 **Product family:** RUMBO Security Intelligence  
-**Current release:** V0.4.1  
+**Current release:** V0.4.2  
 **Status:** Verified local product build
 
 ## Problem
@@ -30,5 +30,6 @@ This project demonstrates browser-extension engineering, security heuristics, ex
 
 ## Boundary
 RUMBO Guardian is a risk-analysis layer, not an antivirus and not a claim that any target is malicious solely because one heuristic fires. High-confidence decisions require multiple signals and operator context.
+
 
 

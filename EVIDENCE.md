@@ -1,4 +1,4 @@
-﻿# Verification Evidence — V0.4.1
+﻿# Verification Evidence — V0.4.2
 
 Verification date: 2026-09-04
 
@@ -70,3 +70,18 @@ Fresh isolated-Brave verification:
 - Controlled ledger mutation: `Integridad comprometida · evento 1`.
 - Ledger browser integration: PASS.
 
+
+
+## V0.4.2 — Independent offline ledger verification
+
+V0.4.2 adds `tools/verify-ledger.js`, a standalone verifier for exported Guardian Evidence Ledgers. The verifier ignores any claimed integrity result inside the export and recomputes sequence continuity, previous-hash linkage and every SHA-256 entry hash from the actual history payload.
+
+Verification evidence:
+- TDD red phase: CLI test failed because the verifier did not exist.
+- Green phase: valid two-event ledger exits `0` and emits a deterministic root hash.
+- Controlled mutation of event 1 exits `2` and reports `brokenAt=1`.
+- Missing/unreadable input uses a distinct operational error path.
+- Synthetic committed fixture: `portfolio/demo-ledger-v042.json`.
+- Synthetic fixture root hash: `907d7915d5946bd8f06a47731bca9914f4ab4ba190589650d79cb2cec02a8484`.
+
+This closes an evidence-portability gap: a reviewer can now verify an exported ledger independently of the browser UI and localStorage state.

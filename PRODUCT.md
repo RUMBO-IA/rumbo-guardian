@@ -1,7 +1,7 @@
-# RUMBO Guardian
+﻿# RUMBO Guardian
 
 **Category:** RUMBO Security Intelligence  
-**Version:** 0.4.1  
+**Version:** 0.4.2  
 **Positioning:** Independent security layer for phishing, fraud, impersonation and suspicious-navigation analysis.
 
 ## Product principles
@@ -16,4 +16,5 @@ RUMBO Guardian demonstrates a modular security architecture: a shared risk engin
 
 ## V0.4.0 scope
 The product scores and explains suspicious messages and URLs, ranks visible links, stores trusted/blocked domain context locally, produces exportable evidence, and surfaces high-risk alerts in the browser extension.
+
 

@@ -1,0 +1,31 @@
+{
+  "product": "RUMBO Guardian",
+  "version": "0.4.2",
+  "exportedAt": "2026-09-04T12:02:00.000Z",
+  "synthetic": true,
+  "integrity": {
+    "valid": true,
+    "entries": 2,
+    "brokenAt": null
+  },
+  "history": [
+    {
+      "score": 18,
+      "label": "Bajo",
+      "date": "2026-09-04T12:00:00.000Z",
+      "text": "Synthetic low-risk fixture",
+      "sequence": 1,
+      "previousHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entryHash": "344031f497ef2fb2d05a679123ef2146ac3d42d5c9531a8b68d1646c658f5f0c"
+    },
+    {
+      "score": 91,
+      "label": "Alto",
+      "date": "2026-09-04T12:01:00.000Z",
+      "text": "Synthetic phishing fixture",
+      "sequence": 2,
+      "previousHash": "344031f497ef2fb2d05a679123ef2146ac3d42d5c9531a8b68d1646c658f5f0c",
+      "entryHash": "907d7915d5946bd8f06a47731bca9914f4ab4ba190589650d79cb2cec02a8484"
+    }
+  ]
+}
