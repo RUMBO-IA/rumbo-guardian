@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0f12" />
+  <meta name="description" content="RUMBO Guardian — RUMBO Security Intelligence para análisis de phishing, fraude, suplantación y navegación sospechosa." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>RUMBO Guardian · Security Intelligence</title>
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <div class="eyebrow">RUMBO SECURITY INTELLIGENCE</div>
+    <h1>RUMBO Guardian</h1>
+    <p class="tagline">Capa independiente de inteligencia de seguridad para phishing, fraude, suplantación y navegación sospechosa.</p>
+  </div>
+  <div class="principles"><span>Privacy-first</span><span>Local-first analysis</span><span>Private by design</span></div>
+</header>
+
+<main class="layout">
+  <section class="panel scanner">
+    <div class="section-head">
+      <div><span class="section-kicker">Threat Analysis</span><h2>Analizar contenido</h2><p>Mensajes, emails, SMS y URLs bajo un mismo motor de riesgo.</p></div>
+      <button id="installBtn" class="ghost hidden" type="button">Instalar Guardian</button>
+    </div>
+    <textarea id="input" rows="10" placeholder="Pegá un mensaje, email, SMS o URL para iniciar el análisis."></textarea>
+    <div class="controls">
+      <select id="kind" aria-label="Tipo de contenido">        <option value="auto">Detección automática</option>
+        <option value="message">Mensaje / email / SMS</option>
+        <option value="url">URL</option>
+      </select>
+      <button id="analyzeBtn" class="primary" type="button">Ejecutar análisis</button>
+      <button id="clearBtn" class="ghost" type="button">Limpiar</button>
+    </div>
+    <p class="privacy-note">El análisis primario se ejecuta en el dispositivo. Guardian no convierte una señal aislada en una acusación automática.</p>
+  </section>
+
+  <section class="panel result">
+    <div class="section-head">
+      <div><span class="section-kicker">Risk Assessment</span><h2>Resultado</h2><p id="resultTime">Sin análisis activo.</p></div>
+      <span id="riskBadge" class="badge neutral">Sin analizar</span>
+    </div>
+    <div class="score-row">
+      <div id="score" class="score neutral">—</div>
+      <div><h3 id="verdict">Esperando contenido</h3><p id="guidance">Guardian mostrará riesgo, evidencia y próximo paso recomendado.</p></div>
+    </div>
+    <div class="kpis">
+      <div><strong id="signalCount">0</strong><span>señales</span></div>
+      <div><strong id="urlCount">0</strong><span>URLs</span></div>
+      <div><strong id="charCount">0</strong><span>caracteres</span></div>
+    </div>
+    <div id="reasons" class="reasons empty">No hay señales analizadas.</div>
+    <div class="controls"><button id="copyBtn" class="ghost" type="button">Copiar informe</button><button id="exportCurrentBtn" class="ghost" type="button">Exportar informe</button></div>
+  </section>
+
+  <section class="panel full" id="domainLists">
+    <div class="section-head">      <div><span class="section-kicker">Operator Context</span><h2>Contexto de dominios</h2><p>Listas locales de confianza y bloqueo. La confianza contextual no oculta señales técnicas.</p></div>
+    </div>
+    <div class="domain-entry">
+      <input id="domainInput" type="text" placeholder="ejemplo.com" autocomplete="off" />
+      <button id="trustBtn" class="ghost" type="button">Agregar a confianza</button>
+      <button id="blockBtn" class="ghost danger-text" type="button">Agregar a bloqueo</button>
+    </div>
+    <div class="domain-grid">
+      <div><h3>Trusted context</h3><div id="trustedList" class="chips empty">Sin dominios definidos.</div></div>
+      <div><h3>Blocked context</h3><div id="blockedList" class="chips empty">Sin dominios definidos.</div></div>
+    </div>
+  </section>
+
+  <section class="panel full">
+    <div class="section-head">
+      <div><span class="section-kicker">Evidence Ledger</span><h2>Historial local</h2><p>Registro operativo de análisis realizados en este navegador.</p></div>
+      <div class="controls compact"><button id="exportBtn" class="ghost" type="button">Exportar historial</button><button id="clearHistoryBtn" class="ghost danger-text" type="button">Borrar historial</button></div>
+    </div>
+    <div id="history" class="history empty">Todavía no hay análisis guardados.</div>
+  </section>
+
+  <section class="panel full product-card">
+    <div><span class="section-kicker">RUMBO Portfolio</span><h2>Independent security layer</h2></div>
+    <p>RUMBO Guardian está diseñado como una capa modular de seguridad: motor explicable, contexto controlado por el operador, historial de evidencia y extensión de navegador para inspección bajo demanda.</p>
+    <div class="capabilities"><span>Phishing Intelligence</span><span>Fraud Signals</span><span>URL Risk</span><span>Domain Context</span><span>Explainable Evidence</span></div>
+  </section>
+</main>
+<script src="guardian-core.js"></script>
+<script src="app.js"></script>
+</body></html>

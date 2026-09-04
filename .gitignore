@@ -1,0 +1,15 @@
+# Local runtime / test artifacts
+brave-*/
+*.b64
+*.tail.b64
+*.log
+
+# OS/editor noise
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
+
+# Browser automation profiles
+portfolio/headless-profile/
+tests/brave-integration-profile/

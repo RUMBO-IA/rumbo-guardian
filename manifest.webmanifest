@@ -1,0 +1,9 @@
+{
+  "name": "RUMBO Guardian",
+  "short_name": "Guardian",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090d10",
+  "theme_color": "#0b0f12",
+  "description": "RUMBO Security Intelligence — análisis local-first de riesgo digital."
+}

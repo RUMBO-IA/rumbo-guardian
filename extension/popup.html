@@ -1,0 +1,24 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="popup.css"><title>RUMBO Guardian</title></head>
+<body>
+  <div class="eyebrow">RUMBO SECURITY INTELLIGENCE</div>
+  <h1>Guardian</h1>
+  <p class="sub">Inspección local bajo demanda de la pestaña activa.</p>
+  <button id="scan" class="primary">Analizar esta pestaña</button>
+  <section class="result">
+    <div class="riskline"><div id="score" class="score neutral">—</div><div><strong id="label">Sin analizar</strong><p id="verdict">Ejecutá el análisis para obtener evidencia.</p></div></div>
+    <div id="alert" class="alert hidden"></div>
+    <div id="url" class="url"></div>
+    <div id="details" class="details"></div>
+  </section>
+  <section class="context">
+    <div class="section-title">Contexto del dominio</div>
+    <div id="domainStatus" class="status">Neutral</div>
+    <div class="actions"><button id="trustDomainBtn">Confiar</button><button id="blockDomainBtn" class="danger">Bloquear</button><button id="neutralDomainBtn">Quitar contexto</button></div>
+  </section>
+  <section>
+    <div class="section-title">Enlaces con mayor riesgo</div>
+    <div id="rankedLinks" class="links empty">Sin ranking disponible.</div>
+  </section>
+  <button id="exportReportBtn" class="secondary">Exportar informe JSON</button>
+  <script src="core.js"></script><script src="popup.js"></script>
+</body></html>
