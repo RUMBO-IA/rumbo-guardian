@@ -12,6 +12,8 @@ It follows a **privacy-first, local-first** architecture: technical analysis run
 
 **Portfolio demo:** https://fscfede-beep.github.io/rumbo-guardian/
 
+**RUMBO public surfaces:** [rumbo.verso.fans](https://rumbo.verso.fans/) · [@RumboAGI on X](https://x.com/RumboAGI)
+
 ![RUMBO Guardian dashboard showing an explainable high-risk analysis](portfolio/dashboard-v031.png)
 
 ## Core capabilities
