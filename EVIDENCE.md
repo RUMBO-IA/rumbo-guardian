@@ -1,4 +1,4 @@
-# Verification Evidence - V0.9.0
+# Verification Evidence - V1.0.0
 
 Verification date: 2026-09-04
 
@@ -9,7 +9,7 @@ Verification date: 2026-09-04
 - Portfolio portability test: PASS.
 - V0.4.0 portfolio-polish test: PASS.
 - Web manifest: PASS through repository parsing and serving baseline.
-- Extension manifest: RUMBO Guardian 0.9.0.
+- Extension manifest: RUMBO Guardian 1.0.0.
 - Pre-publication secret/path scan remains part of the release gate.
 
 ## Browser-extension integration
@@ -17,7 +17,7 @@ Verification date: 2026-09-04
 The repeatable integration harness loaded the unpacked extension in an isolated Brave 152 profile and exercised it against a controlled phishing fixture.
 
 Observed result:
-- Extension: RUMBO Guardian 0.7.0.
+- Extension: RUMBO Guardian 1.0.0.
 - Popup: opened successfully.
 - Risk score: 100/100.
 - Classification: Riesgo Alto.
@@ -132,3 +132,7 @@ TDD reproduced the prior false-low behavior for `javascript:` and `data:` URLs b
 ## V0.9.0 - Multi-encoded redirect analysis
 
 TDD reproduced a false-low case where an external destination was hidden behind double percent-encoding in a recognized redirect parameter. The shared app/extension core now performs at most two additional decode passes, records `decodePasses`, and analyzes the recovered HTTP(S) target without network navigation. Same-site and unrelated-parameter regressions remain covered.
+
+## V1.0.0 - Redirect Chain Analysis
+
+TDD first reproduced the missing multi-hop chain behavior and then the missing cycle/depth/parameter guards. The shared app/extension core now follows recognized redirect parameters for at most three hops, preserves the chain, propagates nested risk, stops repeated routes and analyzes at most four recognized redirect targets per URL. Full `npm run check` and `npm test` pass. Isolated Brave 152.0.7977.83 loaded extension 1.0.0, produced 100/100 Riesgo Alto on the controlled fixture, and preserved the context-analysis path at 46/100 Riesgo Medio. Evidence Ledger browser tamper integration also passed.

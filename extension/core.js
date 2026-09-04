@@ -49,13 +49,18 @@
     if(score>=30) return {level:'caution',label:'Medio',verdict:'Se detectaron señales que justifican una verificación adicional.',guide:'Validá identidad, dominio y contexto antes de compartir datos o ejecutar acciones.'};
     return {level:'safe',label:'Bajo',verdict:'No se detectaron señales fuertes con las reglas locales actuales.',guide:'Mantené la verificación contextual para acciones sensibles.'};
   }
-  function analyzeUrl(raw,lists={},depth=0){
+  function analyzeUrl(raw,lists={},depth=0,seenRoutes){
     let value=String(raw||'').trim();
     if(/^www\./i.test(value)) value='https://'+value;
     const reasons=[]; let score=0,url;
     try{url=new URL(value);}catch{return {score:0,level:'neutral',label:'No válida',domain:'',domainStatus:'neutral',url:value,reasons:[{points:0,title:'URL no válida',detail:'No se pudo interpretar el enlace.',code:'invalid_url'}]};}
     const host=url.hostname.toLowerCase(), domain=normalizeDomain(host), parts=host.split('.'), tld=parts.at(-1)||'';
     const domainStatus=classifyDomain(domain,lists);
+    const routeKey=`${url.protocol}//${url.host}${url.pathname}`;
+    const seen=seenRoutes instanceof Set?new Set(seenRoutes):new Set();
+    const repeatedRoute=seen.has(routeKey);
+    if(!repeatedRoute) seen.add(routeKey);
+    if(repeatedRoute&&depth>0) add(reasons,0,'Ciclo de redireccion detectado','La cadena vuelve a una ruta ya inspeccionada y no se sigue de nuevo.','redirect_cycle');
     if(['javascript:','data:','vbscript:'].includes(url.protocol)){score+=65;add(reasons,65,'Esquema de contenido activo','El enlace puede ejecutar o incrustar contenido sin una navegación HTTPS normal.','active_content_scheme');}
     const shadowedBrand=brandDomains.find(canonical=>host.includes(canonical+'.')&&!domainMatches(host,canonical));
     if(url.protocol==='http:'){score+=12;add(reasons,12,'Conexión sin HTTPS','La URL usa HTTP sin cifrado.','http');}
@@ -70,9 +75,12 @@
     if(/login|verify|account|secure|update|password|payment|wallet|unlock|support/i.test(url.pathname+url.search)){score+=12;add(reasons,12,'Ruta sensible','Contiene términos asociados con acceso, verificación o pagos.','sensitive_path');}
     if(url.port&&!['80','443'].includes(url.port)){score+=8;add(reasons,8,'Puerto no habitual','Utiliza un puerto diferente de los estándares web.','unusual_port');}
     const redirectTargets=[];
-    if(depth<1){
+    let redirectCount=0;
+    if(depth<3&&!repeatedRoute){
       for(const [param,rawTarget] of url.searchParams.entries()){
         if(!redirectParams.has(param.toLowerCase())) continue;
+        if(redirectCount>=4){add(reasons,0,'Limite de destinos de redireccion','Se analizaron como maximo cuatro destinos reconocidos en esta URL.','redirect_target_limit');break;}
+        redirectCount+=1;
         let target=String(rawTarget||'').trim(),decodePasses=1;
         while(decodePasses<3&&!/^https?:\/\//i.test(target)){
           let decoded;
@@ -83,15 +91,19 @@
         if(target.startsWith('//')) target=url.protocol+target;
         if(!/^https?:\/\//i.test(target)) continue;
         let nested;
-        try{nested=analyzeUrl(target,lists,depth+1);}catch{continue;}
+        try{nested=analyzeUrl(target,lists,depth+1,new Set(seen));}catch{continue;}
         if(!nested.domain) continue;
         const external=!domainMatches(nested.domain,domain)&&!domainMatches(domain,nested.domain);
-        redirectTargets.push({param,url:target,domain:nested.domain,score:nested.score,label:nested.label,reasons:nested.reasons.map(r=>r.code),decodePasses});
+        const directHop={param,url:target,domain:nested.domain,score:nested.score,label:nested.label,reasons:nested.reasons.map(r=>r.code),decodePasses};
+        const nestedChain=nested.redirectTargets?.[0]?.chain||[];
+        redirectTargets.push({...directHop,chain:[directHop,...nestedChain]});
         if(external){
           score+=18;add(reasons,18,'Redireccion hacia dominio externo',`El parametro ${param} apunta a ${nested.domain}, distinto de ${domain}.`,'external_redirect_target');
           if(nested.score>=20){const p=Math.min(28,nested.score);score+=p;add(reasons,p,'Destino de redireccion con senales de riesgo',`${nested.domain} obtiene ${nested.score}/100 al analizarse de forma independiente.`,'nested_target_risk');}
         }
       }
+    } else if(depth>=3&&!repeatedRoute&&[...url.searchParams.keys()].some(k=>redirectParams.has(k.toLowerCase()))){
+      add(reasons,0,'Limite de profundidad de redireccion','La inspeccion local se detiene despues de tres saltos de redireccion.','redirect_depth_limit');
     }
     if(domainStatus==='blocked'){score=Math.max(score,95);add(reasons,40,'Dominio bloqueado localmente','Está en la lista de bloqueo definida por el operador.','local_block');}
     if(domainStatus==='trusted'){add(reasons,0,'Dominio reconocido localmente','Está en la lista de confianza, sin anular otras señales técnicas.','local_trust');}

@@ -1,7 +1,7 @@
 # RUMBO Guardian
 
 **Category:** RUMBO Security Intelligence
-**Version:** 0.9.0
+**Version:** 1.0.0
 **Positioning:** Independent security layer for phishing, fraud, impersonation and suspicious-navigation analysis.
 
 ## Product principles
@@ -27,3 +27,6 @@ Guardian analyzes form submission destinations during explicit active-tab inspec
 
 ## V0.9.0 scope
 Guardian detects multi-encoded external destinations inside recognized redirect parameters using bounded local decoding. The destination is not fetched or followed.
+
+## V1.0.0 scope
+Guardian performs bounded local redirect-chain analysis for up to three recognized hops. It preserves nested destination evidence, inherits material downstream risk, detects repeated routes, and caps redirect parameters to prevent unbounded local analysis.

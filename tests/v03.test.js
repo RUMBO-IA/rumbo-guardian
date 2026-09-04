@@ -23,7 +23,7 @@ assert.ok(html.includes('private by design'));
 assert.ok(html.includes('domainlists'));
 
 const manifest = JSON.parse(read('extension/manifest.json'));
-assert.match(manifest.version, /^0\.\d+\.\d+$/);
+assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
 assert.ok(manifest.permissions.includes('storage'));
 const popup = read('extension/popup.html');
 assert.ok(popup.includes('rankedLinks') && popup.includes('trustDomainBtn') && popup.includes('blockDomainBtn'));

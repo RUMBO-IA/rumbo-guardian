@@ -7,7 +7,7 @@ const html=read('index.html');
 const app=read('app.js');
 const pkg=JSON.parse(read('package.json'));
 
-assert.match(pkg.version,/^0\.\d+\.\d+$/);
+assert.match(pkg.version,/^\d+\.\d+\.\d+$/);
 assert.ok(html.includes('evidence-chain.js'));
 assert.ok(html.includes('id="ledgerIntegrity"'));
 assert.ok(app.includes('RumboGuardianEvidenceChain'));

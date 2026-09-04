@@ -1,6 +1,6 @@
 # RUMBO Guardian
 
-**RUMBO Security Intelligence** · v0.9.0
+**RUMBO Security Intelligence** · v1.0.0
 
 [![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
 [![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)
@@ -27,6 +27,7 @@ It follows a **privacy-first, local-first** architecture: technical analysis run
 - Brave / Chrome extension for explicit, on-demand inspection of the active tab.
 - Context-menu analysis for links and selected text before navigation or follow-up action.
 - Cross-origin form destination analysis, with stronger evidence when password fields submit off-site.
+- Bounded redirect-chain analysis up to three hops, with cycle, depth and parameter guards.
 - Ranking of visible links by risk.
 - High-risk local alerts.
 
@@ -98,3 +99,7 @@ Guardian now identifies `javascript:`, `data:` and `vbscript:` URL schemes as ac
 ## V0.9.0 - Multi-encoded redirect analysis
 
 Guardian now performs bounded decoding of recognized redirect parameters before navigation analysis, allowing a destination hidden behind a second percent-encoding layer to be inspected locally. Decoding is capped, applies only to known redirect parameters, preserves same-site behavior, and does not fetch or follow the destination.
+
+## V1.0.0 - Redirect Chain Analysis
+
+Guardian now follows recognized redirect parameters locally for up to three hops, preserving an explainable chain and propagating risk from nested destinations. Repeated routes stop recursion, excessive depth is surfaced explicitly, and each URL processes at most four recognized redirect targets. No network redirect is followed or fetched.
