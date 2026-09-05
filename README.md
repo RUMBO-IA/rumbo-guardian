@@ -2,15 +2,15 @@
 
 **RUMBO Security Intelligence** · v1.0.0
 
-[![Guardian CI](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/ci.yml)
-[![Guardian Pages](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/fscfede-beep/rumbo-guardian/actions/workflows/pages.yml)
-[![Release](https://img.shields.io/github/v/release/fscfede-beep/rumbo-guardian)](https://github.com/fscfede-beep/rumbo-guardian/releases)
+[![Guardian CI](https://github.com/RUMBO-IA/rumbo-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/RUMBO-IA/rumbo-guardian/actions/workflows/ci.yml)
+[![Guardian Pages](https://github.com/RUMBO-IA/rumbo-guardian/actions/workflows/pages.yml/badge.svg)](https://github.com/RUMBO-IA/rumbo-guardian/actions/workflows/pages.yml)
+[![Release](https://img.shields.io/github/v/release/RUMBO-IA/rumbo-guardian)](https://github.com/RUMBO-IA/rumbo-guardian/releases)
 
 RUMBO Guardian is an independent security intelligence layer for detecting and explaining signals associated with phishing, fraud, impersonation and suspicious navigation.
 
 It follows a **privacy-first, local-first** architecture: technical analysis runs on the operator's device, evidence remains inspectable, and contextual trust decisions never erase underlying technical indicators.
 
-**Portfolio demo:** https://fscfede-beep.github.io/rumbo-guardian/
+**Portfolio demo:** https://rumbo-ia.github.io/rumbo-guardian/
 
 **RUMBO public surfaces:** [rumbo.verso.fans](https://rumbo.verso.fans/) · [@RumboAGI on X](https://x.com/RumboAGI)
 
