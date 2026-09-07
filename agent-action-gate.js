@@ -8,6 +8,8 @@
   const DESTRUCTIVE_EFFECTS=new Set(['delete','purchase','credential']);
   const HIGH_RISK_EFFECTS=new Set(['execute','purchase','credential','external']);
   const MAX_AUTH_AGE_MS=15*60*1000;
+  let nodeCrypto=null;
+  try{ if(typeof require==='function') nodeCrypto=require('node:crypto'); }catch{}
 
   const uniq=a=>[...new Set((a||[]).filter(Boolean))];
   const asBool=v=>v===true;
@@ -27,6 +29,14 @@
     return {code,detail,severity};
   }
 
+  function normalizeAuthorization(value={}){
+    return {
+      authorizationId:String(value.authorizationId||'').trim(),
+      actionDigest:String(value.actionDigest||'').trim().toLowerCase(),
+      expiresAt:value.expiresAt??null
+    };
+  }
+
   function normalizeAction(action={}){
     return {
       id:String(action.id||'').trim(),
@@ -34,6 +44,7 @@
       target:String(action.target||'').trim(),
       purpose:String(action.purpose||'').trim(),
       explicitAuthorization:asBool(action.explicitAuthorization),
+      authorization:normalizeAuthorization(action.authorization||{}),
       freshConfirmation:asBool(action.freshConfirmation),
       intentAligned:action.intentAligned===true,
       targetVerified:asBool(action.targetVerified),
@@ -45,8 +56,34 @@
       authorizationObservedAt:action.authorizationObservedAt??null,
       replayKey:String(action.replayKey||'').trim(),
       previouslyExecutedReplayKeys:uniq(action.previouslyExecutedReplayKeys||[]),
+      previouslyExecutedAuthorizationIds:uniq(action.previouslyExecutedAuthorizationIds||[]),
       evidenceCount:Math.max(0,Number.parseInt(action.evidenceCount??0,10)||0)
     };
+  }
+
+  function canonicalActionPayload(rawAction={}){
+    const action=normalizeAction(rawAction);
+    return JSON.stringify({
+      id:action.id,
+      effect:action.effect,
+      target:action.target,
+      purpose:action.purpose,
+      reversible:action.reversible,
+      handlesSecrets:action.handlesSecrets,
+      destinationTrusted:action.destinationTrusted,
+      amount:action.amount,
+      spendLimit:action.spendLimit
+    });
+  }
+
+  function computeActionDigest(rawAction={},options={}){
+    const payload=canonicalActionPayload(rawAction);
+    if(typeof options.digestFn==='function'){
+      const value=options.digestFn(payload);
+      return typeof value==='string'?value.trim().toLowerCase():null;
+    }
+    if(nodeCrypto) return nodeCrypto.createHash('sha256').update(payload,'utf8').digest('hex');
+    return null;
   }
 
   function assessAgentAction(rawAction={},options={}){
@@ -84,9 +121,34 @@
 
     if(EXTERNAL_EFFECTS.has(action.effect)){
       const observed=parseTimeMs(action.authorizationObservedAt);
+      const expires=parseTimeMs(action.authorization.expiresAt);
+      const digest=computeActionDigest(action,options);
+
       if(observed===null) review('missing_or_invalid_authorization_time','External-effect authorization freshness cannot be validated.','fresh_authorization');
       else if(now-observed>MAX_AUTH_AGE_MS) review('stale_authorization','Authorization is older than the allowed freshness window.','fresh_authorization');
       else if(observed-now>60*1000) review('future_authorization_time','Authorization timestamp is unexpectedly in the future.','fresh_authorization');
+
+      if(!action.authorization.authorizationId){
+        review('missing_authorization_id','Bound authorization has no stable identifier.','authorization_binding');
+      } else if(action.previouslyExecutedAuthorizationIds.includes(action.authorization.authorizationId)){
+        deny('authorization_replay_detected','The bound authorization identifier was already executed.');
+      }
+
+      if(!action.authorization.actionDigest){
+        review('missing_action_digest','Authorization is not bound to an action digest.','authorization_binding');
+      } else if(!digest){
+        review('digest_verification_unavailable','Action digest cannot be independently recomputed in this runtime.','authorization_binding');
+      } else if(action.authorization.actionDigest!==digest){
+        deny('authorization_action_mismatch','Authorization digest does not match the proposed action.');
+      }
+
+      if(expires===null){
+        review('missing_or_invalid_authorization_expiry','Bound authorization expiry cannot be validated.','authorization_binding');
+      } else {
+        if(expires<=now) deny('authorization_expired','Bound authorization has expired.');
+        if(observed!==null&&expires-observed>MAX_AUTH_AGE_MS) deny('authorization_window_too_long','Bound authorization exceeds the maximum authorization window.');
+        if(observed!==null&&expires<observed) deny('authorization_expiry_before_observation','Authorization expiry predates its observation time.');
+      }
     }
 
     if(EXTERNAL_EFFECTS.has(action.effect)&&!action.target){
@@ -124,9 +186,10 @@
     return {
       decision,
       action,
+      actionDigest:computeActionDigest(action,options),
       reasons,
       requiredGates:uniq(requiredGates),
-      policyVersion:'RUMBO_AGENT_ACTION_GATE_V1',
+      policyVersion:'RUMBO_AGENT_ACTION_GATE_V2',
       failClosed:true
     };
   }
@@ -140,10 +203,10 @@
       decision,
       assessments,
       requiredGates:uniq(assessments.flatMap(x=>x.requiredGates)),
-      policyVersion:'RUMBO_AGENT_ACTION_GATE_V1',
+      policyVersion:'RUMBO_AGENT_ACTION_GATE_V2',
       failClosed:true
     };
   }
 
-  return {assessAgentAction,assessPlan,normalizeAction};
+  return {assessAgentAction,assessPlan,normalizeAction,canonicalActionPayload,computeActionDigest};
 });
