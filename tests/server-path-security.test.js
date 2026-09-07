@@ -6,9 +6,18 @@ const {spawn}=require('child_process');
 
 const root=path.resolve(__dirname,'..');
 const sibling=path.join(path.dirname(root),`${path.basename(root)}-escape-${process.pid}`);
+const linkName=`server-link-escape-${process.pid}`;
+const linkPath=path.join(root,linkName);
 const secret='RUMBO_SERVER_BOUNDARY_TEST_SECRET';
 fs.mkdirSync(sibling,{recursive:true});
 fs.writeFileSync(path.join(sibling,'secret.txt'),secret);
+let symlinkCreated=false;
+try{
+  fs.symlinkSync(sibling,linkPath,process.platform==='win32'?'junction':'dir');
+  symlinkCreated=true;
+}catch(error){
+  if(process.platform!=='win32')throw error;
+}
 
 const child=spawn(process.execPath,['server.js'],{cwd:root,stdio:['ignore','pipe','pipe']});
 let stderr='';
@@ -46,6 +55,15 @@ async function waitForServer(){
     assert.ok(traversal.startsWith('HTTP/1.1 403'),`encoded traversal must be rejected, got: ${traversal.split('\r\n')[0]}`);
     assert.ok(!traversal.includes(secret),'response must not disclose sibling file content');
 
+    if(symlinkCreated){
+      const symlinkEscape=await rawRequest(`/${encodeURIComponent(linkName)}/secret.txt`);
+      assert.ok(symlinkEscape.startsWith('HTTP/1.1 404'),`non-public symlink path must return 404, got: ${symlinkEscape.split('\r\n')[0]}`);
+      assert.ok(!symlinkEscape.includes(secret),'response must not disclose symlink target content');
+    }
+
+    const privateFile=await rawRequest('/package.json');
+    assert.ok(privateFile.startsWith('HTTP/1.1 404'),'non-public repository files must not be served');
+
     const malformed=await rawRequest('/%E0');
     assert.ok(malformed.startsWith('HTTP/1.1 400'),`malformed percent-encoding must return 400, got: ${malformed.split('\r\n')[0]}`);
 
@@ -55,10 +73,12 @@ async function waitForServer(){
     console.log('RUMBO Guardian server path-security tests: PASS');
   }finally{
     child.kill();
+    if(symlinkCreated)fs.rmSync(linkPath,{force:true});
     fs.rmSync(sibling,{recursive:true,force:true});
   }
 })().catch(error=>{
   child.kill();
+  if(symlinkCreated)fs.rmSync(linkPath,{force:true});
   fs.rmSync(sibling,{recursive:true,force:true});
   console.error(error);
   process.exitCode=1;
