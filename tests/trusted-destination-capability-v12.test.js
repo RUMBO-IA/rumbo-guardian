@@ -38,6 +38,9 @@ function signedAction(input,authorizationId,tool=TOOL_V1){
 function strictDispatcher(store,destinationAdapter,policy=POLICY_V1,extra={}){
   return Dispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v12':pub},trustedDestinationCapabilities:{'adapter-a':policy},gateOptions:{now:NOW},authorizeRecovery:async()=>true,authorizeReconciliation:async()=>true,...extra,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter}]});
 }
+function legacyDispatcher(store,destinationAdapter,extra={}){
+  return Dispatch.createToolDispatcher({allowLegacySelfAssertedDestinationCapabilities:true,replayStore:store,authorizeRecovery:async()=>true,authorizeReconciliation:async()=>true,...extra,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter}]});
+}
 function reserveStrict(store,input,authorizationId,policy=POLICY_V1){
   const capability=Cap.normalizeTrustedDestinationCapability(policy,'adapter-a','send-v12');
   const capabilityDigest=Cap.computeDestinationCapabilityDigest(capability);
@@ -92,6 +95,17 @@ async function main(){
       const result=await d2.reconcileUnknown({authorizationId:'v12-reconcile-rotation'});assert.equal(result.reason,'destination_capability_mismatch');assert.equal(reconcileCalls,0);assert.equal(store.getExecution('v12-reconcile-rotation').state,'FAILED_OR_UNKNOWN');store.close();ok();
     }
     {
+      const store=new SQLiteExecutionStoreV11(path.join(tmp,'recovery-downgrade.sqlite')),input={message:'reserved'};reserveStrict(store,input,'v12-recovery-downgrade');let calls=0;
+      const legacy=legacyDispatcher(store,adapter('adapter-a','',async()=>{calls++;return {};}));
+      const result=await legacy.resumeReserved({authorizationId:'v12-recovery-downgrade',input});assert.equal(result.reason,'destination_capability_downgrade');assert.equal(calls,0);assert.equal(store.getExecution('v12-recovery-downgrade').state,'RESERVED');store.close();ok();
+    }
+    {
+      const store=new SQLiteExecutionStoreV11(path.join(tmp,'reconcile-downgrade.sqlite'));let reconcileCalls=0;
+      const d1=strictDispatcher(store,adapter('adapter-a','provider-proto-v1',async()=>{throw new Error('lost');}));const input={message:'unknown'};await d1.dispatch({tool:'send',input,action:signedAction(input,'v12-reconcile-downgrade')});
+      const legacy=legacyDispatcher(store,adapter('adapter-a','',async()=>{throw new Error('must_not_execute');},async()=>{reconcileCalls++;return {};}));
+      const result=await legacy.reconcileUnknown({authorizationId:'v12-reconcile-downgrade'});assert.equal(result.reason,'destination_capability_downgrade');assert.equal(reconcileCalls,0);assert.equal(store.getExecution('v12-reconcile-downgrade').state,'FAILED_OR_UNKNOWN');store.close();ok();
+    }
+    {
       const legacy=Dispatch.createToolDispatcher({allowLegacySelfAssertedDestinationCapabilities:true,tools:[{name:'send',effect:'send',implementationId:'legacy-v11',destinationAdapter:{adapterId:'legacy',supportsIdempotency:true,execute:async()=>({}),reconcile:async()=>({})}}]});
       const listed=legacy.listTools();assert.equal(listed[0].destinationAdapterId,'legacy');assert.equal('destinationCapabilityDigest' in listed[0],false);ok();
     }
@@ -99,8 +113,8 @@ async function main(){
       const listed=strictDispatcher(null,adapter()).listTools()[0];assert.equal(listed.destinationCapabilityDigest,DIGEST_V1);assert.equal(listed.destinationCapabilityVersion,'cap-v1');ok();
     }
 
-    assert.equal(passed,9);
-    console.log('RUMBO Trusted Destination Capability V12: 9/9 PASS + fail-closed default + signed capability rotation guards + persisted recovery/reconciliation binding');
+    assert.equal(passed,11);
+    console.log('RUMBO Trusted Destination Capability V12: 11/11 PASS + fail-closed default + signed capability rotation + legacy downgrade guards + persisted recovery/reconciliation binding');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 main().catch(err=>{console.error(err);process.exit(1);});
