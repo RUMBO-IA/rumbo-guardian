@@ -27,7 +27,7 @@ A provider conformance profile binds:
 - evidence digest;
 - result `PASS`.
 
-The profile is exact-schema and data-only. Unknown fields, symbols, accessors, or malformed values fail closed. JCS + SHA-256 produces a stable `providerConformanceProfileDigest`.
+The profile is exact-schema and data-only. Unknown fields, symbols, accessors, non-string field values, or malformed values fail closed. JCS + SHA-256 produces a stable `providerConformanceProfileDigest`.
 
 The profile digest is included in the tool binding digest and is therefore transitively covered by the signed action digest.
 
@@ -42,7 +42,7 @@ A separate receipt binds the stable profile digest to a bounded observation wind
 - evaluator key ID;
 - canonical Ed25519 signature.
 
-The maximum receipt validity window is seven days. Receipts that are expired, too far in the future, too long-lived, malformed, signed by an untrusted evaluator, or cryptographically invalid fail closed.
+The receipt is also exact-schema/data-only: primitive strings are required and accessors or coercion objects are rejected without invoking them. The maximum receipt validity window is seven days. Receipts that are expired, too far in the future, too long-lived, malformed, signed by an untrusted evaluator, or cryptographically invalid fail closed.
 
 A receipt can be renewed without changing the profile digest. This is deliberate: a pending V13 execution may be recovered or reconciled using a new fresh receipt for the exact same tested profile. If the provider, protocol, capability, suite, or evidence digest changes, the profile digest changes and the old execution is not reinterpreted.
 
@@ -62,6 +62,11 @@ Recovery and reconciliation enforce symmetric bindings:
 V12 behavior without a provider conformance receipt is available only through explicit `allowCapabilityWithoutProviderConformance:true` compatibility mode. V11 self-asserted behavior remains behind its separate explicit legacy switch.
 
 Neither compatibility mode is the V13 default.
+
+## Audit findings fixed before merge
+
+1. The first expiry regression accidentally combined an unavailable destination store with an expired receipt. The oracle was corrected to use a valid signed V13 action and store while moving only the receipt clock.
+2. Post-CI static audit found implicit `String(...)` coercions and a pre-validation property read in profile digest calculation. A malicious `toString()` or getter could therefore run during validation. V13 now requires primitive strings, validates before field access, and has a dedicated data-only regression suite proving getters/coercion objects are not executed.
 
 ## Boundary
 
