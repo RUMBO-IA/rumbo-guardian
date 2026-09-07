@@ -34,7 +34,13 @@ function drawLists(){
     box.innerHTML=items.length?items.map(d=>`<span class="chip">${escapeHtml(d)}<button type="button" data-kind="${kind}" data-domain="${escapeHtml(d)}" aria-label="Quitar ${escapeHtml(d)}">×</button></span>`).join(''):'Sin dominios definidos.';
   }
   document.querySelectorAll('.chip button').forEach(btn=>btn.addEventListener('click',()=>removeDomain(btn.dataset.kind,btn.dataset.domain)));
-}function getHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch{return[]}}
+}function getHistory(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+    return Array.isArray(parsed)&&parsed.every(item=>item!==null&&typeof item==='object'&&!Array.isArray(item))?parsed:[];
+  }
+  catch{return[]}
+}
 async function ensureHistoryChain(){
   const history=getHistory();
   if(!history.length)return [];
@@ -101,4 +107,3 @@ const incoming=new URLSearchParams(location.search).get('scan');
 if(incoming){$('input').value=incoming;const result={...Core.analyzeMessage(incoming,'auto',getLists()),text:incoming,date:new Date().toISOString()};render(result);}
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 drawLists();drawHistory();
-
