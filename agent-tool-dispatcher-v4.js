@@ -1,5 +1,6 @@
 const crypto=require('node:crypto');
 const {prepareAuthorizedAction}=require('./agent-authorized-dispatch.js');
+const {canonicalizeJcs}=require('./jcs-canonicalize-v8.js');
 
 const DEFAULT_LIMITS=Object.freeze({maxDepth:64,maxNodes:10000});
 
@@ -29,32 +30,6 @@ function ownDataEntries(value){
   });
 }
 
-function canonicalize(value,seen=new Set(),depth=0,state={nodes:0,...DEFAULT_LIMITS}){
-  enterNode(state,depth);
-  if(value===null) return 'null';
-  const t=typeof value;
-  if(t==='string'||t==='boolean') return JSON.stringify(value);
-  if(t==='number'){
-    if(!Number.isFinite(value)) throw new Error('non_finite_number');
-    return JSON.stringify(value);
-  }
-  if(t==='undefined'||t==='function'||t==='symbol'||t==='bigint') throw new Error('unsupported_input_type');
-  if(seen.has(value)) throw new Error('cyclic_input');
-  seen.add(value);
-  try{
-    if(Array.isArray(value)){
-      assertDensePlainArray(value);
-      const parts=[];
-      for(let i=0;i<value.length;i++) parts.push(canonicalize(value[i],seen,depth+1,state));
-      return `[${parts.join(',')}]`;
-    }
-    const entries=ownDataEntries(value);
-    return `{${entries.map(([k,v])=>`${JSON.stringify(k)}:${canonicalize(v,seen,depth+1,state)}`).join(',')}}`;
-  }finally{
-    seen.delete(value);
-  }
-}
-
 function deepCloneAndFreeze(value,seen=new Set(),depth=0,state={nodes:0,...DEFAULT_LIMITS}){
   enterNode(state,depth);
   if(value===null||typeof value!=='object'){
@@ -77,6 +52,10 @@ function deepCloneAndFreeze(value,seen=new Set(),depth=0,state={nodes:0,...DEFAU
   }finally{
     seen.delete(value);
   }
+}
+
+function canonicalize(value){
+  return canonicalizeJcs(value,DEFAULT_LIMITS);
 }
 
 function computeParametersDigest(input){
@@ -132,7 +111,7 @@ function createToolDispatcher(options={}){
       parametersDigest:inputDigest,
       authorizationId:preflight.ticket.authorizationId,
       authorizerKeyId:preflight.ticket.authorizerKeyId,
-      dispatchPolicyVersion:'RUMBO_AGENT_TOOL_DISPATCH_V6_OUTCOME_BOUND'
+      dispatchPolicyVersion:'RUMBO_AGENT_TOOL_DISPATCH_V8_JCS_BOUND'
     };
 
     try{
