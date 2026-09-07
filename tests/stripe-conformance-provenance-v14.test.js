@@ -27,21 +27,21 @@ async function main(){
   let passed=0;const ok=()=>passed++;
   const capability='b'.repeat(64),adapterId='stripe-payment-intents-v1';
   {
-    const forgedEvidence={schema:V14.EVIDENCE_SCHEMA,providerId:'stripe',apiVersion:V14.STRIPE_API_VERSION,suiteVersion:V14.SUITE_VERSION,runId:'forged',observedAt:'2026-09-07T23:20:00.000Z',result:'PASS',checks:[]};
+    const forgedEvidence={schema:V14.EVIDENCE_SCHEMA,providerId:'stripe',apiVersion:V14.STRIPE_API_VERSION,suiteVersion:V14.SUITE_VERSION,executionMode:'LIVE_STRIPE_TEST_API',runId:'forged',observedAt:'2026-09-07T23:20:00.000Z',result:'PASS',checks:[]};
     const forged={result:'PASS',evidence:forgedEvidence,evidenceDigest:sha(forgedEvidence)};
     assert.throws(()=>V14.buildV13Profile({runResult:forged,adapterId,capabilityDigest:capability}),/live_provider_conformance_not_proven/);ok();
   }
   {
     const real=await passRun();const cloned=JSON.parse(JSON.stringify(real));
-    assert.equal(cloned.result,'PASS');assert.throws(()=>V14.buildV13Profile({runResult:cloned,adapterId,capabilityDigest:capability}),/live_provider_conformance_not_proven/);ok();
+    assert.equal(cloned.result,'PASS');assert.equal(cloned.evidence.executionMode,'BEHAVIORAL_MODEL');assert.throws(()=>V14.buildV13Profile({runResult:cloned,adapterId,capabilityDigest:capability}),/live_provider_conformance_not_proven/);ok();
   }
   {
-    const real=await passRun();const profile=V14.buildV13Profile({runResult:real,adapterId,capabilityDigest:capability});assert.equal(profile.evidenceDigest,real.evidenceDigest);ok();
+    const modeled=await passRun();assert.equal(modeled.result,'PASS');assert.equal(modeled.evidence.executionMode,'BEHAVIORAL_MODEL');assert.throws(()=>V14.buildV13Profile({runResult:modeled,adapterId,capabilityDigest:capability}),/live_provider_conformance_not_proven/);ok();
   }
   {
     const real=await passRun();assert.ok(Object.isFrozen(real));assert.ok(Object.isFrozen(real.evidence));assert.ok(Object.isFrozen(real.evidence.checks));assert.throws(()=>{real.evidence.checks.push({name:'fake',passed:true});},TypeError);ok();
   }
   assert.equal(passed,4);
-  console.log('RUMBO Stripe Conformance Provenance V14: 4/4 PASS + forged/cloned PASS rejection + frozen evidence');
+  console.log('RUMBO Stripe Conformance Provenance V14: 4/4 PASS + forged/cloned/model PASS non-promotion + frozen evidence');
 }
 main().catch(err=>{console.error(err);process.exit(1);});
