@@ -56,6 +56,10 @@ function deepCloneAndFreeze(value,seen=new Set(),depth=0,state={nodes:0,...DEFAU
 
 function canonicalize(value){ return canonicalizeJcs(value,DEFAULT_LIMITS); }
 function computeParametersDigest(input){ return crypto.createHash('sha256').update(canonicalize(input),'utf8').digest('hex'); }
+function computeToolBindingDigest(tool){
+  const payload={effect:String(tool&&tool.effect||'').trim().toLowerCase(),implementationId:String(tool&&tool.implementationId||'').trim(),tool:String(tool&&tool.name||tool&&tool.tool||'').trim()};
+  return crypto.createHash('sha256').update(canonicalize(payload),'utf8').digest('hex');
+}
 
 function createToolDispatcher(options={}){
   const defs=new Map();
@@ -81,11 +85,11 @@ function createToolDispatcher(options={}){
   function receiptFor(def,binding,authorizationId,extra={}){
     const auth=store&&typeof store.get==='function'?store.get(authorizationId):null;
     return {
-      tool:def.name,effect:def.effect,implementationId:def.implementationId,
+      tool:def.name,effect:def.effect,implementationId:def.implementationId,toolBindingDigest:computeToolBindingDigest(def),
       actionId:binding.actionId,actionDigest:binding.actionDigest,parametersDigest:binding.parametersDigest,
       authorizationId,authorizerKeyId:extra.authorizerKeyId||auth&&auth.keyId||null,
       recovery:extra.recovery===true,
-      dispatchPolicyVersion:journalCapable?'RUMBO_AGENT_TOOL_DISPATCH_V10_CRASH_AWARE':'RUMBO_AGENT_TOOL_DISPATCH_V8_JCS_BOUND'
+      dispatchPolicyVersion:journalCapable?'RUMBO_AGENT_TOOL_DISPATCH_V10_CRASH_AWARE_TOOL_BOUND':'RUMBO_AGENT_TOOL_DISPATCH_V8_JCS_BOUND'
     };
   }
 
@@ -126,7 +130,8 @@ function createToolDispatcher(options={}){
       inputDigest=computeParametersDigest(frozenInput);
     }catch(err){ return denied('input_binding',String(err&&err.message||'invalid_input')); }
 
-    const effectiveAction={...(request.action||{}),effect:def.effect,parametersDigest:inputDigest};
+    const toolBindingDigest=journalCapable?computeToolBindingDigest(def):'';
+    const effectiveAction={...(request.action||{}),effect:def.effect,parametersDigest:inputDigest,...(journalCapable?{toolBindingDigest}:{})};
     const executionContext=journalCapable?{tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest:inputDigest}:null;
     const preflight=prepareAuthorizedAction(effectiveAction,{
       trustedPublicKeys:options.trustedPublicKeys||{},replayStore:store,gateOptions:options.gateOptions||{},executionContext
@@ -164,7 +169,7 @@ function createToolDispatcher(options={}){
 
     const recoveryContext=Object.freeze({
       authorizationId,currentState:current.state,actionId:current.actionId,actionDigest:current.actionDigest,
-      tool:current.tool,effect:current.effect,implementationId:current.implementationId,parametersDigest:current.parametersDigest
+      tool:current.tool,effect:current.effect,implementationId:current.implementationId,toolBindingDigest:computeToolBindingDigest(def),parametersDigest:current.parametersDigest
     });
     if(typeof options.authorizeRecovery!=='function') return denied('recovery','recovery_authority_unavailable',{execution:current});
     let approved=false;
@@ -182,4 +187,4 @@ function createToolDispatcher(options={}){
   return Object.freeze({dispatch,resumeReserved,listTools});
 }
 
-module.exports={DEFAULT_LIMITS,canonicalize,computeParametersDigest,createToolDispatcher};
+module.exports={DEFAULT_LIMITS,canonicalize,computeParametersDigest,computeToolBindingDigest,createToolDispatcher};
