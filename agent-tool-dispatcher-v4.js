@@ -74,7 +74,7 @@ function createToolDispatcher(options={}){
 
   const store=options.replayStore;
   const journalCapable=!!(store&&typeof store.consumeWithExecution==='function'&&typeof store.claimExecution==='function'&&typeof store.finishExecution==='function'&&typeof store.getExecution==='function');
-  const destinationCapable=!!(journalCapable&&typeof store.getDestination==='function'&&typeof store.finishDestinationExecution==='function');
+  const destinationCapable=!!(journalCapable&&typeof store.getDestination==='function'&&typeof store.finishDestinationExecution==='function'&&typeof store.markExecutionUnknown==='function');
   const denied=(stage,reason,extra={})=>({decision:'DENY',authorizationDecision:extra.authorizationDecision||'DENY',stage,reason,executed:false,invocationAttempted:false,effectOutcome:'NOT_ATTEMPTED',receipt:null,...extra});
 
   function listTools(){
@@ -90,7 +90,7 @@ function createToolDispatcher(options={}){
       actionId:binding.actionId,actionDigest:binding.actionDigest,parametersDigest:binding.parametersDigest,
       authorizationId,authorizerKeyId:extra.authorizerKeyId||auth&&auth.keyId||null,recovery:extra.recovery===true,
       destinationAdapterId:def.destinationAdapterId||null,idempotencyKey:extra.idempotencyKey||null,
-      dispatchPolicyVersion:def.destinationAdapter?'RUMBO_AGENT_TOOL_DISPATCH_V11_DESTINATION_IDEMPOTENCY':journalCapable?'RUMBO_AGENT_TOOL_DISPATCH_V10_CRASH_AWARE_TOOL_BOUND':'RUMBO_AGENT_TOOL_DISPATCH_V8_JCS_BOUND'
+      dispatchPolicyVersion:def.destinationAdapter?'RUMBO_AGENT_TOOL_DISPATCH_V11_DESTINATION_IDEMPOTENCY':'RUMBO_AGENT_TOOL_DISPATCH_V10_CRASH_AWARE_TOOL_BOUND'
     };
   }
 
@@ -109,23 +109,33 @@ function createToolDispatcher(options={}){
     }
   }
 
+  function markUnknown(authorizationId){
+    try{return store.markExecutionUnknown(authorizationId);}catch(err){return {marked:false,reason:'execution_journal_error',error:String(err&&err.message||err)};}
+  }
+
   async function invokeDestination(def,frozenInput,binding,authorizationId,receipt,idempotencyKey){
     let rawEvidence;
     try{
       rawEvidence=await def.destinationAdapter.execute(frozenInput,Object.freeze({authorizationId,idempotencyKey,actionId:binding.actionId,actionDigest:binding.actionDigest,parametersDigest:binding.parametersDigest,tool:def.name,effect:def.effect,implementationId:def.implementationId}));
     }catch(err){
-      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_execute_unknown',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',error:String(err&&err.message||'destination_execute_error'),receipt};
+      const unknown=markUnknown(authorizationId);
+      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_execute_unknown',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',error:String(err&&err.message||'destination_execute_error'),unknown,receipt};
     }
     const evidence=normalizeEvidence(rawEvidence,{adapterId:def.destinationAdapterId,idempotencyKey});
     if(!evidence.valid){
-      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_evidence_invalid',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',evidence,receipt};
+      const unknown=markUnknown(authorizationId);
+      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_evidence_invalid',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',evidence,unknown,receipt};
     }
     if(evidence.evidence.status==='PENDING'||evidence.evidence.status==='UNKNOWN'){
-      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_pending',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',destinationEvidence:evidence.evidence,receipt};
+      const unknown=markUnknown(authorizationId);
+      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_pending',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',destinationEvidence:evidence.evidence,unknown,receipt};
     }
     const terminal=evidence.evidence.status;
     let finalized;try{finalized=store.finishDestinationExecution(authorizationId,terminal,evidence.evidenceDigest);}catch(err){finalized={finished:false,reason:'execution_journal_error',error:String(err&&err.message||err)};}
-    if(!finalized.finished) return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_finalize_error',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',destinationEvidence:evidence.evidence,finalization:finalized,receipt};
+    if(!finalized.finished){
+      const unknown=markUnknown(authorizationId);
+      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_finalize_error',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',destinationEvidence:evidence.evidence,finalization:finalized,unknown,receipt};
+    }
     return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_terminal',executed:true,invocationAttempted:true,effectOutcome:terminal,destinationEvidence:evidence.evidence,finalization:finalized,receipt};
   }
 
@@ -190,12 +200,12 @@ function createToolDispatcher(options={}){
     return def.destinationAdapter?invokeDestination(def,frozenInput,binding,authorizationId,receipt,destination.idempotencyKey):invokeLegacy(def,frozenInput,binding,authorizationId,receipt);
   }
 
-  async function reconcileStarted(request={}){
+  async function reconcileUnknown(request={}){
     if(!destinationCapable) return denied('reconciliation','destination_store_unavailable');
     const authorizationId=String(request.authorizationId||'').trim();
     const execution=store.getExecution(authorizationId),destination=store.getDestination(authorizationId);
     if(!execution||!destination) return denied('reconciliation','destination_execution_not_found');
-    if(execution.state!=='STARTED'||destination.state!=='PENDING') return denied('reconciliation','destination_execution_not_reconcilable',{execution,destination});
+    if(execution.state!=='FAILED_OR_UNKNOWN'||destination.state!=='PENDING') return denied('reconciliation','destination_execution_not_reconcilable',{execution,destination});
     const def=defs.get(execution.tool);
     if(!def||!def.destinationAdapter||def.destinationAdapterId!==destination.adapterId||def.implementationId!==execution.implementationId) return denied('reconciliation','destination_adapter_mismatch',{execution,destination});
     if(typeof options.authorizeReconciliation!=='function') return denied('reconciliation','reconciliation_authority_unavailable',{execution,destination});
@@ -212,7 +222,7 @@ function createToolDispatcher(options={}){
     return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:finalized.finished?'reconciled':'reconciliation_finalize_error',executed:false,invocationAttempted:false,effectOutcome:finalized.finished?terminal:'FAILED_OR_UNKNOWN',destinationEvidence:evidence.evidence,finalization:finalized,receipt:null};
   }
 
-  return Object.freeze({dispatch,resumeReserved,reconcileStarted,listTools});
+  return Object.freeze({dispatch,resumeReserved,reconcileUnknown,listTools});
 }
 
 module.exports={DEFAULT_LIMITS,canonicalize,computeParametersDigest,computeToolBindingDigest,createToolDispatcher};
