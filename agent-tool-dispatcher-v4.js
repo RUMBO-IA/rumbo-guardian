@@ -54,75 +54,130 @@ function deepCloneAndFreeze(value,seen=new Set(),depth=0,state={nodes:0,...DEFAU
   }
 }
 
-function canonicalize(value){
-  return canonicalizeJcs(value,DEFAULT_LIMITS);
-}
-
-function computeParametersDigest(input){
-  return crypto.createHash('sha256').update(canonicalize(input),'utf8').digest('hex');
-}
+function canonicalize(value){ return canonicalizeJcs(value,DEFAULT_LIMITS); }
+function computeParametersDigest(input){ return crypto.createHash('sha256').update(canonicalize(input),'utf8').digest('hex'); }
 
 function createToolDispatcher(options={}){
   const defs=new Map();
   for(const raw of options.tools||[]){
     const name=String(raw&&raw.name||'').trim();
     const effect=String(raw&&raw.effect||'').trim().toLowerCase();
+    const implementationId=String(raw&&raw.implementationId||'').trim();
     if(!name||typeof raw.handler!=='function') throw new Error('invalid_tool_definition');
     if(defs.has(name)) throw new Error('duplicate_tool_name');
-    defs.set(name,Object.freeze({name,effect,handler:raw.handler}));
+    defs.set(name,Object.freeze({name,effect,implementationId,handler:raw.handler}));
   }
 
-  function listTools(){
-    return [...defs.values()].map(({name,effect})=>Object.freeze({name,effect}));
+  const store=options.replayStore;
+  const journalCapable=!!(store&&typeof store.consumeWithExecution==='function'&&typeof store.claimExecution==='function'&&typeof store.finishExecution==='function'&&typeof store.getExecution==='function');
+  const denied=(stage,reason,extra={})=>({decision:'DENY',authorizationDecision:extra.authorizationDecision||'DENY',stage,reason,executed:false,invocationAttempted:false,effectOutcome:'NOT_ATTEMPTED',receipt:null,...extra});
+
+  function listTools(){ return [...defs.values()].map(({name,effect,implementationId})=>Object.freeze({name,effect,implementationId:implementationId||null})); }
+  function bindingFor(def,actionId,actionDigest,parametersDigest){
+    return {actionId,actionDigest,tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest};
+  }
+  function receiptFor(def,binding,authorizationId,extra={}){
+    const auth=store&&typeof store.get==='function'?store.get(authorizationId):null;
+    return {
+      tool:def.name,effect:def.effect,implementationId:def.implementationId,
+      actionId:binding.actionId,actionDigest:binding.actionDigest,parametersDigest:binding.parametersDigest,
+      authorizationId,authorizerKeyId:extra.authorizerKeyId||auth&&auth.keyId||null,
+      recovery:extra.recovery===true,
+      dispatchPolicyVersion:journalCapable?'RUMBO_AGENT_TOOL_DISPATCH_V10_CRASH_AWARE':'RUMBO_AGENT_TOOL_DISPATCH_V8_JCS_BOUND'
+    };
+  }
+
+  async function invokeClaimed(def,frozenInput,binding,authorizationId,receipt){
+    try{
+      const result=await def.handler(frozenInput,Object.freeze({ticket:Object.freeze({authorizationId,...binding}),receipt:Object.freeze({...receipt})}));
+      if(journalCapable){
+        let finalized;
+        try{finalized=store.finishExecution(authorizationId,'SUCCEEDED');}catch(err){finalized={finished:false,reason:'execution_journal_error',error:String(err&&err.message||err)};}
+        if(!finalized.finished) return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'journal_finalize_error',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',result,finalization:finalized,receipt};
+      }
+      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'executed',executed:true,invocationAttempted:true,effectOutcome:'SUCCEEDED',result,receipt};
+    }catch(err){
+      let finalized=null;
+      if(journalCapable){
+        try{finalized=store.finishExecution(authorizationId,'FAILED');}catch(finalErr){finalized={finished:false,reason:'execution_journal_error',error:String(finalErr&&finalErr.message||finalErr)};}
+      }
+      return {
+        decision:'ALLOW',authorizationDecision:'ALLOW',stage:finalized&&finalized.finished===false?'journal_finalize_error':'handler_error',
+        executed:true,invocationAttempted:true,effectOutcome:finalized&&finalized.finished===false?'FAILED_OR_UNKNOWN':'FAILED',
+        error:String(err&&err.message||'handler_error'),finalization:finalized,receipt
+      };
+    }
   }
 
   async function dispatch(request={}){
-    const denied=(stage,reason,extra={})=>({decision:'DENY',authorizationDecision:'DENY',stage,reason,executed:false,invocationAttempted:false,effectOutcome:'NOT_ATTEMPTED',receipt:null,...extra});
     const toolName=String(request.tool||'').trim();
     const def=defs.get(toolName);
     if(!def) return denied('tool_lookup','unknown_tool');
 
     const claimedEffect=String(request.action&&request.action.effect||'').trim().toLowerCase();
     if(claimedEffect&&claimedEffect!==def.effect) return denied('tool_binding','tool_effect_mismatch');
+    if(journalCapable&&!def.implementationId) return denied('execution_binding','missing_tool_implementation_id');
 
     let frozenInput,inputDigest;
     try{
       frozenInput=deepCloneAndFreeze(request.input===undefined?null:request.input);
       inputDigest=computeParametersDigest(frozenInput);
-    }catch(err){
-      return denied('input_binding',String(err&&err.message||'invalid_input'));
-    }
+    }catch(err){ return denied('input_binding',String(err&&err.message||'invalid_input')); }
 
     const effectiveAction={...(request.action||{}),effect:def.effect,parametersDigest:inputDigest};
+    const executionContext=journalCapable?{tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest:inputDigest}:null;
     const preflight=prepareAuthorizedAction(effectiveAction,{
-      trustedPublicKeys:options.trustedPublicKeys||{},
-      replayStore:options.replayStore,
-      gateOptions:options.gateOptions||{}
+      trustedPublicKeys:options.trustedPublicKeys||{},replayStore:store,gateOptions:options.gateOptions||{},executionContext
     });
     if(preflight.decision!=='ALLOW'){
       return {decision:preflight.decision,authorizationDecision:preflight.decision,stage:preflight.stage,reason:'preflight_not_allowed',executed:false,invocationAttempted:false,effectOutcome:'NOT_ATTEMPTED',preflight,receipt:null};
     }
 
-    const receipt={
-      tool:toolName,
-      effect:def.effect,
-      actionId:preflight.ticket.actionId,
-      actionDigest:preflight.ticket.actionDigest,
-      parametersDigest:inputDigest,
-      authorizationId:preflight.ticket.authorizationId,
-      authorizerKeyId:preflight.ticket.authorizerKeyId,
-      dispatchPolicyVersion:'RUMBO_AGENT_TOOL_DISPATCH_V8_JCS_BOUND'
-    };
-
-    try{
-      const result=await def.handler(frozenInput,Object.freeze({ticket:Object.freeze({...preflight.ticket}),receipt:Object.freeze({...receipt})}));
-      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'executed',executed:true,invocationAttempted:true,effectOutcome:'SUCCEEDED',result,receipt};
-    }catch(err){
-      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'handler_error',executed:true,invocationAttempted:true,effectOutcome:'FAILED',error:String(err&&err.message||'handler_error'),receipt};
+    const binding=bindingFor(def,preflight.ticket.actionId,preflight.ticket.actionDigest,inputDigest);
+    const receipt=receiptFor(def,binding,preflight.ticket.authorizationId,{authorizerKeyId:preflight.ticket.authorizerKeyId});
+    if(journalCapable){
+      let claim;
+      try{claim=store.claimExecution(preflight.ticket.authorizationId,binding);}catch(err){claim={claimed:false,reason:'execution_journal_error',error:String(err&&err.message||err)};}
+      if(!claim.claimed) return denied('execution_claim',claim.reason,{authorizationDecision:'ALLOW',claim,receipt});
     }
+    return invokeClaimed(def,frozenInput,binding,preflight.ticket.authorizationId,receipt);
   }
 
-  return Object.freeze({dispatch,listTools});
+  async function resumeReserved(request={}){
+    if(!journalCapable) return denied('recovery','execution_journal_unavailable');
+    const authorizationId=String(request.authorizationId||'').trim();
+    const current=store.getExecution(authorizationId);
+    if(!current) return denied('recovery','execution_not_found');
+    if(current.state!=='RESERVED') return denied('recovery','execution_not_resumable',{execution:current});
+    const def=defs.get(current.tool);
+    if(!def) return denied('recovery','recovery_tool_unavailable',{execution:current});
+    if(!def.implementationId||def.implementationId!==current.implementationId||def.effect!==current.effect) return denied('recovery','tool_implementation_mismatch',{execution:current});
+
+    let frozenInput,inputDigest;
+    try{
+      frozenInput=deepCloneAndFreeze(request.input===undefined?null:request.input);
+      inputDigest=computeParametersDigest(frozenInput);
+    }catch(err){ return denied('recovery_input',String(err&&err.message||'invalid_input')); }
+    if(inputDigest!==current.parametersDigest) return denied('recovery','recovery_parameters_mismatch',{execution:current});
+
+    const recoveryContext=Object.freeze({
+      authorizationId,currentState:current.state,actionId:current.actionId,actionDigest:current.actionDigest,
+      tool:current.tool,effect:current.effect,implementationId:current.implementationId,parametersDigest:current.parametersDigest
+    });
+    if(typeof options.authorizeRecovery!=='function') return denied('recovery','recovery_authority_unavailable',{execution:current});
+    let approved=false;
+    try{ approved=await options.authorizeRecovery(recoveryContext)===true; }catch{}
+    if(!approved) return denied('recovery','recovery_not_approved',{execution:current});
+
+    const binding=bindingFor(def,current.actionId,current.actionDigest,inputDigest);
+    let claim;
+    try{claim=store.claimExecution(authorizationId,binding);}catch(err){claim={claimed:false,reason:'execution_journal_error',error:String(err&&err.message||err)};}
+    if(!claim.claimed) return denied('recovery_claim',claim.reason,{authorizationDecision:'ALLOW',claim,execution:current});
+    const receipt=receiptFor(def,binding,authorizationId,{recovery:true});
+    return invokeClaimed(def,frozenInput,binding,authorizationId,receipt);
+  }
+
+  return Object.freeze({dispatch,resumeReserved,listTools});
 }
 
 module.exports={DEFAULT_LIMITS,canonicalize,computeParametersDigest,createToolDispatcher};
