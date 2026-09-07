@@ -78,7 +78,7 @@ function createToolDispatcher(options={}){
   const denied=(stage,reason,extra={})=>({decision:'DENY',authorizationDecision:extra.authorizationDecision||'DENY',stage,reason,executed:false,invocationAttempted:false,effectOutcome:'NOT_ATTEMPTED',receipt:null,...extra});
 
   function listTools(){
-    return [...defs.values()].map(({name,effect,implementationId,destinationAdapterId})=>Object.freeze({name,effect,...(implementationId?{implementationId}:{}),...(destinationAdapterId?{destinationAdapterId}: {})}));
+    return [...defs.values()].map(({name,effect,implementationId,destinationAdapterId})=>Object.freeze({name,effect,...(implementationId?{implementationId}:{}),...(destinationAdapterId?{destinationAdapterId}:{})}));
   }
   function bindingFor(def,actionId,actionDigest,parametersDigest){
     return {actionId,actionDigest,tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest};
@@ -118,8 +118,7 @@ function createToolDispatcher(options={}){
     }
     const evidence=normalizeEvidence(rawEvidence,{adapterId:def.destinationAdapterId,idempotencyKey});
     if(!evidence.valid){
-      let finalized;try{finalized=store.finishDestinationExecution(authorizationId,'FAILED_OR_UNKNOWN',null);}catch(err){finalized={finished:false,reason:'execution_journal_error',error:String(err&&err.message||err)};}
-      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_evidence_invalid',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',evidence,finalization:finalized,receipt};
+      return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_evidence_invalid',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',evidence,receipt};
     }
     if(evidence.evidence.status==='PENDING'||evidence.evidence.status==='UNKNOWN'){
       return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_pending',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',destinationEvidence:evidence.evidence,receipt};
@@ -146,9 +145,8 @@ function createToolDispatcher(options={}){
     const effectiveAction={...(request.action||{}),effect:def.effect,parametersDigest:inputDigest,...(journalCapable?{toolBindingDigest}:{})};
     let destination=null;
     if(def.destinationAdapter){
-      try{
-        destination={adapterId:def.destinationAdapterId,idempotencyKey:computeIdempotencyKey({authorizationId:effectiveAction.authorization&&effectiveAction.authorization.authorizationId,actionDigest:effectiveAction.authorization&&effectiveAction.authorization.actionDigest,toolBindingDigest,adapterId:def.destinationAdapterId})};
-      }catch(err){return denied('destination_binding',String(err&&err.message||'invalid_idempotency_binding'));}
+      try{destination={adapterId:def.destinationAdapterId,idempotencyKey:computeIdempotencyKey({authorizationId:effectiveAction.authorization&&effectiveAction.authorization.authorizationId,actionDigest:effectiveAction.authorization&&effectiveAction.authorization.actionDigest,toolBindingDigest,adapterId:def.destinationAdapterId})};}
+      catch(err){return denied('destination_binding',String(err&&err.message||'invalid_idempotency_binding'));}
     }
     const executionContext=journalCapable?{tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest:inputDigest,...(destination?{destination}:{})}:null;
     const preflight=prepareAuthorizedAction(effectiveAction,{trustedPublicKeys:options.trustedPublicKeys||{},replayStore:store,gateOptions:options.gateOptions||{},executionContext});
@@ -172,19 +170,24 @@ function createToolDispatcher(options={}){
     const def=defs.get(current.tool);
     if(!def) return denied('recovery','recovery_tool_unavailable',{execution:current});
     if(!def.implementationId||def.implementationId!==current.implementationId||def.effect!==current.effect) return denied('recovery','tool_implementation_mismatch',{execution:current});
-    if(def.destinationAdapter) return denied('recovery','destination_reserved_requires_fresh_dispatch_recovery',{execution:current});
+    let destination=null;
+    if(def.destinationAdapter){
+      if(!destinationCapable) return denied('recovery','destination_store_unavailable',{execution:current});
+      destination=store.getDestination(authorizationId);
+      if(!destination||destination.state!=='PENDING'||destination.adapterId!==def.destinationAdapterId) return denied('recovery','destination_adapter_mismatch',{execution:current,destination});
+    }
     let frozenInput,inputDigest;
     try{frozenInput=deepCloneAndFreeze(request.input===undefined?null:request.input);inputDigest=computeParametersDigest(frozenInput);}catch(err){return denied('recovery_input',String(err&&err.message||'invalid_input'));}
-    if(inputDigest!==current.parametersDigest) return denied('recovery','recovery_parameters_mismatch',{execution:current});
-    const recoveryContext=Object.freeze({authorizationId,currentState:current.state,actionId:current.actionId,actionDigest:current.actionDigest,tool:current.tool,effect:current.effect,implementationId:current.implementationId,toolBindingDigest:computeToolBindingDigest(def),parametersDigest:current.parametersDigest});
-    if(typeof options.authorizeRecovery!=='function') return denied('recovery','recovery_authority_unavailable',{execution:current});
+    if(inputDigest!==current.parametersDigest) return denied('recovery','recovery_parameters_mismatch',{execution:current,destination});
+    const recoveryContext=Object.freeze({authorizationId,currentState:current.state,actionId:current.actionId,actionDigest:current.actionDigest,tool:current.tool,effect:current.effect,implementationId:current.implementationId,toolBindingDigest:computeToolBindingDigest(def),parametersDigest:current.parametersDigest,...(destination?{destinationAdapterId:destination.adapterId,idempotencyKey:destination.idempotencyKey}:{})});
+    if(typeof options.authorizeRecovery!=='function') return denied('recovery','recovery_authority_unavailable',{execution:current,destination});
     let approved=false;try{approved=await options.authorizeRecovery(recoveryContext)===true;}catch{}
-    if(!approved) return denied('recovery','recovery_not_approved',{execution:current});
+    if(!approved) return denied('recovery','recovery_not_approved',{execution:current,destination});
     const binding=bindingFor(def,current.actionId,current.actionDigest,inputDigest);
     let claim;try{claim=store.claimExecution(authorizationId,binding);}catch(err){claim={claimed:false,reason:'execution_journal_error',error:String(err&&err.message||err)};}
-    if(!claim.claimed) return denied('recovery_claim',claim.reason,{authorizationDecision:'ALLOW',claim,execution:current});
-    const receipt=receiptFor(def,binding,authorizationId,{recovery:true});
-    return invokeLegacy(def,frozenInput,binding,authorizationId,receipt);
+    if(!claim.claimed) return denied('recovery_claim',claim.reason,{authorizationDecision:'ALLOW',claim,execution:current,destination});
+    const receipt=receiptFor(def,binding,authorizationId,{recovery:true,idempotencyKey:destination&&destination.idempotencyKey});
+    return def.destinationAdapter?invokeDestination(def,frozenInput,binding,authorizationId,receipt,destination.idempotencyKey):invokeLegacy(def,frozenInput,binding,authorizationId,receipt);
   }
 
   async function reconcileStarted(request={}){
