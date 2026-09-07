@@ -8,31 +8,21 @@ const match = source.match(/function getLists\(\)\{[\s\S]*?\n\}\nfunction saveLi
 assert.ok(match, 'getLists function must remain present');
 
 function loadGetLists(value) {
-  const context = {
-    localStorage: { getItem: () => value },
-  };
+  const context = { localStorage: { getItem: () => value } };
   vm.runInNewContext(`${match[0].replace(/\nfunction saveLists[\s\S]*$/, '')}\nthis.getLists = getLists;`, context);
   return context.getLists();
 }
 
-assert.deepStrictEqual(loadGetLists(JSON.stringify({ trusted: {}, blocked: null })), {
-  trusted: [],
-  blocked: [],
-});
+function assertLists(value, expected) {
+  assert.equal(JSON.stringify(loadGetLists(value)), JSON.stringify(expected));
+}
 
-assert.deepStrictEqual(loadGetLists(JSON.stringify({ trusted: ['safe.example', 42, null], blocked: ['evil.test', {}] })), {
+assertLists(JSON.stringify({ trusted: {}, blocked: null }), { trusted: [], blocked: [] });
+assertLists(JSON.stringify({ trusted: ['safe.example', 42, null], blocked: ['evil.test', {}] }), {
   trusted: ['safe.example'],
   blocked: ['evil.test'],
 });
-
-assert.deepStrictEqual(loadGetLists(JSON.stringify({ trusted: 'safe.example', blocked: 'evil.test' })), {
-  trusted: [],
-  blocked: [],
-});
-
-assert.deepStrictEqual(loadGetLists('not-json'), {
-  trusted: [],
-  blocked: [],
-});
+assertLists(JSON.stringify({ trusted: 'safe.example', blocked: 'evil.test' }), { trusted: [], blocked: [] });
+assertLists('not-json', { trusted: [], blocked: [] });
 
 console.log('RUMBO Guardian domain-list state tests: PASS');
