@@ -7,7 +7,13 @@ const HISTORY_KEY='rumboGuardianHistory';
 
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function getLists(){
-  try{return {...{trusted:[],blocked:[]},...JSON.parse(localStorage.getItem(LIST_KEY)||'{}')};}
+  try{
+    const parsed=JSON.parse(localStorage.getItem(LIST_KEY)||'{}');
+    return {
+      trusted:Array.isArray(parsed?.trusted)?parsed.trusted.filter(x=>typeof x==='string'):[],
+      blocked:Array.isArray(parsed?.blocked)?parsed.blocked.filter(x=>typeof x==='string'):[]
+    };
+  }
   catch{return {trusted:[],blocked:[]};}
 }
 function saveLists(lists){localStorage.setItem(LIST_KEY,JSON.stringify(lists));drawLists();}
