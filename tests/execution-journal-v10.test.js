@@ -34,10 +34,12 @@ function claimWorker(dbPath,authorizationId,binding){
 const NOW='2026-09-07T16:10:00Z',OBS='2026-09-07T16:05:00Z',EXP='2026-09-07T16:15:00Z';
 const {publicKey,privateKey}=crypto.generateKeyPairSync('ed25519');
 const pub=publicKey.export({type:'spki',format:'pem'});
+const DEFAULT_TOOL=Object.freeze({name:'send',effect:'send',implementationId:'send-v1'});
 
-function signedAction(input,authorizationId,actionId='send-v10'){
+function signedAction(input,authorizationId,actionId='send-v10',tool=DEFAULT_TOOL){
   const parametersDigest=ToolDispatch.computeParametersDigest(input);
-  const action={id:actionId,effect:'send',target:'recipient@example.com',purpose:'Approved V10 dispatch',explicitAuthorization:true,intentAligned:true,targetVerified:true,evidenceCount:1,authorizationObservedAt:OBS,parametersDigest};
+  const toolBindingDigest=ToolDispatch.computeToolBindingDigest(tool);
+  const action={id:actionId,effect:tool.effect,target:'recipient@example.com',purpose:'Approved V10 dispatch',explicitAuthorization:true,intentAligned:true,targetVerified:true,evidenceCount:1,authorizationObservedAt:OBS,parametersDigest,toolBindingDigest};
   const actionDigest=Gate.computeActionDigest(action);
   const envelope={authorizationId,actionDigest,expiresAt:EXP,observedAt:OBS,keyId:'operator-v10'};
   envelope.signature=crypto.sign(null,Buffer.from(Auth.authorizationMessage(envelope)),privateKey).toString('base64');
@@ -45,7 +47,8 @@ function signedAction(input,authorizationId,actionId='send-v10'){
   return action;
 }
 function reserve(store,input,authorizationId,implementationId='send-v1'){
-  const action=signedAction(input,authorizationId);
+  const tool={name:'send',effect:'send',implementationId};
+  const action=signedAction(input,authorizationId,'send-v10',tool);
   return AuthorizationDispatch.prepareAuthorizedAction(action,{
     gateOptions:{now:NOW},trustedPublicKeys:{'operator-v10':pub},replayStore:store,
     executionContext:{tool:'send',effect:'send',implementationId,parametersDigest:ToolDispatch.computeParametersDigest(input)}
@@ -58,14 +61,14 @@ async function main(){
   try{
     {
       const db=path.join(tmp,'success.sqlite'),store=new SQLiteAuthorizationReplayStore(db);let calls=0;
-      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v10':pub},gateOptions:{now:NOW},tools:[{name:'send',effect:'send',implementationId:'send-v1',handler:async input=>{calls++;return {echo:input.message};}}]});
+      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v10':pub},gateOptions:{now:NOW},tools:[{...DEFAULT_TOOL,handler:async input=>{calls++;return {echo:input.message};}}]});
       const input={message:'hello'};const result=await dispatcher.dispatch({tool:'send',input,action:signedAction(input,'v10-success')});
       assert.equal(result.effectOutcome,'SUCCEEDED');assert.equal(calls,1);assert.equal(store.getExecution('v10-success').state,'SUCCEEDED');store.close();ok();
     }
 
     {
       const db=path.join(tmp,'failure.sqlite'),store=new SQLiteAuthorizationReplayStore(db);
-      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v10':pub},gateOptions:{now:NOW},tools:[{name:'send',effect:'send',implementationId:'send-v1',handler:async()=>{throw new Error('boom');}}]});
+      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v10':pub},gateOptions:{now:NOW},tools:[{...DEFAULT_TOOL,handler:async()=>{throw new Error('boom');}}]});
       const input={message:'fail'};const result=await dispatcher.dispatch({tool:'send',input,action:signedAction(input,'v10-fail')});
       assert.equal(result.effectOutcome,'FAILED');assert.equal(store.getExecution('v10-fail').state,'FAILED');store.close();ok();
     }
@@ -73,7 +76,7 @@ async function main(){
     {
       const db=path.join(tmp,'resume.sqlite'),store=new SQLiteAuthorizationReplayStore(db),input={message:'resume'};
       const prepared=reserve(store,input,'v10-resume');assert.equal(prepared.decision,'ALLOW');assert.equal(store.getExecution('v10-resume').state,'RESERVED');let calls=0;
-      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,authorizeRecovery:async()=>true,tools:[{name:'send',effect:'send',implementationId:'send-v1',handler:async()=>{calls++;return 'recovered';}}]});
+      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,authorizeRecovery:async()=>true,tools:[{...DEFAULT_TOOL,handler:async()=>{calls++;return 'recovered';}}]});
       const result=await dispatcher.resumeReserved({authorizationId:'v10-resume',input});
       assert.equal(result.effectOutcome,'SUCCEEDED');assert.equal(result.receipt.recovery,true);assert.equal(calls,1);assert.equal(store.getExecution('v10-resume').state,'SUCCEEDED');
       const again=await dispatcher.resumeReserved({authorizationId:'v10-resume',input});assert.equal(again.decision,'DENY');assert.equal(calls,1);store.close();ok();
@@ -81,7 +84,7 @@ async function main(){
 
     {
       const db=path.join(tmp,'mismatch.sqlite'),store=new SQLiteAuthorizationReplayStore(db),input={message:'original'};reserve(store,input,'v10-mismatch');
-      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,authorizeRecovery:async()=>true,tools:[{name:'send',effect:'send',implementationId:'send-v1',handler:async()=>{throw new Error('must_not_run');}}]});
+      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,authorizeRecovery:async()=>true,tools:[{...DEFAULT_TOOL,handler:async()=>{throw new Error('must_not_run');}}]});
       const result=await dispatcher.resumeReserved({authorizationId:'v10-mismatch',input:{message:'mutated'}});
       assert.equal(result.reason,'recovery_parameters_mismatch');assert.equal(store.getExecution('v10-mismatch').state,'RESERVED');store.close();ok();
     }
@@ -94,7 +97,7 @@ async function main(){
 
     {
       const db=path.join(tmp,'authority.sqlite'),store=new SQLiteAuthorizationReplayStore(db),input={message:'authority'};reserve(store,input,'v10-authority');
-      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,tools:[{name:'send',effect:'send',implementationId:'send-v1',handler:async()=>{throw new Error('must_not_run');}}]});
+      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,tools:[{...DEFAULT_TOOL,handler:async()=>{throw new Error('must_not_run');}}]});
       const result=await dispatcher.resumeReserved({authorizationId:'v10-authority',input});assert.equal(result.reason,'recovery_authority_unavailable');assert.equal(store.getExecution('v10-authority').state,'RESERVED');store.close();ok();
     }
 
@@ -103,7 +106,7 @@ async function main(){
       const binding={actionId:prepared.ticket.actionId,actionDigest:prepared.ticket.actionDigest,tool:'send',effect:'send',implementationId:'send-v1',parametersDigest:ToolDispatch.computeParametersDigest(input)};
       assert.equal(store.claimExecution('v10-unknown',binding).claimed,true);assert.equal(store.getExecution('v10-unknown').state,'STARTED');
       const recovery=store.recoverInterruptedStarted('2100-01-01T00:00:00Z');assert.equal(recovery.count,1);assert.equal(store.getExecution('v10-unknown').state,'FAILED_OR_UNKNOWN');
-      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,authorizeRecovery:async()=>true,tools:[{name:'send',effect:'send',implementationId:'send-v1',handler:async()=>{throw new Error('must_not_run');}}]});
+      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,authorizeRecovery:async()=>true,tools:[{...DEFAULT_TOOL,handler:async()=>{throw new Error('must_not_run');}}]});
       const resumed=await dispatcher.resumeReserved({authorizationId:'v10-unknown',input});assert.equal(resumed.reason,'execution_not_resumable');store.close();ok();
     }
 
@@ -130,8 +133,21 @@ async function main(){
       assert.equal(store.get('v10-atomic'),null);assert.equal(store.getExecution('v10-atomic'),null);store.close();ok();
     }
 
-    assert.equal(passed,10);
-    console.log('RUMBO Execution Journal V10: 10/10 PASS + 16-way claim race + crash-safe RESERVED recovery');
+    {
+      const db=path.join(tmp,'tool-substitution.sqlite'),store=new SQLiteAuthorizationReplayStore(db),input={message:'same-params'};let calls=0;
+      const signedForSend=signedAction(input,'v10-tool-substitution','send-v10',DEFAULT_TOOL);
+      const dispatcher=ToolDispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v10':pub},gateOptions:{now:NOW},tools:[
+        {...DEFAULT_TOOL,handler:async()=>{calls++;return 'send';}},
+        {name:'sendAlt',effect:'send',implementationId:'send-alt-v1',handler:async()=>{calls++;return 'alt';}}
+      ]});
+      const result=await dispatcher.dispatch({tool:'sendAlt',input,action:signedForSend});
+      assert.equal(result.decision,'DENY');assert.equal(result.stage,'policy');assert.equal(calls,0);
+      assert.ok(result.preflight.gate.reasons.some(reason=>reason.code==='authorization_action_mismatch'));
+      assert.equal(store.get('v10-tool-substitution'),null);assert.equal(store.getExecution('v10-tool-substitution'),null);store.close();ok();
+    }
+
+    assert.equal(passed,11);
+    console.log('RUMBO Execution Journal V10: 11/11 PASS + 16-way claim race + crash-safe RESERVED recovery + signed tool-binding substitution guard');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 
