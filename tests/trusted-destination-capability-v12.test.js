@@ -3,6 +3,7 @@ const crypto=require('node:crypto');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
+const {DatabaseSync}=require('node:sqlite');
 const Gate=require('../agent-action-gate.js');
 const Auth=require('../agent-authorization-v3.js');
 const AuthorizationDispatch=require('../agent-authorized-dispatch.js');
@@ -66,12 +67,39 @@ async function main(){
       assert.equal(result.effectOutcome,'SUCCEEDED');assert.equal(calls,1);assert.equal(result.receipt.destinationCapabilityDigest,DIGEST_V1);assert.equal(result.receipt.dispatchPolicyVersion,'RUMBO_AGENT_TOOL_DISPATCH_V12_TRUSTED_DESTINATION_CAPABILITY');
       assert.equal(store.getDestination('v12-success').capabilityDigest,DIGEST_V1);store.close();ok();
     }
-    {
-      assert.throws(()=>strictDispatcher(null,adapter('adapter-a','provider-proto-v2')),/destination_protocol_mismatch/);ok();
-    }
+    { assert.throws(()=>strictDispatcher(null,adapter('adapter-a','provider-proto-v2')),/destination_protocol_mismatch/);ok(); }
     {
       const badPolicy={...POLICY_V1,allowedImplementationIds:['other-v1']};
       assert.throws(()=>strictDispatcher(null,adapter(),badPolicy),/destination_implementation_not_trusted/);ok();
+    }
+    {
+      const futurePolicy={...POLICY_V1,futureRestriction:'must-not-be-ignored'};
+      assert.throws(()=>Cap.normalizeTrustedDestinationCapability(futurePolicy,'adapter-a','send-v12'),/invalid_destination_capability/);ok();
+    }
+    {
+      let getterCalls=0;
+      const accessorPolicy={...POLICY_V1};
+      Object.defineProperty(accessorPolicy,'capabilityVersion',{enumerable:true,configurable:true,get(){getterCalls++;return 'cap-v1';}});
+      assert.throws(()=>Cap.normalizeTrustedDestinationCapability(accessorPolicy,'adapter-a','send-v12'),/invalid_destination_capability/);
+      assert.equal(getterCalls,0);ok();
+    }
+    {
+      let mapGetterCalls=0;
+      const policyMap={};
+      Object.defineProperty(policyMap,'adapter-a',{enumerable:true,get(){mapGetterCalls++;return POLICY_V1;}});
+      assert.throws(()=>Dispatch.createToolDispatcher({trustedDestinationCapabilities:policyMap,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter:adapter()}]}),/trusted_destination_capability_required/);
+      assert.equal(mapGetterCalls,0);ok();
+    }
+    {
+      const dbPath=path.join(tmp,'v11-migration.sqlite');
+      const db=new DatabaseSync(dbPath);
+      db.exec(`CREATE TABLE consumed_authorizations(authorization_id TEXT PRIMARY KEY,consumed_at TEXT NOT NULL,action_digest TEXT,key_id TEXT,authorizer_fingerprint TEXT,correlation_id TEXT) WITHOUT ROWID;
+        CREATE TABLE execution_journal(authorization_id TEXT PRIMARY KEY REFERENCES consumed_authorizations(authorization_id),action_id TEXT NOT NULL,action_digest TEXT NOT NULL,tool TEXT NOT NULL,effect TEXT NOT NULL,implementation_id TEXT NOT NULL,parameters_digest TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('RESERVED','STARTED','SUCCEEDED','FAILED','FAILED_OR_UNKNOWN')),reserved_at TEXT NOT NULL,started_at TEXT,finished_at TEXT,updated_at TEXT NOT NULL) WITHOUT ROWID;
+        CREATE TABLE destination_idempotency(authorization_id TEXT PRIMARY KEY REFERENCES execution_journal(authorization_id),adapter_id TEXT NOT NULL,idempotency_key TEXT NOT NULL UNIQUE,state TEXT NOT NULL CHECK(state IN ('PENDING','SUCCEEDED','FAILED','FAILED_OR_UNKNOWN')),evidence_digest TEXT,updated_at TEXT NOT NULL) WITHOUT ROWID;`);
+      db.close();
+      const migrated=new SQLiteExecutionStoreV11(dbPath);
+      const columns=migrated.db.prepare('PRAGMA table_info(destination_idempotency)').all().map(c=>c.name);
+      assert.ok(columns.includes('capability_digest'));migrated.close();ok();
     }
     {
       assert.notEqual(DIGEST_V1,DIGEST_V2);
@@ -113,8 +141,8 @@ async function main(){
       const listed=strictDispatcher(null,adapter()).listTools()[0];assert.equal(listed.destinationCapabilityDigest,DIGEST_V1);assert.equal(listed.destinationCapabilityVersion,'cap-v1');ok();
     }
 
-    assert.equal(passed,11);
-    console.log('RUMBO Trusted Destination Capability V12: 11/11 PASS + fail-closed default + signed capability rotation + legacy downgrade guards + persisted recovery/reconciliation binding');
+    assert.equal(passed,15);
+    console.log('RUMBO Trusted Destination Capability V12: 15/15 PASS + fail-closed exact-schema manifests + V11 DB migration + signed capability rotation + legacy downgrade guards');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 main().catch(err=>{console.error(err);process.exit(1);});
