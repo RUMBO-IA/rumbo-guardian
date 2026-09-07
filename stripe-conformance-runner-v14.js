@@ -5,7 +5,9 @@ const Conformance=require('./provider-conformance-v13.js');
 const STRIPE_API_VERSION='2026-02-25.clover';
 const SUITE_VERSION='rumbo.stripe.payment-intent-idempotency.v14';
 const PROVIDER_ID='stripe';
+const EVIDENCE_SCHEMA='rumbo.stripe-conformance-evidence.v14';
 const MAX_BODY_BYTES=1024*1024;
+const verifiedRunResults=new WeakSet();
 
 function sha256Text(value){return crypto.createHash('sha256').update(String(value),'utf8').digest('hex');}
 function isSha256(value){return typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);}
@@ -119,13 +121,18 @@ async function runStripeConformance({transport,keyFactory=defaultKeyFactory,now=
   const testMode=[create1,create2,lostRetry,retrieve].filter(Boolean).every(r=>r.livemode===false);
   note('test_mode_only',testMode,{livemodeValues:[create1,create2,lostRetry,retrieve].filter(Boolean).map(r=>r.livemode)});
   const passed=checks.length===5&&checks.every(c=>c.passed===true);
-  const evidence={schema:'rumbo.stripe-conformance-evidence.v14',providerId:PROVIDER_ID,apiVersion:STRIPE_API_VERSION,suiteVersion:SUITE_VERSION,runId,observedAt,result:passed?'PASS':'FAIL',checks};
+  const evidence=Object.freeze({schema:EVIDENCE_SCHEMA,providerId:PROVIDER_ID,apiVersion:STRIPE_API_VERSION,suiteVersion:SUITE_VERSION,runId,observedAt,result:passed?'PASS':'FAIL',checks:Object.freeze([...checks])});
   const evidenceDigest=sha256Text(canonicalizeJcs(evidence));
-  return Object.freeze({result:evidence.result,evidence:Object.freeze(evidence),evidenceDigest});
+  const runResult=Object.freeze({result:evidence.result,evidence,evidenceDigest});
+  if(runResult.result==='PASS') verifiedRunResults.add(runResult);
+  return runResult;
 }
 function buildV13Profile({runResult,adapterId,capabilityDigest,protocolVersion=STRIPE_API_VERSION}={}){
-  if(!runResult||runResult.result!=='PASS'||!isSha256(runResult.evidenceDigest)) throw new Error('live_provider_conformance_not_proven');
+  if(!runResult||!verifiedRunResults.has(runResult)||runResult.result!=='PASS'||!isSha256(runResult.evidenceDigest)) throw new Error('live_provider_conformance_not_proven');
+  if(!runResult.evidence||runResult.evidence.schema!==EVIDENCE_SCHEMA||runResult.evidence.providerId!==PROVIDER_ID||runResult.evidence.apiVersion!==STRIPE_API_VERSION||runResult.evidence.suiteVersion!==SUITE_VERSION||runResult.evidence.result!=='PASS') throw new Error('invalid_stripe_conformance_evidence');
+  const recomputed=sha256Text(canonicalizeJcs(runResult.evidence));
+  if(recomputed!==runResult.evidenceDigest) throw new Error('stripe_conformance_evidence_digest_mismatch');
   const profile={schema:Conformance.PROFILE_SCHEMA,providerId:PROVIDER_ID,adapterId,protocolVersion,capabilityDigest,suiteVersion:SUITE_VERSION,evidenceDigest:runResult.evidenceDigest,result:Conformance.RESULT};
   return Conformance.normalizeProviderConformanceProfile(profile,{adapterId,protocolVersion,capabilityDigest});
 }
-module.exports={STRIPE_API_VERSION,SUITE_VERSION,PROVIDER_ID,MAX_BODY_BYTES,validateStripeTestSecret,responseDigest,sanitizeResult,makeStripeFetchTransport,runStripeConformance,buildV13Profile};
+module.exports={STRIPE_API_VERSION,SUITE_VERSION,PROVIDER_ID,EVIDENCE_SCHEMA,MAX_BODY_BYTES,validateStripeTestSecret,responseDigest,sanitizeResult,makeStripeFetchTransport,runStripeConformance,buildV13Profile};
