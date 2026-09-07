@@ -3,6 +3,7 @@ const {prepareAuthorizedAction}=require('./agent-authorized-dispatch.js');
 const {canonicalizeJcs}=require('./jcs-canonicalize-v8.js');
 const {computeIdempotencyKey,validateDestinationAdapter,normalizeEvidence}=require('./destination-idempotency-v11.js');
 const {resolveTrustedDestinationCapability}=require('./destination-capability-v12.js');
+const {resolveProviderConformance,verifyProviderConformanceReceipt}=require('./provider-conformance-v13.js');
 
 const DEFAULT_LIMITS=Object.freeze({maxDepth:64,maxNodes:10000});
 
@@ -57,22 +58,30 @@ function computeToolBindingDigest(tool){
   const payload={effect:String(tool&&tool.effect||'').trim().toLowerCase(),implementationId:String(tool&&tool.implementationId||'').trim(),tool:String(tool&&tool.name||tool&&tool.tool||'').trim()};
   const adapterId=String(tool&&tool.destinationAdapterId||tool&&tool.adapterId||'').trim();
   const capabilityDigest=String(tool&&tool.destinationCapabilityDigest||tool&&tool.capabilityDigest||'').trim().toLowerCase();
+  const providerConformanceProfileDigest=String(tool&&tool.providerConformanceProfileDigest||'').trim().toLowerCase();
   if(adapterId) payload.destinationAdapterId=adapterId;
   if(capabilityDigest) payload.destinationCapabilityDigest=capabilityDigest;
+  if(providerConformanceProfileDigest) payload.providerConformanceProfileDigest=providerConformanceProfileDigest;
   return crypto.createHash('sha256').update(canonicalize(payload),'utf8').digest('hex');
 }
 
 function createToolDispatcher(options={}){
   const defs=new Map();
   const allowLegacy=options.allowLegacySelfAssertedDestinationCapabilities===true;
+  const allowCapabilityWithoutProviderConformance=options.allowCapabilityWithoutProviderConformance===true;
   for(const raw of options.tools||[]){
     const name=String(raw&&raw.name||'').trim();
     const effect=String(raw&&raw.effect||'').trim().toLowerCase();
     const implementationId=String(raw&&raw.implementationId||'').trim();
-    let destinationAdapter=null,destinationCapability=null;
+    let destinationAdapter=null,destinationCapability=null,providerConformance=null;
     if(raw&&raw.destinationAdapter!==undefined){
       destinationAdapter=validateDestinationAdapter(raw.destinationAdapter);
-      if(!allowLegacy) destinationCapability=resolveTrustedDestinationCapability(destinationAdapter,implementationId,options.trustedDestinationCapabilities);
+      if(!allowLegacy){
+        destinationCapability=resolveTrustedDestinationCapability(destinationAdapter,implementationId,options.trustedDestinationCapabilities);
+        if(!allowCapabilityWithoutProviderConformance){
+          providerConformance=resolveProviderConformance(destinationAdapter,destinationCapability,options.trustedProviderConformance,{trustedPublicKeys:options.trustedProviderConformanceKeys||{},now:options.providerConformanceNow});
+        }
+      }
     }
     if(!name||(!destinationAdapter&&typeof raw.handler!=='function')) throw new Error('invalid_tool_definition');
     if(defs.has(name)) throw new Error('duplicate_tool_name');
@@ -80,7 +89,11 @@ function createToolDispatcher(options={}){
       name,effect,implementationId,handler:raw.handler||null,destinationAdapter,
       destinationAdapterId:destinationAdapter&&destinationAdapter.adapterId||'',
       destinationCapabilityDigest:destinationCapability&&destinationCapability.capabilityDigest||'',
-      destinationCapabilityVersion:destinationCapability&&destinationCapability.capabilityVersion||''
+      destinationCapabilityVersion:destinationCapability&&destinationCapability.capabilityVersion||'',
+      providerConformanceProfileDigest:providerConformance&&providerConformance.profileDigest||'',
+      providerConformanceProviderId:providerConformance&&providerConformance.profile.providerId||'',
+      providerConformanceSuiteVersion:providerConformance&&providerConformance.profile.suiteVersion||'',
+      providerConformanceReceipt:providerConformance&&providerConformance.receipt||null
     }));
   }
 
@@ -96,11 +109,25 @@ function createToolDispatcher(options={}){
     if(current&&persisted!==current) return 'destination_capability_mismatch';
     return null;
   }
+  function providerConformanceBindingError(def,destination){
+    const current=String(def&&def.providerConformanceProfileDigest||'').trim().toLowerCase();
+    const persisted=String(destination&&destination.providerConformanceProfileDigest||'').trim().toLowerCase();
+    if(persisted&&!current) return 'provider_conformance_downgrade';
+    if(current&&!persisted) return 'provider_conformance_binding_missing';
+    if(current&&persisted!==current) return 'provider_conformance_profile_mismatch';
+    return null;
+  }
+  function providerConformanceFreshnessError(def){
+    if(!def.providerConformanceProfileDigest) return null;
+    const verification=verifyProviderConformanceReceipt(def.providerConformanceReceipt,{profileDigest:def.providerConformanceProfileDigest,trustedPublicKeys:options.trustedProviderConformanceKeys||{},now:options.providerConformanceNow});
+    return verification.verified?null:(verification.reason||'provider_conformance_unverified');
+  }
 
   function listTools(){
-    return [...defs.values()].map(({name,effect,implementationId,destinationAdapterId,destinationCapabilityDigest,destinationCapabilityVersion})=>Object.freeze({
+    return [...defs.values()].map(({name,effect,implementationId,destinationAdapterId,destinationCapabilityDigest,destinationCapabilityVersion,providerConformanceProfileDigest,providerConformanceProviderId,providerConformanceSuiteVersion})=>Object.freeze({
       name,effect,...(implementationId?{implementationId}:{}),...(destinationAdapterId?{destinationAdapterId}:{}),
-      ...(destinationCapabilityDigest?{destinationCapabilityDigest,destinationCapabilityVersion}:{})
+      ...(destinationCapabilityDigest?{destinationCapabilityDigest,destinationCapabilityVersion}:{}),
+      ...(providerConformanceProfileDigest?{providerConformanceProfileDigest,providerConformanceProviderId,providerConformanceSuiteVersion}:{})
     }));
   }
   function bindingFor(def,actionId,actionDigest,parametersDigest){return {actionId,actionDigest,tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest};}
@@ -111,8 +138,10 @@ function createToolDispatcher(options={}){
       actionId:binding.actionId,actionDigest:binding.actionDigest,parametersDigest:binding.parametersDigest,
       authorizationId,authorizerKeyId:extra.authorizerKeyId||auth&&auth.keyId||null,recovery:extra.recovery===true,
       destinationAdapterId:def.destinationAdapterId||null,destinationCapabilityDigest:def.destinationCapabilityDigest||null,
-      destinationCapabilityVersion:def.destinationCapabilityVersion||null,idempotencyKey:extra.idempotencyKey||null,
-      dispatchPolicyVersion:def.destinationCapabilityDigest?'RUMBO_AGENT_TOOL_DISPATCH_V12_TRUSTED_DESTINATION_CAPABILITY':def.destinationAdapter?'RUMBO_AGENT_TOOL_DISPATCH_V11_LEGACY_SELF_ASSERTED':'RUMBO_AGENT_TOOL_DISPATCH_V10_CRASH_AWARE_TOOL_BOUND'
+      destinationCapabilityVersion:def.destinationCapabilityVersion||null,
+      providerConformanceProfileDigest:def.providerConformanceProfileDigest||null,providerConformanceProviderId:def.providerConformanceProviderId||null,
+      providerConformanceSuiteVersion:def.providerConformanceSuiteVersion||null,idempotencyKey:extra.idempotencyKey||null,
+      dispatchPolicyVersion:def.providerConformanceProfileDigest?'RUMBO_AGENT_TOOL_DISPATCH_V13_PROVIDER_CONFORMANCE':def.destinationCapabilityDigest?'RUMBO_AGENT_TOOL_DISPATCH_V12_TRUSTED_DESTINATION_CAPABILITY':def.destinationAdapter?'RUMBO_AGENT_TOOL_DISPATCH_V11_LEGACY_SELF_ASSERTED':'RUMBO_AGENT_TOOL_DISPATCH_V10_CRASH_AWARE_TOOL_BOUND'
     };
   }
 
@@ -137,7 +166,7 @@ function createToolDispatcher(options={}){
   async function invokeDestination(def,frozenInput,binding,authorizationId,receipt,idempotencyKey){
     let rawEvidence;
     try{
-      rawEvidence=await def.destinationAdapter.execute(frozenInput,Object.freeze({authorizationId,idempotencyKey,actionId:binding.actionId,actionDigest:binding.actionDigest,parametersDigest:binding.parametersDigest,tool:def.name,effect:def.effect,implementationId:def.implementationId,destinationCapabilityDigest:def.destinationCapabilityDigest||null}));
+      rawEvidence=await def.destinationAdapter.execute(frozenInput,Object.freeze({authorizationId,idempotencyKey,actionId:binding.actionId,actionDigest:binding.actionDigest,parametersDigest:binding.parametersDigest,tool:def.name,effect:def.effect,implementationId:def.implementationId,destinationCapabilityDigest:def.destinationCapabilityDigest||null,providerConformanceProfileDigest:def.providerConformanceProfileDigest||null}));
     }catch(err){
       const unknown=markUnknown(authorizationId);
       return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_execute_unknown',executed:true,invocationAttempted:true,effectOutcome:'FAILED_OR_UNKNOWN',error:String(err&&err.message||'destination_execute_error'),unknown,receipt};
@@ -168,6 +197,8 @@ function createToolDispatcher(options={}){
     if(claimedEffect&&claimedEffect!==def.effect) return denied('tool_binding','tool_effect_mismatch');
     if(journalCapable&&!def.implementationId) return denied('execution_binding','missing_tool_implementation_id');
     if(def.destinationAdapter&&!destinationCapable) return denied('destination_binding','destination_store_unavailable');
+    const conformanceFreshnessError=providerConformanceFreshnessError(def);
+    if(conformanceFreshnessError) return denied('provider_conformance',conformanceFreshnessError);
 
     let frozenInput,inputDigest;
     try{frozenInput=deepCloneAndFreeze(request.input===undefined?null:request.input);inputDigest=computeParametersDigest(frozenInput);}catch(err){return denied('input_binding',String(err&&err.message||'invalid_input'));}
@@ -176,7 +207,7 @@ function createToolDispatcher(options={}){
     let destination=null;
     if(def.destinationAdapter){
       try{
-        destination={adapterId:def.destinationAdapterId,idempotencyKey:computeIdempotencyKey({authorizationId:effectiveAction.authorization&&effectiveAction.authorization.authorizationId,actionDigest:effectiveAction.authorization&&effectiveAction.authorization.actionDigest,toolBindingDigest,adapterId:def.destinationAdapterId}),...(def.destinationCapabilityDigest?{capabilityDigest:def.destinationCapabilityDigest}:{})};
+        destination={adapterId:def.destinationAdapterId,idempotencyKey:computeIdempotencyKey({authorizationId:effectiveAction.authorization&&effectiveAction.authorization.authorizationId,actionDigest:effectiveAction.authorization&&effectiveAction.authorization.actionDigest,toolBindingDigest,adapterId:def.destinationAdapterId}),...(def.destinationCapabilityDigest?{capabilityDigest:def.destinationCapabilityDigest}:{}),...(def.providerConformanceProfileDigest?{providerConformanceProfileDigest:def.providerConformanceProfileDigest}:{})};
       }catch(err){return denied('destination_binding',String(err&&err.message||'invalid_idempotency_binding'));}
     }
     const executionContext=journalCapable?{tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest:inputDigest,...(destination?{destination}:{})}:null;
@@ -208,11 +239,15 @@ function createToolDispatcher(options={}){
       if(!destination||destination.state!=='PENDING'||destination.adapterId!==def.destinationAdapterId) return denied('recovery','destination_adapter_mismatch',{execution:current,destination});
       const capabilityError=capabilityBindingError(def,destination);
       if(capabilityError) return denied('recovery',capabilityError,{execution:current,destination});
+      const conformanceBindingError=providerConformanceBindingError(def,destination);
+      if(conformanceBindingError) return denied('recovery',conformanceBindingError,{execution:current,destination});
+      const conformanceFreshnessError=providerConformanceFreshnessError(def);
+      if(conformanceFreshnessError) return denied('recovery',conformanceFreshnessError,{execution:current,destination});
     }
     let frozenInput,inputDigest;
     try{frozenInput=deepCloneAndFreeze(request.input===undefined?null:request.input);inputDigest=computeParametersDigest(frozenInput);}catch(err){return denied('recovery_input',String(err&&err.message||'invalid_input'));}
     if(inputDigest!==current.parametersDigest) return denied('recovery','recovery_parameters_mismatch',{execution:current,destination});
-    const recoveryContext=Object.freeze({authorizationId,currentState:current.state,actionId:current.actionId,actionDigest:current.actionDigest,tool:current.tool,effect:current.effect,implementationId:current.implementationId,toolBindingDigest:computeToolBindingDigest(def),parametersDigest:current.parametersDigest,...(destination?{destinationAdapterId:destination.adapterId,idempotencyKey:destination.idempotencyKey,destinationCapabilityDigest:destination.capabilityDigest||null}:{})});
+    const recoveryContext=Object.freeze({authorizationId,currentState:current.state,actionId:current.actionId,actionDigest:current.actionDigest,tool:current.tool,effect:current.effect,implementationId:current.implementationId,toolBindingDigest:computeToolBindingDigest(def),parametersDigest:current.parametersDigest,...(destination?{destinationAdapterId:destination.adapterId,idempotencyKey:destination.idempotencyKey,destinationCapabilityDigest:destination.capabilityDigest||null,providerConformanceProfileDigest:destination.providerConformanceProfileDigest||null}:{})});
     if(typeof options.authorizeRecovery!=='function') return denied('recovery','recovery_authority_unavailable',{execution:current,destination});
     let approved=false;try{approved=await options.authorizeRecovery(recoveryContext)===true;}catch{}
     if(!approved) return denied('recovery','recovery_not_approved',{execution:current,destination});
@@ -233,11 +268,15 @@ function createToolDispatcher(options={}){
     if(!def||!def.destinationAdapter||def.destinationAdapterId!==destination.adapterId||def.implementationId!==execution.implementationId) return denied('reconciliation','destination_adapter_mismatch',{execution,destination});
     const capabilityError=capabilityBindingError(def,destination);
     if(capabilityError) return denied('reconciliation',capabilityError,{execution,destination});
+    const conformanceBindingError=providerConformanceBindingError(def,destination);
+    if(conformanceBindingError) return denied('reconciliation',conformanceBindingError,{execution,destination});
+    const conformanceFreshnessError=providerConformanceFreshnessError(def);
+    if(conformanceFreshnessError) return denied('reconciliation',conformanceFreshnessError,{execution,destination});
     if(typeof options.authorizeReconciliation!=='function') return denied('reconciliation','reconciliation_authority_unavailable',{execution,destination});
-    let approved=false;try{approved=await options.authorizeReconciliation(Object.freeze({authorizationId,idempotencyKey:destination.idempotencyKey,adapterId:destination.adapterId,tool:execution.tool,effect:execution.effect,implementationId:execution.implementationId,destinationCapabilityDigest:destination.capabilityDigest||null}))===true;}catch{}
+    let approved=false;try{approved=await options.authorizeReconciliation(Object.freeze({authorizationId,idempotencyKey:destination.idempotencyKey,adapterId:destination.adapterId,tool:execution.tool,effect:execution.effect,implementationId:execution.implementationId,destinationCapabilityDigest:destination.capabilityDigest||null,providerConformanceProfileDigest:destination.providerConformanceProfileDigest||null}))===true;}catch{}
     if(!approved) return denied('reconciliation','reconciliation_not_approved',{execution,destination});
     let rawEvidence;
-    try{rawEvidence=await def.destinationAdapter.reconcile(Object.freeze({authorizationId,idempotencyKey:destination.idempotencyKey,actionId:execution.actionId,actionDigest:execution.actionDigest,parametersDigest:execution.parametersDigest,tool:execution.tool,effect:execution.effect,implementationId:execution.implementationId,destinationCapabilityDigest:destination.capabilityDigest||null}));}
+    try{rawEvidence=await def.destinationAdapter.reconcile(Object.freeze({authorizationId,idempotencyKey:destination.idempotencyKey,actionId:execution.actionId,actionDigest:execution.actionDigest,parametersDigest:execution.parametersDigest,tool:execution.tool,effect:execution.effect,implementationId:execution.implementationId,destinationCapabilityDigest:destination.capabilityDigest||null,providerConformanceProfileDigest:destination.providerConformanceProfileDigest||null}));}
     catch(err){return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'reconciliation_error',executed:false,invocationAttempted:false,effectOutcome:'FAILED_OR_UNKNOWN',error:String(err&&err.message||'reconciliation_error'),execution,destination,receipt:null};}
     const evidence=normalizeEvidence(rawEvidence,{adapterId:destination.adapterId,idempotencyKey:destination.idempotencyKey});
     if(!evidence.valid) return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'reconciliation_evidence_invalid',executed:false,invocationAttempted:false,effectOutcome:'FAILED_OR_UNKNOWN',evidence,execution,destination,receipt:null};
