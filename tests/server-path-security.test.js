@@ -57,9 +57,12 @@ async function waitForServer(){
 
     if(symlinkCreated){
       const symlinkEscape=await rawRequest(`/${encodeURIComponent(linkName)}/secret.txt`);
-      assert.ok(symlinkEscape.startsWith('HTTP/1.1 403'),`symlink escape must be rejected, got: ${symlinkEscape.split('\r\n')[0]}`);
+      assert.ok(symlinkEscape.startsWith('HTTP/1.1 404'),`non-public symlink path must return 404, got: ${symlinkEscape.split('\r\n')[0]}`);
       assert.ok(!symlinkEscape.includes(secret),'response must not disclose symlink target content');
     }
+
+    const privateFile=await rawRequest('/package.json');
+    assert.ok(privateFile.startsWith('HTTP/1.1 404'),'non-public repository files must not be served');
 
     const malformed=await rawRequest('/%E0');
     assert.ok(malformed.startsWith('HTTP/1.1 400'),`malformed percent-encoding must return 400, got: ${malformed.split('\r\n')[0]}`);
