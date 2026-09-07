@@ -1,4 +1,4 @@
-const {SQLiteAuthorizationReplayStore,executionBinding,TERMINAL_EXECUTION_STATES}=require('./sqlite-authorization-replay-store-v9.js');
+const {SQLiteAuthorizationReplayStore,executionBinding}=require('./sqlite-authorization-replay-store-v9.js');
 
 const validId=value=>/^[A-Za-z0-9._:-]{1,200}$/.test(String(value||''));
 const sha256=value=>/^[a-f0-9]{64}$/.test(String(value||'').toLowerCase());
@@ -24,6 +24,8 @@ class SQLiteExecutionStoreV11 extends SQLiteAuthorizationReplayStore{
     this.finishDestination=this.db.prepare(`UPDATE destination_idempotency SET state=?,evidence_digest=?,updated_at=?
       WHERE authorization_id=? AND state='PENDING'`);
     this.finishExecutionAny=this.db.prepare(`UPDATE execution_journal SET state=?,finished_at=?,updated_at=?
+      WHERE authorization_id=? AND state IN ('STARTED','FAILED_OR_UNKNOWN')`);
+    this.markUnknownStmt=this.db.prepare(`UPDATE execution_journal SET state='FAILED_OR_UNKNOWN',finished_at=?,updated_at=?
       WHERE authorization_id=? AND state='STARTED'`);
   }
 
@@ -60,6 +62,26 @@ class SQLiteExecutionStoreV11 extends SQLiteAuthorizationReplayStore{
     return this.selectDestination.get(id)||null;
   }
 
+  markExecutionUnknown(authorizationId){
+    const id=String(authorizationId||'').trim();
+    if(!validId(id)) return {marked:false,reason:'invalid_authorization_id'};
+    const now=new Date().toISOString();
+    try{
+      this._begin();
+      const execution=this.getExecution(id),destination=this.getDestination(id);
+      if(!execution||!destination){this._rollback();return {marked:false,reason:'destination_execution_not_found'};}
+      if(execution.state==='FAILED_OR_UNKNOWN'&&destination.state==='PENDING'){this._rollback();return {marked:true,reason:null,execution,destination};}
+      const changed=this.markUnknownStmt.run(now,now,id);
+      if(Number(changed.changes)!==1){this._rollback();return {marked:false,reason:'execution_not_started',execution,destination};}
+      this.db.exec('COMMIT');
+      return {marked:true,reason:null,execution:this.getExecution(id),destination:this.getDestination(id)};
+    }catch(err){
+      this._rollback();
+      if(String(err&&err.code||'').includes('SQLITE_BUSY')||/database is locked/i.test(String(err&&err.message||''))) return {marked:false,reason:'store_busy_fail_closed'};
+      throw err;
+    }
+  }
+
   finishDestinationExecution(authorizationId,outcome,evidenceDigest=null){
     const id=String(authorizationId||'').trim();
     const state=String(outcome||'').trim().toUpperCase();
@@ -70,8 +92,8 @@ class SQLiteExecutionStoreV11 extends SQLiteAuthorizationReplayStore{
       this._begin();
       const execution=this.getExecution(id),destination=this.getDestination(id);
       if(!execution||!destination){this._rollback();return {finished:false,reason:'destination_execution_not_found'};}
-      if(TERMINAL_EXECUTION_STATES.has(execution.state)||destination.state!=='PENDING'){this._rollback();return {finished:false,reason:'destination_execution_already_terminal',execution,destination};}
-      if(execution.state!=='STARTED'){this._rollback();return {finished:false,reason:'destination_execution_not_started',execution,destination};}
+      if(['SUCCEEDED','FAILED'].includes(execution.state)||destination.state!=='PENDING'){this._rollback();return {finished:false,reason:'destination_execution_already_terminal',execution,destination};}
+      if(!['STARTED','FAILED_OR_UNKNOWN'].includes(execution.state)){this._rollback();return {finished:false,reason:'destination_execution_not_finishable',execution,destination};}
       const e=this.finishExecutionAny.run(state,now,now,id);
       const d=this.finishDestination.run(state,evidenceDigest,now,id);
       if(Number(e.changes)!==1||Number(d.changes)!==1){this._rollback();return {finished:false,reason:'destination_finalize_race_lost'};}
