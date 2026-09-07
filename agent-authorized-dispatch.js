@@ -21,11 +21,17 @@ function prepareAuthorizedAction(rawAction={},options={}){
     return {decision:'REVIEW',stage:'replay_store',gate,authorization,reservation:{consumed:false,reason:'replay_store_unavailable'},ticket:null};
   }
 
-  const reservation=store.consume(envelope.authorizationId,{
-    actionDigest:gate.actionDigest,
-    keyId:authorization.keyId,
-    authorizerFingerprint:authorization.fingerprint
-  });
+  let reservation;
+  try{
+    reservation=store.consume(envelope.authorizationId,{
+      actionDigest:gate.actionDigest,
+      keyId:authorization.keyId,
+      authorizerFingerprint:authorization.fingerprint
+    });
+  }catch(err){
+    reservation={consumed:false,reason:'replay_store_error',errorCode:String(err&&err.message||'unknown')};
+    return {decision:'DENY',stage:'replay_store',gate,authorization,reservation,ticket:null};
+  }
   if(!reservation.consumed){
     return {decision:'DENY',stage:'replay_store',gate,authorization,reservation,ticket:null};
   }
