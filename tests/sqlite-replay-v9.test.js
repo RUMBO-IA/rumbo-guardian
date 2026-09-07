@@ -1,9 +1,13 @@
 const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
 const {spawn}=require('node:child_process');
 const {DatabaseSync}=require('node:sqlite');
+const Gate=require('../agent-action-gate.js');
+const Auth=require('../agent-authorization-v3.js');
+const Dispatch=require('../agent-authorized-dispatch.js');
 const {SQLiteAuthorizationReplayStore}=require('../sqlite-authorization-replay-store-v9.js');
 
 if(process.argv[2]==='worker'){
@@ -84,8 +88,29 @@ async function main(){
       store.close();ok();
     }
 
-    assert.equal(passed,5);
-    console.log('RUMBO SQLite Replay V9: 5/5 PASS + 16-way same-ID race + 16 distinct-ID writers');
+    {
+      const NOW='2026-09-07T16:00:00Z',OBS='2026-09-07T15:55:00Z',EXP='2026-09-07T16:05:00Z';
+      const {publicKey,privateKey}=crypto.generateKeyPairSync('ed25519');
+      const pub=publicKey.export({type:'spki',format:'pem'});
+      const action={id:'send-v9',effect:'send',target:'recipient@example.com',purpose:'Approved V9 dispatch',explicitAuthorization:true,intentAligned:true,targetVerified:true,evidenceCount:1,authorizationObservedAt:OBS};
+      const digest=Gate.computeActionDigest(action);
+      const envelope={authorizationId:'dispatch-v9',actionDigest:digest,expiresAt:EXP,observedAt:OBS,keyId:'operator-v9'};
+      envelope.signature=crypto.sign(null,Buffer.from(Auth.authorizationMessage(envelope)),privateKey).toString('base64');
+      action.authorization=envelope;
+      const firstStore=new SQLiteAuthorizationReplayStore(dbPath);
+      const first=Dispatch.prepareAuthorizedAction(action,{gateOptions:{now:NOW},trustedPublicKeys:{'operator-v9':pub},replayStore:firstStore});
+      firstStore.close();
+      assert.equal(first.decision,'ALLOW');
+      const secondStore=new SQLiteAuthorizationReplayStore(dbPath);
+      const second=Dispatch.prepareAuthorizedAction(action,{gateOptions:{now:NOW},trustedPublicKeys:{'operator-v9':pub},replayStore:secondStore});
+      secondStore.close();
+      assert.equal(second.decision,'DENY');
+      assert.equal(second.stage,'replay_store');
+      assert.equal(second.reservation.reason,'authorization_replay_detected');ok();
+    }
+
+    assert.equal(passed,6);
+    console.log('RUMBO SQLite Replay V9: 6/6 PASS + 16-way same-ID race + 16 distinct-ID writers + dispatch integration');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 
