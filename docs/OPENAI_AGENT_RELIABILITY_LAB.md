@@ -2,7 +2,7 @@
 
 ## Objective
 
-Turn RUMBO Guardian from a phishing-only portfolio signal into a small, falsifiable agent-safety/reliability experiment that maps to current OpenAI work on Codex Core Agents, API Agents, Agent Post-Training, Agent Safety, Connectors, and Frontier Evals.
+Turn RUMBO Guardian from a phishing-only portfolio signal into a small, falsifiable agent-safety/reliability experiment that maps to current OpenAI work on Codex Core Agents, API Agents, Agent Post-Training, Agent Safety, Agent Security, Connectors, and Frontier Evals.
 
 This is not an OpenAI internal project and does not claim access to OpenAI private systems. It is an independent public demonstration built from public role descriptions and public developer tooling.
 
@@ -11,50 +11,32 @@ This is not an OpenAI internal project and does not claim access to OpenAI priva
 OpenAI's current public career pages repeatedly emphasize these problems:
 
 - dependable long-running agents that use tools and execute safely;
+- identity-, runtime-, and policy-level defenses for agentic systems;
 - turning ambiguous production failures into concrete hypotheses, evals, and durable fixes;
 - reliable orchestration, sandboxing, observability, cost/latency and production behavior;
 - agent safety mechanisms that preserve useful autonomy while preventing unintended consequential actions;
 - connectors and software integrations that let agents act across professional tools while respecting user intent and permissions;
 - frontier evals/environments that expose failures and convert them into training or product improvements.
 
-Public references checked on 2026-09-07:
-
-- https://openai.com/careers/software-engineer-codex-core-agents-san-francisco/
-- https://openai.com/careers/ai-systems-engineer-codex-agents-san-francisco/
-- https://openai.com/careers/software-engineer-api-agents-san-francisco/
-- https://openai.com/careers/agent-post-training-connectors-research-san-francisco/
-- https://openai.com/careers/research-engineer-frontier-evals-and-environments-san-francisco/
-- https://openai.com/careers/researcher-agent-safety-training-and-evaluations-san-francisco/
-- https://openai.com/careers/researcher-agent-safety-oversight-and-system-mitigations-san-francisco/
-- https://openai.com/index/the-next-evolution-of-the-agents-sdk/
+Public references checked on 2026-09-07 include Codex Core Agents, AI Systems Engineer — Codex Agents, Frontier Evals & Environments, Agent Safety, and Security Engineer — Agent Security.
 
 ## Implemented experiment
 
-`agent-action-gate.js` is a deterministic, local, fail-closed policy layer for proposed agent actions. It does not make model calls and does not execute actions. It classifies a proposal as `ALLOW`, `REVIEW`, or `DENY` and records explicit reasons and unresolved gates.
+`agent-action-gate.js` is the deterministic fail-closed policy layer. V1 established explicit intent/authorization checks. V2 bound authorization to the semantic action using a SHA-256 digest and bounded expiry.
 
-V1 established the baseline: unknown effects fail closed, explicit intent alignment is required, external effects require explicit and fresh authorization, targets/evidence are checked, destructive actions require confirmation, unsafe secret destinations and overspend are denied, and replay signals propagate through compound plans.
+### V3 — signed principal + durable replay consumption
 
-### V2 — authorization binding
+V2 still trusted an authorization envelope without authenticating who produced it, and replay state could be supplied by the caller rather than consumed durably at dispatch time.
 
-The V1 audit exposed a concrete confused-deputy/reuse weakness: authorization state was fresh but not cryptographically bound to the semantic action that would later execute. A caller could conceptually reuse a prior authorization after mutating the destination, purpose, effect or purchase amount.
+V3 adds three separate components:
 
-V2 closes that class of bypass by canonicalizing the action and binding authorization to a SHA-256 digest over stable execution-relevant fields:
+- `agent-authorization-v3.js` verifies Ed25519 authorization signatures against an out-of-band `keyId -> trusted public key` map. The signed bytes bind `authorizationId`, `actionDigest`, observation time, expiry, and `keyId`.
+- `authorization-replay-store.js` implements a local append-only JSONL consumption ledger guarded by an exclusive lock file. Duplicate authorization IDs, lock contention, malformed ledger state, and invalid identifiers fail closed.
+- `agent-authorized-dispatch.js` composes policy evaluation, signature verification, and atomic replay reservation before producing an execution ticket. It does not execute the external action itself.
 
-- action id;
-- effect;
-- target;
-- purpose;
-- reversibility;
-- secret-handling and trusted-destination state;
-- purchase amount and spend limit.
-
-For external effects, an executable authorization now carries a stable `authorizationId`, exact `actionDigest`, and `expiresAt`. The gate independently recomputes the digest in Node.js. If digest verification is unavailable, the action cannot reach `ALLOW`. Target, purpose or amount mutation after approval causes `authorization_action_mismatch` and `DENY`. Expired, overlong or replayed authorization envelopes also deny.
-
-The authorization envelope is intentionally separate from `explicitAuthorization`: a boolean alone is no longer sufficient for execution. This makes the transition from user permission to concrete tool dispatch falsifiable and inspectable.
+The trust root is intentionally external to the authorization envelope: presenting a different public key inside an action cannot establish trust. The trusted key map must come from operator/runtime configuration.
 
 ## Recruited agent roles
-
-For subsequent OpenAI Agents SDK/Codex experiments, use a deliberately small team rather than uncontrolled agent proliferation:
 
 1. **Scout** — turns an observed failure into a minimal reproducible case and evidence bundle.
 2. **Hypothesis Engineer** — proposes the smallest falsifiable root-cause hypothesis.
@@ -62,26 +44,26 @@ For subsequent OpenAI Agents SDK/Codex experiments, use a deliberately small tea
 4. **Adversarial Auditor** — searches for bypasses, replay problems, authorization confusion, and fail-open behavior.
 5. **Evidence Reporter** — records test commands, results, commit identifiers, unresolved gates, and rollback information.
 
-No agent may authorize its own consequential external action. Authorization and execution are separate states.
+No agent may authorize its own consequential external action. Authorization, policy decision, replay reservation, and execution are separate states.
 
 ## Evaluation contract
 
-The current deterministic suite covers read-only work, absent intent, unbound authorization, exact bound authorization, target/purpose/amount mutation, expired and overlong authorization windows, authorization-id replay, destructive actions, unsafe secret destinations, evidence requirements, stale timestamps, spend limits, legacy replay keys, unknown effects, digest sensitivity, unavailable digest verification, and compound-plan propagation.
+The deterministic suites cover read-only work, absent intent, exact digest binding, target/purpose/amount mutation, expiry, replay, destructive actions, unsafe secret destinations, spend limits, normalization idempotence, valid signed authorization, invalid signatures, untrusted key IDs, trusted-key substitution, persistent replay across store instances, lock contention, and corrupted replay state.
 
-A future model-backed harness should add prompt injection, malformed structured outputs, tool-result spoofing, cross-agent confused-deputy behavior, and real trace assertions. Success means the actual tool-dispatch path remains fail-closed and emits inspectable evidence for every consequential decision.
+A future model-backed harness should add prompt injection, malformed structured outputs, tool-result spoofing, cross-agent confused-deputy behavior, and real trace assertions.
 
 ## Boundaries
 
-V2 is still a policy primitive, not a security proof. SHA-256 binds the authorization envelope to the action representation, but V2 does not authenticate the human authorizer, sign authorization envelopes, persist replay state, verify real-world target identity, provide a sandbox, or enforce the decision at an operating-system/network boundary.
+V3 authenticates authorization against configured public keys and durably reserves authorization IDs on a local filesystem, but it is still not a complete security boundary. It does not provision or rotate identity keys, attest the human identity behind a key, solve distributed multi-host consensus, verify real-world destination ownership, sandbox execution, or enforce network/OS policy after an execution ticket is issued.
 
-Those omissions are explicit gates; they are not implied capabilities.
+The lock strategy intentionally fails closed if a lock is left behind after a crash; recovery requires operator inspection rather than unsafe automatic lock breaking.
 
 ## Next technical gates
 
-- sign authorization envelopes or bind them to a trusted authenticated principal;
-- persist authorization/replay identifiers in an append-only or transactionally protected store;
+- bind trusted authorizer keys to an authenticated account/principal lifecycle and rotation policy;
+- move replay consumption to a transactional shared store for multi-host execution;
 - add structured schema validation and property-based fuzzing;
-- integrate the gate before tool dispatch, not after execution;
-- connect eval cases to the real agent path with traces;
-- run adversarial tests for prompt injection and cross-agent confused-deputy behavior;
-- compare policy precision/recall on synthetic safe vs unsafe agent workflows.
+- integrate the V3 dispatcher immediately before actual tool dispatch;
+- connect eval cases to the real Agents SDK path with traces;
+- add prompt-injection and cross-agent confused-deputy adversarial evals;
+- add sandbox/runtime enforcement so a caller cannot bypass the dispatch preflight.
