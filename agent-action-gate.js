@@ -12,12 +12,15 @@
   const uniq=a=>[...new Set((a||[]).filter(Boolean))];
   const asBool=v=>v===true;
   const asFinite=v=>Number.isFinite(Number(v))?Number(v):null;
-  const nowMs=v=>{
-    if(v===undefined||v===null) return Date.now();
-    const n=Number(v);
-    if(Number.isFinite(n)) return n;
+  const parseTimeMs=v=>{
+    if(v===undefined||v===null||v==='') return null;
+    if(typeof v==='number') return Number.isFinite(v)?v:null;
     const parsed=Date.parse(String(v));
-    return Number.isFinite(parsed)?parsed:Date.now();
+    return Number.isFinite(parsed)?parsed:null;
+  };
+  const nowMs=v=>{
+    const parsed=parseTimeMs(v);
+    return parsed===null?Date.now():parsed;
   };
 
   function reason(code,detail,severity='review'){
@@ -32,7 +35,7 @@
       purpose:String(action.purpose||'').trim(),
       explicitAuthorization:asBool(action.explicitAuthorization),
       freshConfirmation:asBool(action.freshConfirmation),
-      intentAligned:action.intentAligned!==false,
+      intentAligned:action.intentAligned===true,
       targetVerified:asBool(action.targetVerified),
       reversible:action.reversible===true,
       handlesSecrets:asBool(action.handlesSecrets),
@@ -69,7 +72,7 @@
 
     if(!action.id) review('missing_action_id','Action has no stable identifier.','stable_action_id');
     if(!action.purpose) review('missing_purpose','Action purpose is not explicit.','purpose');
-    if(!action.intentAligned) deny('intent_mismatch','Action is not aligned with the user intent.');
+    if(!action.intentAligned) deny('intent_not_explicitly_aligned','Action intent alignment is missing or false.');
 
     if(action.replayKey&&action.previouslyExecutedReplayKeys.includes(action.replayKey)){
       deny('replay_detected','The replay key was already executed.');
@@ -79,9 +82,9 @@
       deny('missing_explicit_authorization','External-effect actions require explicit authorization.');
     }
 
-    if(action.authorizationObservedAt!==null&&EXTERNAL_EFFECTS.has(action.effect)){
-      const observed=Date.parse(String(action.authorizationObservedAt));
-      if(!Number.isFinite(observed)) review('invalid_authorization_time','Authorization timestamp cannot be validated.','fresh_authorization');
+    if(EXTERNAL_EFFECTS.has(action.effect)){
+      const observed=parseTimeMs(action.authorizationObservedAt);
+      if(observed===null) review('missing_or_invalid_authorization_time','External-effect authorization freshness cannot be validated.','fresh_authorization');
       else if(now-observed>MAX_AUTH_AGE_MS) review('stale_authorization','Authorization is older than the allowed freshness window.','fresh_authorization');
       else if(observed-now>60*1000) review('future_authorization_time','Authorization timestamp is unexpectedly in the future.','fresh_authorization');
     }
