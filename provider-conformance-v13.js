@@ -11,7 +11,7 @@ const PROFILE_KEYS=Object.freeze(['adapterId','capabilityDigest','evidenceDigest
 const RECEIPT_KEYS=Object.freeze(['expiresAt','keyId','observedAt','profileDigest','schema','signature']);
 const ENTRY_KEYS=Object.freeze(['profile','receipt']);
 const bounded=(v,n=200)=>typeof v==='string'&&v.length>0&&v.length<=n;
-const sha256=v=>/^[a-f0-9]{64}$/.test(String(v||'').toLowerCase());
+const sha256=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v.toLowerCase());
 
 function dataEntriesExact(raw,expectedKeys,error='invalid_provider_conformance'){
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.getPrototypeOf(raw)!==Object.prototype) throw new Error(error);
@@ -27,12 +27,17 @@ function dataEntriesExact(raw,expectedKeys,error='invalid_provider_conformance')
   return out;
 }
 
+function requirePrimitiveStrings(data,keys,error){
+  if(keys.some(key=>typeof data[key]!=='string')) throw new Error(error);
+}
+
 function normalizeProviderConformanceProfile(raw,expected={}){
   const data=dataEntriesExact(raw,PROFILE_KEYS,'invalid_provider_conformance_profile');
+  requirePrimitiveStrings(data,PROFILE_KEYS,'invalid_provider_conformance_profile');
   const profile={
-    schema:String(data.schema||'').trim(),providerId:String(data.providerId||'').trim(),adapterId:String(data.adapterId||'').trim(),
-    protocolVersion:String(data.protocolVersion||'').trim(),capabilityDigest:String(data.capabilityDigest||'').trim().toLowerCase(),
-    suiteVersion:String(data.suiteVersion||'').trim(),evidenceDigest:String(data.evidenceDigest||'').trim().toLowerCase(),result:String(data.result||'').trim().toUpperCase()
+    schema:data.schema.trim(),providerId:data.providerId.trim(),adapterId:data.adapterId.trim(),
+    protocolVersion:data.protocolVersion.trim(),capabilityDigest:data.capabilityDigest.trim().toLowerCase(),
+    suiteVersion:data.suiteVersion.trim(),evidenceDigest:data.evidenceDigest.trim().toLowerCase(),result:data.result.trim().toUpperCase()
   };
   if(profile.schema!==PROFILE_SCHEMA||!bounded(profile.providerId)||!bounded(profile.adapterId)||!bounded(profile.protocolVersion)||!bounded(profile.suiteVersion)) throw new Error('invalid_provider_conformance_profile');
   if(!sha256(profile.capabilityDigest)||!sha256(profile.evidenceDigest)||profile.result!==RESULT) throw new Error('invalid_provider_conformance_profile');
@@ -43,17 +48,22 @@ function normalizeProviderConformanceProfile(raw,expected={}){
 }
 
 function computeProviderConformanceProfileDigest(profile){
-  const normalized=normalizeProviderConformanceProfile(profile,{adapterId:profile.adapterId,protocolVersion:profile.protocolVersion,capabilityDigest:profile.capabilityDigest});
+  const normalized=normalizeProviderConformanceProfile(profile);
   return crypto.createHash('sha256').update(canonicalizeJcs(normalized),'utf8').digest('hex');
 }
 
-function conformanceReceiptMessage(receipt={}){
-  return canonicalizeJcs({schema:receipt.schema,profileDigest:receipt.profileDigest,observedAt:receipt.observedAt,expiresAt:receipt.expiresAt,keyId:receipt.keyId});
+function conformanceReceiptMessage(raw={}){
+  const data=dataEntriesExact(raw,RECEIPT_KEYS,'invalid_provider_conformance_receipt');
+  requirePrimitiveStrings(data,RECEIPT_KEYS,'invalid_provider_conformance_receipt');
+  const message={schema:data.schema.trim(),profileDigest:data.profileDigest.trim().toLowerCase(),observedAt:data.observedAt.trim(),expiresAt:data.expiresAt.trim(),keyId:data.keyId.trim()};
+  if(message.schema!==RECEIPT_SCHEMA||!sha256(message.profileDigest)||!bounded(message.keyId)) throw new Error('invalid_provider_conformance_receipt');
+  return canonicalizeJcs(message);
 }
 
 function normalizeConformanceReceipt(raw){
   const data=dataEntriesExact(raw,RECEIPT_KEYS,'invalid_provider_conformance_receipt');
-  const receipt={schema:String(data.schema||'').trim(),profileDigest:String(data.profileDigest||'').trim().toLowerCase(),observedAt:String(data.observedAt||'').trim(),expiresAt:String(data.expiresAt||'').trim(),keyId:String(data.keyId||'').trim(),signature:typeof data.signature==='string'?data.signature:''};
+  requirePrimitiveStrings(data,RECEIPT_KEYS,'invalid_provider_conformance_receipt');
+  const receipt={schema:data.schema.trim(),profileDigest:data.profileDigest.trim().toLowerCase(),observedAt:data.observedAt.trim(),expiresAt:data.expiresAt.trim(),keyId:data.keyId.trim(),signature:data.signature};
   if(receipt.schema!==RECEIPT_SCHEMA||!sha256(receipt.profileDigest)||!bounded(receipt.keyId)||!receipt.signature) throw new Error('invalid_provider_conformance_receipt');
   return Object.freeze(receipt);
 }
@@ -61,11 +71,11 @@ function normalizeConformanceReceipt(raw){
 function verifyProviderConformanceReceipt(raw,options={}){
   let receipt;
   try{receipt=normalizeConformanceReceipt(raw);}catch(err){return {verified:false,reason:String(err&&err.message||'invalid_provider_conformance_receipt')};}
-  const expectedProfileDigest=String(options.profileDigest||'').trim().toLowerCase();
+  const expectedProfileDigest=typeof options.profileDigest==='string'?options.profileDigest.trim().toLowerCase():'';
   if(!sha256(expectedProfileDigest)||receipt.profileDigest!==expectedProfileDigest) return {verified:false,reason:'provider_conformance_profile_mismatch'};
   const observed=Date.parse(receipt.observedAt),expires=Date.parse(receipt.expiresAt);
   const nowInput=typeof options.now==='function'?options.now():options.now;
-  const now=nowInput?Date.parse(nowInput):Date.now();
+  const now=nowInput===undefined||nowInput===null?Date.now():(typeof nowInput==='number'?nowInput:typeof nowInput==='string'?Date.parse(nowInput):NaN);
   if(!Number.isFinite(observed)||!Number.isFinite(expires)||!Number.isFinite(now)||expires<=observed||expires-observed>MAX_VALIDITY_MS) return {verified:false,reason:'invalid_provider_conformance_window'};
   if(observed>now+MAX_FUTURE_SKEW_MS) return {verified:false,reason:'provider_conformance_not_yet_valid'};
   if(now>=expires) return {verified:false,reason:'provider_conformance_expired'};
