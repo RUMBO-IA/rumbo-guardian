@@ -28,7 +28,13 @@ function assertDataOnly(value,seen=new Set(),path='$'){
       return;
     }
     if(!isPlainObject(value)) throw new Error(`non_plain_object:${path}`);
-    for(const key of Object.keys(value)) assertDataOnly(value[key],seen,`${path}.${key}`);
+    const symbols=Object.getOwnPropertySymbols(value);
+    if(symbols.length) throw new Error(`symbol_property:${path}`);
+    for(const key of Object.keys(value)){
+      const descriptor=Object.getOwnPropertyDescriptor(value,key);
+      if(!descriptor||typeof descriptor.get==='function'||typeof descriptor.set==='function') throw new Error(`accessor_property:${path}.${key}`);
+      assertDataOnly(descriptor.value,seen,`${path}.${key}`);
+    }
   }finally{
     seen.delete(value);
   }
@@ -39,8 +45,17 @@ function cloneData(value){
   if(value===null||typeof value!=='object') return value;
   if(Array.isArray(value)) return value.map(cloneData);
   const out=Object.create(null);
-  for(const key of Object.keys(value)) out[key]=cloneData(value[key]);
+  for(const key of Object.keys(value)) out[key]=cloneData(Object.getOwnPropertyDescriptor(value,key).value);
   return out;
+}
+
+function parseJsonWire(text,label='wire'){
+  if(typeof text!=='string') throw new Error(`${label}_not_string`);
+  if(Buffer.byteLength(text,'utf8')>1024*1024) throw new Error(`${label}_too_large`);
+  let value;
+  try{value=JSON.parse(text);}catch{throw new Error(`${label}_invalid_json`);}
+  assertDataOnly(value);
+  return cloneData(value);
 }
 
 function validAttestation(attestation,adapterId,nonce){
@@ -102,31 +117,38 @@ function createCapabilityRuntime(options={}){
     }
 
     const toolCalls=[];
-    const invokeTool=async proposal=>{
+    const invokeToolJson=async proposalJson=>{
+      let proposal;
+      try{proposal=parseJsonWire(proposalJson,'tool_proposal');}
+      catch(err){
+        const denied={decision:'DENY',stage:'tool_wire_validation',reason:String(err.message||err),executed:false,receipt:null};
+        toolCalls.push({tool:'',decision:'DENY',stage:'tool_wire_validation',executed:false,receipt:null});
+        return JSON.stringify(denied);
+      }
       const result=await dispatchProposal(proposal);
-      toolCalls.push({tool:String(proposal&&proposal.tool||''),decision:result.decision,stage:result.stage,executed:result.executed===true,receipt:result.receipt||null});
-      return result;
+      toolCalls.push({tool:String(proposal.tool||''),decision:result.decision,stage:result.stage,executed:result.executed===true,receipt:result.receipt||null});
+      return JSON.stringify(result);
     };
     const capabilities=Object.freeze({
-      tools:Object.freeze(dispatcher.listTools().map(x=>Object.freeze({name:x.name,effect:x.effect}))),
-      invokeTool
+      toolsJson:JSON.stringify(dispatcher.listTools().map(x=>({name:x.name,effect:x.effect}))),
+      invokeToolJson
     });
 
-    let result;
+    let resultJson;
     try{
-      result=await sandboxAdapter.run({request:cloneData(request),nonce,attestation:cloneData(attestation),capabilities});
+      resultJson=await sandboxAdapter.run({requestJson:JSON.stringify(cloneData(request)),nonce,attestation:cloneData(attestation),capabilities});
     }catch(err){
       return {decision:'DENY',stage:'sandbox_error',reason:'sandbox_execution_error',error:String(err&&err.message||err),executed:true,toolCalls};
     }
-    try{assertDataOnly(result);}catch(err){
-      return {decision:'DENY',stage:'sandbox_result_validation',reason:String(err.message||err),executed:true,toolCalls};
-    }
+    let result;
+    try{result=parseJsonWire(resultJson,'sandbox_result');}
+    catch(err){return {decision:'DENY',stage:'sandbox_result_validation',reason:String(err.message||err),executed:true,toolCalls};}
     return {
       decision:'ALLOW',
       stage:'sandbox_completed',
       executed:true,
       adapterId,
-      result:cloneData(result),
+      result,
       toolCalls,
       runtimePolicyVersion:'RUMBO_AGENT_CAPABILITY_RUNTIME_V5'
     };
@@ -135,4 +157,4 @@ function createCapabilityRuntime(options={}){
   return Object.freeze({dispatchProposal,runUntrustedCode,policyVersion:'RUMBO_AGENT_CAPABILITY_RUNTIME_V5'});
 }
 
-module.exports={assertDataOnly,cloneData,validAttestation,createCapabilityRuntime};
+module.exports={assertDataOnly,cloneData,parseJsonWire,validAttestation,createCapabilityRuntime};
