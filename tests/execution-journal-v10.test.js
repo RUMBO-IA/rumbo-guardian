@@ -125,7 +125,8 @@ async function main(){
     {
       const db=path.join(tmp,'atomic.sqlite'),store=new SQLiteAuthorizationReplayStore(db),input={message:'atomic'};const action=signedAction(input,'v10-atomic');
       store.db.exec(`CREATE TRIGGER force_execution_failure BEFORE INSERT ON execution_journal BEGIN SELECT RAISE(ABORT,'forced_execution_failure'); END;`);
-      assert.throws(()=>AuthorizationDispatch.prepareAuthorizedAction(action,{gateOptions:{now:NOW},trustedPublicKeys:{'operator-v10':pub},replayStore:store,executionContext:{tool:'send',effect:'send',implementationId:'send-v1',parametersDigest:ToolDispatch.computeParametersDigest(input)}}),/./);
+      const result=AuthorizationDispatch.prepareAuthorizedAction(action,{gateOptions:{now:NOW},trustedPublicKeys:{'operator-v10':pub},replayStore:store,executionContext:{tool:'send',effect:'send',implementationId:'send-v1',parametersDigest:ToolDispatch.computeParametersDigest(input)}});
+      assert.equal(result.decision,'DENY');assert.equal(result.reservation.reason,'replay_store_error');
       assert.equal(store.get('v10-atomic'),null);assert.equal(store.getExecution('v10-atomic'),null);store.close();ok();
     }
 
