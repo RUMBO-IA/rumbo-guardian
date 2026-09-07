@@ -27,9 +27,11 @@ Authorization consumption, execution `RESERVED`, and destination `PENDING` recor
 - `execute()` receives the exact derived idempotency key;
 - destination evidence must echo the exact adapter id and idempotency key;
 - definitive `SUCCEEDED` or `FAILED` evidence is persisted together with the execution terminal state;
-- mismatched or malformed evidence is classified `FAILED_OR_UNKNOWN` rather than accepted as success;
+- mismatched or malformed evidence is never accepted as success and leaves the execution `STARTED` / destination `PENDING` so later reconciliation remains possible;
 - adapter exceptions and `PENDING`/`UNKNOWN` responses never cause a blind retry;
 - a `STARTED` + destination `PENDING` execution can only be closed through `reconcileStarted()` or conservative operator classification.
+
+A crash after the atomic reservation but before `STARTED` remains recoverable. `resumeReserved()` may claim and execute a destination-backed `RESERVED` record only when the exact implementation, adapter, parameter digest, stored idempotency key, and host recovery authority still match. It reuses the original idempotency key and does not mint a new authorization.
 
 ## Reconciliation
 
@@ -41,7 +43,7 @@ Authorization consumption, execution `RESERVED`, and destination `PENDING` recor
 - `PENDING` => leave the execution `STARTED` and destination `PENDING`;
 - reconciliation exceptions or invalid evidence => leave state unchanged and report uncertainty.
 
-Changed adapter identity or changed tool implementation cannot reconcile an existing execution.
+Changed adapter identity or changed tool implementation cannot recover or reconcile an existing execution.
 
 ## Exactly-once boundary
 
