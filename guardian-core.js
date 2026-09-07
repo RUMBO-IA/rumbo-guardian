@@ -13,6 +13,7 @@
   const impersonation=[/banco/i,/correo argentino/i,/afip/i,/arca/i,/netflix/i,/whatsapp/i,/meta/i,/google/i,/microsoft/i,/soporte técnico/i];
   const clamp=n=>Math.max(0,Math.min(100,n));
   const unique=a=>[...new Set(a)];
+  const safeDecodeURIComponent=value=>{try{return decodeURIComponent(String(value));}catch{return String(value);}};
 
   function normalizeDomain(value){
     if(!value) return '';
@@ -70,7 +71,7 @@
     if(shorteners.has(host)){score+=18;add(reasons,18,'Enlace acortado','Oculta el destino final antes de abrirlo.','shortener');}
     if(parts.length>4){score+=10;add(reasons,10,'Muchos subdominios','Puede intentar aparentar pertenecer a otra organización.','many_subdomains');}
     if(url.username||url.password){score+=30;add(reasons,30,'Credenciales embebidas','La URL contiene credenciales antes del host.','embedded_credentials');}
-    if(url.username&&(/[.]/.test(url.username)||brandDomains.some(canonical=>decodeURIComponent(url.username).toLowerCase().includes(canonical)))){score+=18;add(reasons,18,'Confusión de autoridad en URL','El texto antes de @ puede parecer un dominio, pero el host real es '+host+'.','authority_confusion');}
+    if(url.username&&(/[.]/.test(url.username)||brandDomains.some(canonical=>safeDecodeURIComponent(url.username).toLowerCase().includes(canonical)))){score+=18;add(reasons,18,'Confusión de autoridad en URL','El texto antes de @ puede parecer un dominio, pero el host real es '+host+'.','authority_confusion');}
     if(value.length>180){score+=8;add(reasons,8,'URL inusualmente larga','La longitud dificulta la inspección visual.','long_url');}
     if(/login|verify|account|secure|update|password|payment|wallet|unlock|support/i.test(url.pathname+url.search)){score+=12;add(reasons,12,'Ruta sensible','Contiene términos asociados con acceso, verificación o pagos.','sensitive_path');}
     if(url.port&&!['80','443'].includes(url.port)){score+=8;add(reasons,8,'Puerto no habitual','Utiliza un puerto diferente de los estándares web.','unusual_port');}

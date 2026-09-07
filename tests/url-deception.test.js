@@ -25,4 +25,16 @@ assert.ok(authority.score >= 40, 'la confusión de autoridad debe producir seña
 const official = appCore.analyzeUrl(cases[2]);
 assert.ok(!official.reasons.some(r => ['brand_shadow','authority_confusion'].includes(r.code)), 'dominio oficial no debe generar señal de suplantación estructural');
 
+const malformedAuthority = 'https://%E0@example.com/';
+let malformedApp;
+let malformedExtension;
+assert.doesNotThrow(() => {
+  malformedApp = appCore.analyzeUrl(malformedAuthority);
+}, 'userinfo con percent-encoding malformado no debe hacer fallar el analizador principal');
+assert.doesNotThrow(() => {
+  malformedExtension = extensionCore.analyzeUrl(malformedAuthority);
+}, 'userinfo con percent-encoding malformado no debe hacer fallar el analizador de extensión');
+assert.deepEqual(malformedExtension, malformedApp, 'app/extension core drift for malformed percent-encoded userinfo');
+assert.ok(malformedApp.reasons.some(r => r.code === 'embedded_credentials'), 'userinfo malformado debe conservar la señal de credenciales embebidas');
+
 console.log('RUMBO Guardian URL deception detection: PASS');
