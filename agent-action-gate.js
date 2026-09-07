@@ -13,7 +13,11 @@
 
   const uniq=a=>[...new Set((a||[]).filter(Boolean))];
   const asBool=v=>v===true;
-  const asFinite=v=>Number.isFinite(Number(v))?Number(v):null;
+  const asFinite=v=>{
+    if(v===undefined||v===null||v==='') return null;
+    const n=Number(v);
+    return Number.isFinite(n)?n:null;
+  };
   const parseTimeMs=v=>{
     if(v===undefined||v===null||v==='') return null;
     if(typeof v==='number') return Number.isFinite(v)?v:null;
