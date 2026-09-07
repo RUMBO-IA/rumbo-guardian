@@ -66,8 +66,8 @@ async function main(){
       assert.throws(()=>dispatcher(null,adapter(),entry(mismatch,signReceipt(Conformance.computeProviderConformanceProfileDigest(mismatch)))),/provider_conformance_capability_mismatch/);ok();
     }
     {
-      let clock=NOW;const d=dispatcher(null,adapter(),entry(),{providerConformanceNow:()=>clock});clock='2026-09-09T00:00:00Z';
-      const result=await d.dispatch({tool:'send',input:{message:'expired'},action:{}});assert.equal(result.decision,'DENY');assert.equal(result.stage,'provider_conformance');assert.equal(result.reason,'provider_conformance_expired');ok();
+      let clock=NOW;const store=new SQLiteExecutionStoreV11(path.join(tmp,'runtime-expiry.sqlite'));const d=dispatcher(store,adapter(),entry(),{providerConformanceNow:()=>clock});clock='2026-09-09T00:00:00Z';
+      const input={message:'expired'},result=await d.dispatch({tool:'send',input,action:signedAction(input,'v13-runtime-expiry')});assert.equal(result.decision,'DENY');assert.equal(result.stage,'provider_conformance');assert.equal(result.reason,'provider_conformance_expired');assert.equal(store.get('v13-runtime-expiry'),null);store.close();ok();
     }
     {
       const long=signReceipt(PROFILE_DIGEST,'2026-09-01T00:00:00Z','2026-09-20T00:00:00Z');
