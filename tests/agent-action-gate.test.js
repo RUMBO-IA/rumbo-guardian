@@ -19,9 +19,22 @@ const base={
 }
 
 {
+  const {intentAligned,...withoutIntent}=base;
+  const r=Gate.assessAgentAction({...withoutIntent,effect:'read',target:'local-report.json'},{now:NOW});
+  assert.equal(r.decision,'DENY','missing intent alignment must fail closed');
+  assert.ok(r.reasons.some(x=>x.code==='intent_not_explicitly_aligned'));
+}
+
+{
   const r=Gate.assessAgentAction({...base,effect:'send',target:'recipient@example.com'},{now:NOW});
   assert.equal(r.decision,'DENY','sending without explicit authorization must fail closed');
   assert.ok(r.reasons.some(x=>x.code==='missing_explicit_authorization'));
+}
+
+{
+  const r=Gate.assessAgentAction({...base,effect:'send',target:'recipient@example.com',explicitAuthorization:true},{now:NOW});
+  assert.equal(r.decision,'REVIEW','external authorization without a freshness timestamp must not be executable');
+  assert.ok(r.requiredGates.includes('fresh_authorization'));
 }
 
 {
@@ -59,6 +72,12 @@ const base={
 }
 
 {
+  const numericRecent=Date.parse(recent);
+  const r=Gate.assessAgentAction({...base,effect:'send',target:'recipient@example.com',explicitAuthorization:true,authorizationObservedAt:numericRecent},{now:Date.parse(NOW)});
+  assert.equal(r.decision,'ALLOW','numeric timestamps should preserve freshness semantics');
+}
+
+{
   const r=Gate.assessAgentAction({...base,effect:'purchase',target:'vendor',explicitAuthorization:true,authorizationObservedAt:recent,freshConfirmation:true,amount:120,spendLimit:100},{now:NOW});
   assert.equal(r.decision,'DENY','spend above explicit limit must be denied');
   assert.ok(r.reasons.some(x=>x.code==='spend_limit_exceeded'));
@@ -71,7 +90,7 @@ const base={
 }
 
 {
-  const r=Gate.assessAgentAction({...base,effect:'teleport',explicitAuthorization:true},{now:NOW});
+  const r=Gate.assessAgentAction({...base,effect:'teleport',explicitAuthorization:true,authorizationObservedAt:recent},{now:NOW});
   assert.equal(r.decision,'DENY','unknown effects must fail closed');
   assert.ok(r.reasons.some(x=>x.code==='unknown_effect'));
 }
@@ -92,4 +111,4 @@ const base={
   assert.equal(plan.decision,'REVIEW','a review child action must propagate review to the plan');
 }
 
-console.log('RUMBO Agent Action Gate: 13/13 PASS');
+console.log('RUMBO Agent Action Gate: 16/16 PASS');
