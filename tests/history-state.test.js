@@ -3,9 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-const match = source.match(/function getHistory\(\)\{[\s\S]*?\n\}\nasync function ensureHistoryChain/);
-assert.ok(match, 'getHistory function must remain present');
-const functionSource = match[0].replace(/\nasync function ensureHistoryChain$/, '');
+const start = source.indexOf('function getHistory(){');
+const end = source.indexOf('async function ensureHistoryChain', start);
+assert.ok(start >= 0 && end > start, 'getHistory function must remain present');
+const functionSource = source.slice(start, end);
 
 function loadGetHistory(value) {
   const getHistory = Function('localStorage', `const HISTORY_KEY='rumboGuardianHistory'; return (${functionSource});`)({

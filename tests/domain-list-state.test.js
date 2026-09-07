@@ -3,9 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-const match = source.match(/function getLists\(\)\{[\s\S]*?\n\}\nfunction saveLists/);
-assert.ok(match, 'getLists function must remain present');
-const functionSource = match[0].replace(/\nfunction saveLists$/, '');
+const start = source.indexOf('function getLists(){');
+const end = source.indexOf('\nfunction saveLists', start);
+assert.ok(start >= 0 && end > start, 'getLists function must remain present');
+const functionSource = source.slice(start, end);
 
 function loadGetLists(value) {
   const getLists = Function('localStorage', `const LIST_KEY='rumboGuardianDomainListsV03'; return (${functionSource});`)({
