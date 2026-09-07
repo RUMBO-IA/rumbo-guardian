@@ -43,7 +43,7 @@ async function main(){
   assert.throws(()=>V14.validateStripeTestSecret('sk_live_example'),/stripe_live_key_forbidden/);ok();
   assert.equal(V14.validateStripeTestSecret('sk_test_example'),'sk_test_example');ok();
   {
-    const result=await run();assert.equal(result.result,'PASS');assert.match(result.evidenceDigest,/^[a-f0-9]{64}$/);assert.equal(result.evidence.checks.length,5);assert.ok(result.evidence.checks.every(c=>c.passed));
+    const result=await run();assert.equal(result.result,'PASS');assert.equal(result.evidence.executionMode,'BEHAVIORAL_MODEL');assert.match(result.evidenceDigest,/^[a-f0-9]{64}$/);assert.equal(result.evidence.checks.length,5);assert.ok(result.evidence.checks.every(c=>c.passed));
     assert.equal(JSON.stringify(result.evidence).includes('must-not-leak'),false);ok();
   }
   {const result=await run({breakReplay:true});assert.equal(result.result,'FAIL');assert.equal(result.evidence.checks.find(c=>c.name==='same_key_same_parameters').passed,false);ok();}
@@ -52,8 +52,7 @@ async function main(){
   {const result=await run({breakRetrieve:true});assert.equal(result.result,'FAIL');assert.equal(result.evidence.checks.find(c=>c.name==='retrieve_by_id').passed,false);ok();}
   {const result=await run({live:true});assert.equal(result.result,'FAIL');assert.equal(result.evidence.checks.find(c=>c.name==='test_mode_only').passed,false);ok();}
   {
-    const result=await run();const profile=V14.buildV13Profile({runResult:result,adapterId:'stripe-payment-intents-v1',capabilityDigest:'a'.repeat(64)});
-    assert.equal(profile.providerId,'stripe');assert.equal(profile.evidenceDigest,result.evidenceDigest);assert.equal(profile.result,'PASS');ok();
+    const result=await run();assert.throws(()=>V14.buildV13Profile({runResult:result,adapterId:'stripe-payment-intents-v1',capabilityDigest:'a'.repeat(64)}),/live_provider_conformance_not_proven/);ok();
   }
   {const result=await run({breakReplay:true});assert.throws(()=>V14.buildV13Profile({runResult:result,adapterId:'stripe-payment-intents-v1',capabilityDigest:'a'.repeat(64)}),/live_provider_conformance_not_proven/);ok();}
   {
@@ -61,6 +60,6 @@ async function main(){
     assert.throws(()=>V14.responseDigest(body),/provider_response_accessor/);assert.equal(getterCalls,0);ok();
   }
   assert.equal(passed,12);
-  console.log('RUMBO Stripe Conformance Runner V14: 12/12 PASS + test-key-only + loss/replay/mismatch/retrieve + no secret leakage');
+  console.log('RUMBO Stripe Conformance Runner V14: 12/12 PASS + model/live separation + loss/replay/mismatch/retrieve + no secret leakage');
 }
 main().catch(err=>{console.error(err);process.exit(1);});
