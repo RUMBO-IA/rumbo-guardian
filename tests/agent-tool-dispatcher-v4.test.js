@@ -103,6 +103,13 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
   }
 
   {
+    const sparse=new Array(1);
+    const r=await dispatcher.dispatch({tool:'sendMessage',action:{effect:'send'},input:sparse});
+    assert.equal(r.decision,'DENY');assert.equal(r.stage,'input_binding');assert.equal(r.reason,'sparse_or_decorated_array');assert.equal(calls,2);
+    assert.throws(()=>V4.computeParametersDigest(sparse),/sparse_or_decorated_array/);
+  }
+
+  {
     const tools=dispatcher.listTools();
     assert.deepEqual(tools,[{name:'sendMessage',effect:'send'}]);
     assert.equal('handler' in tools[0],false);
@@ -112,5 +119,5 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
   assert.notEqual(V4.computeParametersDigest({a:1}),V4.computeParametersDigest({a:2}));
   assert.equal(V4.computeParametersDigest({a:1,b:[2,3]}),V4.computeParametersDigest({b:[2,3],a:1}));
 
-  console.log('RUMBO Agent Tool Dispatcher V4: 11/11 PASS');
+  console.log('RUMBO Agent Tool Dispatcher V4: 12/12 PASS');
 })().catch(err=>{console.error(err);process.exitCode=1;});
