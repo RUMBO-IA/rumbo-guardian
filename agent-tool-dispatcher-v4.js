@@ -88,6 +88,14 @@ function createToolDispatcher(options={}){
   const journalCapable=!!(store&&typeof store.consumeWithExecution==='function'&&typeof store.claimExecution==='function'&&typeof store.finishExecution==='function'&&typeof store.getExecution==='function');
   const destinationCapable=!!(journalCapable&&typeof store.getDestination==='function'&&typeof store.finishDestinationExecution==='function'&&typeof store.markExecutionUnknown==='function');
   const denied=(stage,reason,extra={})=>({decision:'DENY',authorizationDecision:extra.authorizationDecision||'DENY',stage,reason,executed:false,invocationAttempted:false,effectOutcome:'NOT_ATTEMPTED',receipt:null,...extra});
+  function capabilityBindingError(def,destination){
+    const current=String(def&&def.destinationCapabilityDigest||'').trim().toLowerCase();
+    const persisted=String(destination&&destination.capabilityDigest||'').trim().toLowerCase();
+    if(persisted&&!current) return 'destination_capability_downgrade';
+    if(current&&!persisted) return 'destination_capability_binding_missing';
+    if(current&&persisted!==current) return 'destination_capability_mismatch';
+    return null;
+  }
 
   function listTools(){
     return [...defs.values()].map(({name,effect,implementationId,destinationAdapterId,destinationCapabilityDigest,destinationCapabilityVersion})=>Object.freeze({
@@ -198,10 +206,8 @@ function createToolDispatcher(options={}){
       if(!destinationCapable) return denied('recovery','destination_store_unavailable',{execution:current});
       destination=store.getDestination(authorizationId);
       if(!destination||destination.state!=='PENDING'||destination.adapterId!==def.destinationAdapterId) return denied('recovery','destination_adapter_mismatch',{execution:current,destination});
-      if(def.destinationCapabilityDigest){
-        if(!destination.capabilityDigest) return denied('recovery','destination_capability_binding_missing',{execution:current,destination});
-        if(destination.capabilityDigest!==def.destinationCapabilityDigest) return denied('recovery','destination_capability_mismatch',{execution:current,destination});
-      }
+      const capabilityError=capabilityBindingError(def,destination);
+      if(capabilityError) return denied('recovery',capabilityError,{execution:current,destination});
     }
     let frozenInput,inputDigest;
     try{frozenInput=deepCloneAndFreeze(request.input===undefined?null:request.input);inputDigest=computeParametersDigest(frozenInput);}catch(err){return denied('recovery_input',String(err&&err.message||'invalid_input'));}
@@ -225,10 +231,8 @@ function createToolDispatcher(options={}){
     if(execution.state!=='FAILED_OR_UNKNOWN'||destination.state!=='PENDING') return denied('reconciliation','destination_execution_not_reconcilable',{execution,destination});
     const def=defs.get(execution.tool);
     if(!def||!def.destinationAdapter||def.destinationAdapterId!==destination.adapterId||def.implementationId!==execution.implementationId) return denied('reconciliation','destination_adapter_mismatch',{execution,destination});
-    if(def.destinationCapabilityDigest){
-      if(!destination.capabilityDigest) return denied('reconciliation','destination_capability_binding_missing',{execution,destination});
-      if(destination.capabilityDigest!==def.destinationCapabilityDigest) return denied('reconciliation','destination_capability_mismatch',{execution,destination});
-    }
+    const capabilityError=capabilityBindingError(def,destination);
+    if(capabilityError) return denied('reconciliation',capabilityError,{execution,destination});
     if(typeof options.authorizeReconciliation!=='function') return denied('reconciliation','reconciliation_authority_unavailable',{execution,destination});
     let approved=false;try{approved=await options.authorizeReconciliation(Object.freeze({authorizationId,idempotencyKey:destination.idempotencyKey,adapterId:destination.adapterId,tool:execution.tool,effect:execution.effect,implementationId:execution.implementationId,destinationCapabilityDigest:destination.capabilityDigest||null}))===true;}catch{}
     if(!approved) return denied('reconciliation','reconciliation_not_approved',{execution,destination});
