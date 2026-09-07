@@ -132,6 +132,15 @@ function signedAction(id='auth-1'){
   assert.deepEqual(result.authorization.reasons,['invalid_signature_encoding']);ok();
 }
 
+{
+  const action=signedAction('auth-whitespace-base64');
+  action.authorization.signature=` ${action.authorization.signature} `;
+  const result=Dispatch.prepareAuthorizedAction(action,{gateOptions:{now:NOW},trustedPublicKeys:{'operator-1':pub},replayStore:new FileAuthorizationReplayStore(storePath)});
+  assert.equal(result.decision,'DENY');
+  assert.equal(result.stage,'signature');
+  assert.deepEqual(result.authorization.reasons,['invalid_signature_encoding']);ok();
+}
+
 fs.rmSync(tmp,{recursive:true,force:true});
-assert.equal(passed,11);
-console.log('RUMBO Agent Authorization V3/V6 hardening: 11/11 PASS');
+assert.equal(passed,12);
+console.log('RUMBO Agent Authorization V3/V6 hardening: 12/12 PASS');
