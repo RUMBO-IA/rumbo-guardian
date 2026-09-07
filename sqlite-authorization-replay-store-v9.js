@@ -16,13 +16,14 @@ function executionBinding(value={}){
     actionDigest:String(value.actionDigest||'').trim().toLowerCase(),
     tool:String(value.tool||'').trim(),
     effect:String(value.effect||'').trim().toLowerCase(),
+    implementationId:String(value.implementationId||'').trim(),
     parametersDigest:String(value.parametersDigest||'').trim().toLowerCase()
   };
-  if(!validId(binding.actionId)||!sha256(binding.actionDigest)||!bounded(binding.tool)||!bounded(binding.effect)||!sha256(binding.parametersDigest)) return null;
+  if(!validId(binding.actionId)||!sha256(binding.actionDigest)||!bounded(binding.tool)||!bounded(binding.effect)||!bounded(binding.implementationId)||!sha256(binding.parametersDigest)) return null;
   return binding;
 }
 function sameBinding(row,binding){
-  return !!row&&row.actionId===binding.actionId&&row.actionDigest===binding.actionDigest&&row.tool===binding.tool&&row.effect===binding.effect&&row.parametersDigest===binding.parametersDigest;
+  return !!row&&row.actionId===binding.actionId&&row.actionDigest===binding.actionDigest&&row.tool===binding.tool&&row.effect===binding.effect&&row.implementationId===binding.implementationId&&row.parametersDigest===binding.parametersDigest;
 }
 
 class SQLiteAuthorizationReplayStore{
@@ -46,6 +47,7 @@ class SQLiteAuthorizationReplayStore{
       action_digest TEXT NOT NULL,
       tool TEXT NOT NULL,
       effect TEXT NOT NULL,
+      implementation_id TEXT NOT NULL,
       parameters_digest TEXT NOT NULL,
       state TEXT NOT NULL CHECK(state IN ('RESERVED','STARTED','SUCCEEDED','FAILED','FAILED_OR_UNKNOWN')),
       reserved_at TEXT NOT NULL,
@@ -60,10 +62,10 @@ class SQLiteAuthorizationReplayStore{
       action_digest AS actionDigest,key_id AS keyId,authorizer_fingerprint AS authorizerFingerprint,
       correlation_id AS correlationId FROM consumed_authorizations WHERE authorization_id=?`);
     this.insertExecution=this.db.prepare(`INSERT INTO execution_journal(
-      authorization_id,action_id,action_digest,tool,effect,parameters_digest,state,reserved_at,updated_at
-    ) VALUES(?,?,?,?,?,?,'RESERVED',?,?)`);
+      authorization_id,action_id,action_digest,tool,effect,implementation_id,parameters_digest,state,reserved_at,updated_at
+    ) VALUES(?,?,?,?,?,?,?,'RESERVED',?,?)`);
     this.selectExecution=this.db.prepare(`SELECT authorization_id AS authorizationId,action_id AS actionId,
-      action_digest AS actionDigest,tool,effect,parameters_digest AS parametersDigest,state,
+      action_digest AS actionDigest,tool,effect,implementation_id AS implementationId,parameters_digest AS parametersDigest,state,
       reserved_at AS reservedAt,started_at AS startedAt,finished_at AS finishedAt,updated_at AS updatedAt
       FROM execution_journal WHERE authorization_id=?`);
     this.claimExecutionStmt=this.db.prepare(`UPDATE execution_journal SET state='STARTED',started_at=?,updated_at=?
@@ -116,7 +118,7 @@ class SQLiteAuthorizationReplayStore{
         this._rollback();
         return {consumed:false,reason:'authorization_replay_detected'};
       }
-      this.insertExecution.run(id,binding.actionId,binding.actionDigest,binding.tool,binding.effect,binding.parametersDigest,now,now);
+      this.insertExecution.run(id,binding.actionId,binding.actionDigest,binding.tool,binding.effect,binding.implementationId,binding.parametersDigest,now,now);
       this.db.exec('COMMIT');
       return {consumed:true,reason:null,entry:{...clean,authorizationId:id,consumedAt:now},execution:this.getExecution(id)};
     }catch(err){
