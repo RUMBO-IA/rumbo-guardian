@@ -31,6 +31,11 @@ const rejects=(text,reason,label='wire')=>assert.throws(()=>Wire.strictParseJson
   rejects('{"x":01}','invalid_json');rejects('{"x":1,}','invalid_json');rejects('[1,,2]','invalid_json');ok();
 }
 {
+  rejects('-0','non_canonical_number');rejects('1e3','non_canonical_number');rejects('1.0','non_canonical_number');
+  rejects('9007199254740993','non_canonical_number');rejects('0.10000000000000001','non_canonical_number');
+  assert.equal(Wire.strictParseJsonWire('1000'),1000);assert.equal(Wire.strictParseJsonWire('0.1'),0.1);ok();
+}
+{
   const deep='['.repeat(66)+'0'+']'.repeat(66);rejects(deep,'too_deep');ok();
 }
 {
@@ -46,7 +51,7 @@ const rejects=(text,reason,label='wire')=>assert.throws(()=>Wire.strictParseJson
   assert.throws(()=>Runtime.parseJsonWire('{"a":1,"\\u0061":2}','sandbox_result'),/sandbox_result_duplicate_key/);ok();
 }
 {
-  const vectors=['0','-0','1.5','1e3','true','false','null','"line\\nfeed"','[]','{}',' { "z" : 1 , "a" : 2 } '];
+  const vectors=['0','1.5','1000','1e+21','true','false','null','"line\\nfeed"','[]','{}',' { "z" : 1 , "a" : 2 } '];
   for(const text of vectors){const parsed=Wire.strictParseJsonWire(text);assert.equal(JSON.stringify(parsed),JSON.stringify(JSON.parse(text)));}ok();
 }
 {
@@ -65,8 +70,6 @@ const rejects=(text,reason,label='wire')=>assert.throws(()=>Wire.strictParseJson
   ok();
 }
 {
-  const aliases=['a','\\u0061','\\u{0061}'];
-  assert.equal(aliases.length,3);
   for(let i=0;i<100;i++){
     const left=i%2===0?'a':'\\u0061';
     const right=i%2===0?'\\u0061':'a';
@@ -75,5 +78,5 @@ const rejects=(text,reason,label='wire')=>assert.throws(()=>Wire.strictParseJson
   ok();
 }
 
-assert.equal(passed,15);
-console.log('RUMBO Strict JSON Wire V7: 15/15 PASS + 500 deterministic fuzz round-trips + 100 duplicate-key probes');
+assert.equal(passed,16);
+console.log('RUMBO Strict JSON Wire V7: 16/16 PASS + 500 deterministic fuzz round-trips + 100 duplicate-key probes');
