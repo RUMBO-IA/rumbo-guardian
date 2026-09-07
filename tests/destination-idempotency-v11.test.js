@@ -5,6 +5,7 @@ const os=require('node:os');
 const path=require('node:path');
 const Gate=require('../agent-action-gate.js');
 const Auth=require('../agent-authorization-v3.js');
+const AuthorizationDispatch=require('../agent-authorized-dispatch.js');
 const Dispatch=require('../agent-tool-dispatcher-v4.js');
 const {SQLiteExecutionStoreV11}=require('../sqlite-execution-store-v11.js');
 const {computeIdempotencyKey}=require('../destination-idempotency-v11.js');
@@ -48,6 +49,18 @@ async function main(){
     }
 
     {
+      const store=new SQLiteExecutionStoreV11(path.join(tmp,'reserved-recovery.sqlite')),input={message:'reserved'};let executeCalls=0,seenKey=null;
+      const action=signedAction(input,'v11-reserved-recovery');
+      const toolBindingDigest=Dispatch.computeToolBindingDigest(BASE_TOOL);
+      const idempotencyKey=computeIdempotencyKey({authorizationId:'v11-reserved-recovery',actionDigest:action.authorization.actionDigest,toolBindingDigest,adapterId:'adapter-a'});
+      const prepared=AuthorizationDispatch.prepareAuthorizedAction(action,{gateOptions:{now:NOW},trustedPublicKeys:{'operator-v11':pub},replayStore:store,executionContext:{tool:'send',effect:'send',implementationId:'send-v11',parametersDigest:Dispatch.computeParametersDigest(input),destination:{adapterId:'adapter-a',idempotencyKey}}});
+      assert.equal(prepared.decision,'ALLOW');assert.equal(store.getExecution('v11-reserved-recovery').state,'RESERVED');assert.equal(store.getDestination('v11-reserved-recovery').state,'PENDING');
+      const d=dispatcher(store,adapter('adapter-a',async(input,ctx)=>{executeCalls++;seenKey=ctx.idempotencyKey;return {adapterId:'adapter-a',idempotencyKey:ctx.idempotencyKey,status:'SUCCEEDED'};},async()=>{throw new Error('not-needed');}),{authorizeRecovery:async()=>true});
+      const recovered=await d.resumeReserved({authorizationId:'v11-reserved-recovery',input});
+      assert.equal(recovered.effectOutcome,'SUCCEEDED');assert.equal(executeCalls,1);assert.equal(seenKey,idempotencyKey);assert.equal(store.getExecution('v11-reserved-recovery').state,'SUCCEEDED');store.close();ok();
+    }
+
+    {
       const store=new SQLiteExecutionStoreV11(path.join(tmp,'replay.sqlite'));let calls=0;
       const a=adapter('adapter-a',async(input,ctx)=>{calls++;return {adapterId:'adapter-a',idempotencyKey:ctx.idempotencyKey,status:'SUCCEEDED'};},async()=>{throw new Error('not-needed');});
       const d=dispatcher(store,a),input={message:'once'},action=signedAction(input,'v11-replay');
@@ -72,10 +85,11 @@ async function main(){
     }
 
     {
-      const store=new SQLiteExecutionStoreV11(path.join(tmp,'bad-evidence.sqlite'));
-      const a=adapter('adapter-a',async()=>({adapterId:'adapter-a',idempotencyKey:'rumbo-v11-'+'0'.repeat(64),status:'SUCCEEDED'}),async()=>{throw new Error('not-needed');});
+      const store=new SQLiteExecutionStoreV11(path.join(tmp,'bad-evidence.sqlite'));let correctKey=null,reconcileCalls=0;
+      const a=adapter('adapter-a',async(input,ctx)=>{correctKey=ctx.idempotencyKey;return {adapterId:'adapter-a',idempotencyKey:'rumbo-v11-'+'0'.repeat(64),status:'SUCCEEDED'};},async()=>{reconcileCalls++;return {adapterId:'adapter-a',idempotencyKey:correctKey,status:'SUCCEEDED'};});
       const d=dispatcher(store,a),input={message:'bad'},result=await d.dispatch({tool:'send',input,action:signedAction(input,'v11-bad-evidence')});
-      assert.equal(result.effectOutcome,'FAILED_OR_UNKNOWN');assert.equal(result.evidence.reason,'destination_idempotency_key_mismatch');assert.equal(store.getExecution('v11-bad-evidence').state,'FAILED_OR_UNKNOWN');assert.equal(store.getDestination('v11-bad-evidence').state,'FAILED_OR_UNKNOWN');store.close();ok();
+      assert.equal(result.effectOutcome,'FAILED_OR_UNKNOWN');assert.equal(result.evidence.reason,'destination_idempotency_key_mismatch');assert.equal(store.getExecution('v11-bad-evidence').state,'STARTED');assert.equal(store.getDestination('v11-bad-evidence').state,'PENDING');
+      const reconciled=await d.reconcileStarted({authorizationId:'v11-bad-evidence'});assert.equal(reconciled.effectOutcome,'SUCCEEDED');assert.equal(reconcileCalls,1);assert.equal(store.getExecution('v11-bad-evidence').state,'SUCCEEDED');store.close();ok();
     }
 
     {
@@ -115,8 +129,8 @@ async function main(){
       assert.throws(()=>Dispatch.createToolDispatcher({tools:[{name:'send',effect:'send',implementationId:'x',destinationAdapter:{adapterId:'bad',supportsIdempotency:false,execute:async()=>{},reconcile:async()=>{}}}]}),/invalid_destination_adapter/);ok();
     }
 
-    assert.equal(passed,11);
-    console.log('RUMBO Destination Idempotency V11: 11/11 PASS + no blind retry + reconciliation + signed adapter substitution guard');
+    assert.equal(passed,12);
+    console.log('RUMBO Destination Idempotency V11: 12/12 PASS + RESERVED recovery + no blind retry + reconciliation + signed adapter substitution guard');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 
