@@ -37,7 +37,7 @@ function signedAction(input,authorizationId,tool=TOOL_V1){
   return action;
 }
 function strictDispatcher(store,destinationAdapter,policy=POLICY_V1,extra={}){
-  return Dispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v12':pub},trustedDestinationCapabilities:{'adapter-a':policy},gateOptions:{now:NOW},authorizeRecovery:async()=>true,authorizeReconciliation:async()=>true,...extra,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter}]});
+  return Dispatch.createToolDispatcher({allowCapabilityWithoutProviderConformance:true,replayStore:store,trustedPublicKeys:{'operator-v12':pub},trustedDestinationCapabilities:{'adapter-a':policy},gateOptions:{now:NOW},authorizeRecovery:async()=>true,authorizeReconciliation:async()=>true,...extra,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter}]});
 }
 function legacyDispatcher(store,destinationAdapter,extra={}){
   return Dispatch.createToolDispatcher({allowLegacySelfAssertedDestinationCapabilities:true,replayStore:store,authorizeRecovery:async()=>true,authorizeReconciliation:async()=>true,...extra,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter}]});
@@ -87,7 +87,7 @@ async function main(){
       let mapGetterCalls=0;
       const policyMap={};
       Object.defineProperty(policyMap,'adapter-a',{enumerable:true,get(){mapGetterCalls++;return POLICY_V1;}});
-      assert.throws(()=>Dispatch.createToolDispatcher({trustedDestinationCapabilities:policyMap,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter:adapter()}]}),/trusted_destination_capability_required/);
+      assert.throws(()=>Dispatch.createToolDispatcher({allowCapabilityWithoutProviderConformance:true,trustedDestinationCapabilities:policyMap,tools:[{name:'send',effect:'send',implementationId:'send-v12',destinationAdapter:adapter()}]}),/trusted_destination_capability_required/);
       assert.equal(mapGetterCalls,0);ok();
     }
     {
@@ -99,7 +99,7 @@ async function main(){
       db.close();
       const migrated=new SQLiteExecutionStoreV11(dbPath);
       const columns=migrated.db.prepare('PRAGMA table_info(destination_idempotency)').all().map(c=>c.name);
-      assert.ok(columns.includes('capability_digest'));migrated.close();ok();
+      assert.ok(columns.includes('capability_digest'));assert.ok(columns.includes('provider_conformance_profile_digest'));migrated.close();ok();
     }
     {
       assert.notEqual(DIGEST_V1,DIGEST_V2);
@@ -142,7 +142,7 @@ async function main(){
     }
 
     assert.equal(passed,15);
-    console.log('RUMBO Trusted Destination Capability V12: 15/15 PASS + fail-closed exact-schema manifests + V11 DB migration + signed capability rotation + legacy downgrade guards');
+    console.log('RUMBO Trusted Destination Capability V12: 15/15 PASS + explicit V12 compatibility mode + fail-closed exact-schema manifests + V11 DB migration + signed capability rotation + legacy downgrade guards');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 main().catch(err=>{console.error(err);process.exit(1);});
