@@ -22,9 +22,18 @@ function publicKeyFingerprint(publicKeyPem){
   }
 }
 
+function decodeCanonicalEd25519Signature(signature){
+  if(typeof signature!=='string'||!signature) throw new Error('invalid_signature_encoding');
+  if(signature.length%4!==0) throw new Error('invalid_signature_encoding');
+  if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(signature)) throw new Error('invalid_signature_encoding');
+  const bytes=Buffer.from(signature,'base64');
+  if(bytes.length!==64||bytes.toString('base64')!==signature) throw new Error('invalid_signature_encoding');
+  return bytes;
+}
+
 function verifyAuthorizationProof(envelope={},options={}){
   const keyId=clean(envelope.keyId);
-  const signature=clean(envelope.signature);
+  const signature=typeof envelope.signature==='string'?envelope.signature:'';
   const trustedPublicKeys=options.trustedPublicKeys||{};
   const publicKeyPem=trustedPublicKeys[keyId];
   const reasons=[];
@@ -36,8 +45,7 @@ function verifyAuthorizationProof(envelope={},options={}){
 
   let signatureBytes;
   try{
-    signatureBytes=Buffer.from(signature,'base64');
-    if(!signatureBytes.length) throw new Error('empty');
+    signatureBytes=decodeCanonicalEd25519Signature(signature);
   }catch{
     return {verified:false,keyId,fingerprint:publicKeyFingerprint(publicKeyPem),reasons:['invalid_signature_encoding']};
   }
@@ -55,4 +63,4 @@ function verifyAuthorizationProof(envelope={},options={}){
   }
 }
 
-module.exports={authorizationMessage,publicKeyFingerprint,verifyAuthorizationProof};
+module.exports={authorizationMessage,publicKeyFingerprint,decodeCanonicalEd25519Signature,verifyAuthorizationProof};

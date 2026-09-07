@@ -2,6 +2,19 @@ const fs=require('node:fs');
 const path=require('node:path');
 
 function validId(value){ return /^[A-Za-z0-9._:-]{1,200}$/.test(String(value||'')); }
+function boundedText(value,max=512){
+  if(value===undefined||value===null) return null;
+  const text=String(value);
+  return text.length<=max?text:null;
+}
+function sanitizeMetadata(metadata={}){
+  const out={};
+  for(const key of ['actionDigest','keyId','authorizerFingerprint','correlationId']){
+    const value=boundedText(metadata[key]);
+    if(value!==null) out[key]=value;
+  }
+  return out;
+}
 
 class FileAuthorizationReplayStore{
   constructor(filePath){
@@ -43,7 +56,7 @@ class FileAuthorizationReplayStore{
     try{
       const entries=this._readEntries();
       if(entries.some(entry=>entry.authorizationId===id)) return {consumed:false,reason:'authorization_replay_detected'};
-      const entry={authorizationId:id,consumedAt:new Date().toISOString(),...metadata};
+      const entry={...sanitizeMetadata(metadata),authorizationId:id,consumedAt:new Date().toISOString()};
       const fd=fs.openSync(this.filePath,'a',0o600);
       try{
         fs.writeSync(fd,JSON.stringify(entry)+'\n',null,'utf8');
@@ -57,4 +70,4 @@ class FileAuthorizationReplayStore{
   }
 }
 
-module.exports={FileAuthorizationReplayStore,validId};
+module.exports={FileAuthorizationReplayStore,validId,sanitizeMetadata};

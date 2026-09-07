@@ -41,7 +41,7 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
 
   {
     const r=await dispatcher.dispatch({tool:'missing',action:{},input:{}});
-    assert.equal(r.decision,'DENY');assert.equal(r.executed,false);assert.equal(calls,0);
+    assert.equal(r.decision,'DENY');assert.equal(r.executed,false);assert.equal(r.invocationAttempted,false);assert.equal(r.effectOutcome,'NOT_ATTEMPTED');assert.equal(calls,0);
   }
 
   {
@@ -60,7 +60,7 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
     const input={message:'approved',nested:{n:1}};
     const req=signedRequest({authorizationId:'auth-valid',input});
     const r=await dispatcher.dispatch(req);
-    assert.equal(r.decision,'ALLOW');assert.equal(r.executed,true);assert.equal(calls,1);
+    assert.equal(r.decision,'ALLOW');assert.equal(r.authorizationDecision,'ALLOW');assert.equal(r.executed,true);assert.equal(r.invocationAttempted,true);assert.equal(r.effectOutcome,'SUCCEEDED');assert.equal(calls,1);
     assert.equal(Object.isFrozen(seen.at(-1).input),true);assert.equal(Object.isFrozen(seen.at(-1).input.nested),true);
     assert.equal(r.receipt.parametersDigest,V4.computeParametersDigest({nested:{n:1},message:'approved'}));
   }
@@ -77,7 +77,7 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
     const req=signedRequest({authorizationId:'auth-order',input:{a:1,b:2}});
     req.input={b:2,a:1};
     const r=await dispatcher.dispatch(req);
-    assert.equal(r.decision,'ALLOW');assert.equal(r.executed,true);assert.equal(calls,2);
+    assert.equal(r.decision,'ALLOW');assert.equal(r.effectOutcome,'SUCCEEDED');assert.equal(r.executed,true);assert.equal(calls,2);
   }
 
   {
@@ -91,9 +91,9 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
     const badDispatcher=V4.createToolDispatcher({trustedPublicKeys,replayStore:new MemoryStore(),gateOptions:{now:NOW},tools:[{name:'sendMessage',effect:'send',handler:async()=>{throw new Error('transport_failed');}}]});
     const req=signedRequest({authorizationId:'auth-burn'});
     const first=await badDispatcher.dispatch(req);
-    assert.equal(first.stage,'handler_error');assert.equal(first.executed,true);
+    assert.equal(first.decision,'ALLOW');assert.equal(first.authorizationDecision,'ALLOW');assert.equal(first.stage,'handler_error');assert.equal(first.executed,true);assert.equal(first.invocationAttempted,true);assert.equal(first.effectOutcome,'FAILED');
     const second=await badDispatcher.dispatch(req);
-    assert.equal(second.decision,'DENY');assert.equal(second.stage,'replay_store');assert.equal(second.executed,false);
+    assert.equal(second.decision,'DENY');assert.equal(second.stage,'replay_store');assert.equal(second.executed,false);assert.equal(second.effectOutcome,'NOT_ATTEMPTED');
   }
 
   {
@@ -110,6 +110,22 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
   }
 
   {
+    let getterTouched=0;
+    const input={};
+    Object.defineProperty(input,'message',{enumerable:true,get(){getterTouched++;return 'secret';}});
+    const r=await dispatcher.dispatch({tool:'sendMessage',action:{effect:'send'},input});
+    assert.equal(r.decision,'DENY');assert.equal(r.stage,'input_binding');assert.equal(r.reason,'accessor_property');assert.equal(getterTouched,0);assert.equal(calls,2);
+  }
+
+  {
+    let deep={leaf:true};
+    for(let i=0;i<70;i++) deep={next:deep};
+    assert.throws(()=>V4.computeParametersDigest(deep),/input_too_deep/);
+    const r=await dispatcher.dispatch({tool:'sendMessage',action:{effect:'send'},input:deep});
+    assert.equal(r.decision,'DENY');assert.equal(r.stage,'input_binding');assert.equal(r.reason,'input_too_deep');assert.equal(calls,2);
+  }
+
+  {
     const tools=dispatcher.listTools();
     assert.deepEqual(tools,[{name:'sendMessage',effect:'send'}]);
     assert.equal('handler' in tools[0],false);
@@ -119,5 +135,5 @@ function signedRequest({id='act-1',authorizationId='auth-1',tool='sendMessage',e
   assert.notEqual(V4.computeParametersDigest({a:1}),V4.computeParametersDigest({a:2}));
   assert.equal(V4.computeParametersDigest({a:1,b:[2,3]}),V4.computeParametersDigest({b:[2,3],a:1}));
 
-  console.log('RUMBO Agent Tool Dispatcher V4: 12/12 PASS');
+  console.log('RUMBO Agent Tool Dispatcher V4/V6 hardening: 14/14 PASS');
 })().catch(err=>{console.error(err);process.exitCode=1;});

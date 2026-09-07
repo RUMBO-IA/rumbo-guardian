@@ -44,33 +44,53 @@ V5 closes the framework-level capability leak without pretending Node.js itself 
 - sandbox results must also cross as JSON text. Host objects, functions, getters, symbols, sparse arrays, cyclic values, non-finite numbers, and non-plain objects are rejected fail-closed.
 - direct trusted-host proposals remain available for deterministic tests and integrations, but the untrusted-sandbox boundary itself is wire-only.
 
-This architecture deliberately separates **policy**, **authorization**, **dispatch**, **sandbox trust**, and **execution**. A local Node permission flag that cannot satisfy the full confinement profile is evidence for denial, not a reason to weaken the profile.
+### V6 — replay, signature, outcome, and complexity hardening
+
+A fresh audit of the merged V5 chain found four residual weaknesses that could create ambiguous or fail-open behavior under adversarial inputs:
+
+1. replay-store caller metadata was spread after authoritative `authorizationId` and `consumedAt`, so a future caller could overwrite those fields in the append-only record;
+2. Node's permissive base64 decoder accepted some malformed encodings before Ed25519 verification;
+3. handler failure returned `decision: ALLOW` and `executed: true` without a separate effect outcome, which could be misread downstream as a successful side effect;
+4. canonicalization and sandbox data validation had no explicit recursion/node budget, leaving a stack/CPU denial-of-service path for deeply nested or very large structured inputs within the 1 MiB wire cap.
+
+V6 closes those gaps while preserving compatibility:
+
+- replay metadata is allowlisted and written before authoritative fields; caller metadata cannot replace the consumed authorization id or timestamp;
+- Ed25519 signatures must be canonical standard base64, re-encode identically, and decode to exactly 64 bytes before verification;
+- dispatcher results now separate `authorizationDecision`, `invocationAttempted`, and `effectOutcome` (`NOT_ATTEMPTED`, `SUCCEEDED`, or `FAILED`), while retaining the legacy top-level `decision` field;
+- sandbox execution separately exposes `executionOutcome` (`NOT_ATTEMPTED`, `COMPLETED`, or `FAILED_OR_UNKNOWN`);
+- V4/V5 structured-data traversal is bounded to depth 64 and 10,000 nodes and rejects accessors and symbol properties without invoking getters;
+- V5 cloning validates once and then clones descriptor-backed data, avoiding repeated whole-tree validation during recursion;
+- regression suites explicitly exercise metadata override, malformed/unpadded signatures, handler failure semantics, accessors, excessive depth, and oversize sandbox wire input.
+
+This architecture deliberately separates **policy**, **authorization**, **dispatch**, **sandbox trust**, **invocation**, and **effect outcome**. A local Node permission flag that cannot satisfy the full confinement profile is evidence for denial, not a reason to weaken the profile.
 
 ## Recruited agent roles
 
 1. **Scout** — turns an observed failure into a minimal reproducible case and evidence bundle.
 2. **Hypothesis Engineer** — proposes the smallest falsifiable root-cause hypothesis.
 3. **Fix Agent** — implements the smallest correction in an isolated branch/sandbox.
-4. **Adversarial Auditor** — searches for bypasses, replay problems, authorization confusion, TOCTOU mutation, host-reference leakage, and fail-open behavior.
+4. **Adversarial Auditor** — searches for bypasses, replay problems, authorization confusion, TOCTOU mutation, host-reference leakage, outcome ambiguity, and fail-open behavior.
 5. **Evidence Reporter** — records test commands, results, commit identifiers, unresolved gates, and rollback information.
 
-No agent may authorize its own consequential external action. Authorization, policy decision, sandbox admission, replay reservation, and execution are separate states.
+No agent may authorize its own consequential external action. Authorization, policy decision, sandbox admission, replay reservation, invocation, and effect outcome are separate states.
 
 ## Evaluation contract
 
-The deterministic suites cover intent, digest binding, target/purpose/amount mutation, expiry, replay, destructive actions, secrets, spend limits, signed authorization, key substitution, persistent replay, lock contention, corrupted replay state, unknown tools, effect confusion, parameter mutation, canonicalization, prompt-injection-shaped tool input, handler failure, sparse arrays, capability absence, untrusted sandbox adapters, nonce mismatch, incomplete isolation claims, missing/failed attestation verification, JSON-only tool mediation, malformed sandbox results, accessors/symbol properties, and a live Node 22 permission-capability probe.
+The deterministic suites cover intent, digest binding, target/purpose/amount mutation, expiry, replay, destructive actions, secrets, spend limits, signed authorization, key substitution, persistent replay, replay-metadata override, strict signature encoding, lock contention, corrupted replay state, unknown tools, effect confusion, parameter mutation, canonicalization, prompt-injection-shaped tool input, handler failure/outcome semantics, sparse arrays, accessors/symbol properties, excessive input depth, capability absence, untrusted sandbox adapters, nonce mismatch, incomplete isolation claims, missing/failed attestation verification, JSON-only tool mediation, malformed/oversize sandbox results, and a live Node 22 permission-capability probe.
 
 ## Boundaries
 
-V5 does **not** implement a kernel/container/hypervisor sandbox inside this repository. It creates a fail-closed trust and capability contract for such a sandbox and refuses to label the current Node 22 permission model as sufficient. Node's own documentation explicitly states its Permission Model is not a security guarantee against malicious code and documents additional bypass/limitation cases.
+V6 does **not** implement a kernel/container/hypervisor sandbox inside this repository. It creates a fail-closed trust and capability contract for such a sandbox and refuses to label the current Node 22 permission model as sufficient. Node's own documentation explicitly states its Permission Model is not a security guarantee against malicious code and documents additional bypass/limitation cases.
 
 A production adapter must provide real isolation outside the untrusted process boundary and an independently verifiable attestation. Until such an adapter is connected, arbitrary-code execution remains `DENY` by design.
 
-V5 also does not provision/rotate human identity keys, solve distributed replay consensus, verify destination ownership, or integrate a model-backed Agents SDK path.
+V6 also does not provision/rotate human identity keys, solve distributed replay consensus, verify destination ownership, reject duplicate JSON object keys at the wire parser, or integrate a model-backed Agents SDK path. Native `JSON.parse` is host-authoritative today; a future cross-language adapter should adopt duplicate-key rejection or an unambiguous canonical wire encoding before production use.
 
 ## Next technical gates
 
 - implement/connect a real external sandbox adapter with independently verifiable isolation attestation;
+- reject duplicate JSON keys or migrate the sandbox protocol to a canonical schema/encoding;
 - add property-based/schema fuzzing for JSON wire and canonicalization;
 - test concurrent/multi-process replay races against a transactional shared store;
 - integrate the same dispatch/capability contract into an OpenAI Agents SDK harness with traces/evals once API credentials/budget are explicitly available;

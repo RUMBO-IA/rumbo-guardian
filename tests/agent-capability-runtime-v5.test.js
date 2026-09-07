@@ -7,7 +7,7 @@ class FakeDispatcher{
   listTools(){return [{name:'sendMessage',effect:'send'}];}
   async dispatch(request){
     this.calls.push(request);
-    return {decision:'ALLOW',stage:'executed',executed:true,receipt:{tool:request.tool,authorizationId:'auth-test'}};
+    return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'executed',executed:true,invocationAttempted:true,effectOutcome:'SUCCEEDED',receipt:{tool:request.tool,authorizationId:'auth-test'}};
   }
 }
 
@@ -33,7 +33,7 @@ function attestation(adapterId,nonce,overrides={}){
     const dispatcher=new FakeDispatcher();
     const runtime=V5.createCapabilityRuntime({dispatcher});
     const r=await runtime.dispatchProposal({tool:'sendMessage',action:{id:'a1'},input:{message:'hello'}});
-    assert.equal(r.decision,'ALLOW');assert.equal(dispatcher.calls.length,1);ok();
+    assert.equal(r.decision,'ALLOW');assert.equal(r.effectOutcome,'SUCCEEDED');assert.equal(dispatcher.calls.length,1);ok();
   }
 
   {
@@ -80,8 +80,21 @@ function attestation(adapterId,nonce,overrides={}){
   {
     const dispatcher=new FakeDispatcher();
     const runtime=V5.createCapabilityRuntime({dispatcher});
+    let deep={leaf:true};
+    for(let i=0;i<70;i++) deep={next:deep};
+    const r=await runtime.dispatchProposal({tool:'sendMessage',input:deep});
+    assert.equal(r.decision,'DENY');assert.equal(r.stage,'proposal_validation');assert.match(r.reason,/value_too_deep/);assert.equal(dispatcher.calls.length,0);ok();
+  }
+
+  {
+    assert.throws(()=>V5.parseJsonWire('x'.repeat(1024*1024+1),'oversize'),/oversize_too_large/);ok();
+  }
+
+  {
+    const dispatcher=new FakeDispatcher();
+    const runtime=V5.createCapabilityRuntime({dispatcher});
     const r=await runtime.runUntrustedCode({language:'javascript',code:'require("fs")'});
-    assert.equal(r.decision,'DENY');assert.equal(r.reason,'hard_sandbox_unavailable');ok();
+    assert.equal(r.decision,'DENY');assert.equal(r.reason,'hard_sandbox_unavailable');assert.equal(r.executionOutcome,'NOT_ATTEMPTED');ok();
   }
 
   {
@@ -137,12 +150,12 @@ function attestation(adapterId,nonce,overrides={}){
         sawHandler=Boolean(tools[0]&&tools[0].handler);
         wireOnly=typeof capabilities.invokeToolJson==='function'&&!('invokeTool' in capabilities);
         const toolResult=JSON.parse(await capabilities.invokeToolJson(JSON.stringify({tool:'sendMessage',action:{id:'a2'},input:{message:request.message}})));
-        return JSON.stringify({toolDecision:toolResult.decision,toolCount:tools.length});
+        return JSON.stringify({toolDecision:toolResult.decision,toolOutcome:toolResult.effectOutcome,toolCount:tools.length});
       }
     };
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async(a,{nonce})=>a.proof==='verified-test-proof'&&a.nonce===nonce});
     const r=await runtime.runUntrustedCode({message:'approved'});
-    assert.equal(r.decision,'ALLOW');assert.equal(r.stage,'sandbox_completed');assert.equal(r.toolCalls.length,1);assert.equal(dispatcher.calls.length,1);assert.equal(sawHandler,false);assert.equal(wireOnly,true);ok();
+    assert.equal(r.decision,'ALLOW');assert.equal(r.stage,'sandbox_completed');assert.equal(r.executionOutcome,'COMPLETED');assert.equal(r.result.toolOutcome,'SUCCEEDED');assert.equal(r.toolCalls.length,1);assert.equal(r.toolCalls[0].effectOutcome,'SUCCEEDED');assert.equal(dispatcher.calls.length,1);assert.equal(sawHandler,false);assert.equal(wireOnly,true);ok();
   }
 
   {
@@ -164,7 +177,7 @@ function attestation(adapterId,nonce,overrides={}){
     const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>({escape:'host-object'})};
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>true});
     const r=await runtime.runUntrustedCode({code:'1'});
-    assert.equal(r.decision,'DENY');assert.equal(r.stage,'sandbox_result_validation');assert.equal(r.reason,'sandbox_result_not_string');ok();
+    assert.equal(r.decision,'DENY');assert.equal(r.stage,'sandbox_result_validation');assert.equal(r.reason,'sandbox_result_not_string');assert.equal(r.executionOutcome,'FAILED_OR_UNKNOWN');ok();
   }
 
   {
@@ -172,7 +185,7 @@ function attestation(adapterId,nonce,overrides={}){
     const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>{throw new Error('sandbox died');}};
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>true});
     const r=await runtime.runUntrustedCode({code:'1'});
-    assert.equal(r.decision,'DENY');assert.equal(r.stage,'sandbox_error');ok();
+    assert.equal(r.decision,'DENY');assert.equal(r.stage,'sandbox_error');assert.equal(r.executionOutcome,'FAILED_OR_UNKNOWN');ok();
   }
 
   {
@@ -190,6 +203,6 @@ function attestation(adapterId,nonce,overrides={}){
     ok();
   }
 
-  assert.equal(passed,17);
-  console.log('RUMBO Agent Capability Runtime V5: 17/17 PASS');
+  assert.equal(passed,19);
+  console.log('RUMBO Agent Capability Runtime V5/V6 hardening: 19/19 PASS');
 })().catch(err=>{console.error(err);process.exitCode=1;});
