@@ -18,8 +18,10 @@ function computeIdempotencyKey({authorizationId,actionDigest,toolBindingDigest,a
 function validateDestinationAdapter(adapter){
   if(!adapter||typeof adapter!=='object') throw new Error('invalid_destination_adapter');
   const adapterId=String(adapter.adapterId||'').trim();
+  const protocolVersion=String(adapter.protocolVersion||'').trim();
   if(!bounded(adapterId)||adapter.supportsIdempotency!==true||typeof adapter.execute!=='function'||typeof adapter.reconcile!=='function') throw new Error('invalid_destination_adapter');
-  return Object.freeze({adapterId,supportsIdempotency:true,execute:adapter.execute,reconcile:adapter.reconcile});
+  if(protocolVersion&&!bounded(protocolVersion)) throw new Error('invalid_destination_adapter');
+  return Object.freeze({adapterId,protocolVersion,supportsIdempotency:true,execute:adapter.execute,reconcile:adapter.reconcile});
 }
 
 function normalizeEvidence(raw,expected={}){
