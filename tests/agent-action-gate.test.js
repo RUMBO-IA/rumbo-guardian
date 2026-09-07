@@ -175,6 +175,12 @@ function bind(action,overrides={}){
 
 {
   const action={...base,effect:'send',target:'recipient@example.com'};
+  const normalized=Gate.normalizeAction(action);
+  assert.equal(Gate.computeActionDigest(action),Gate.computeActionDigest(normalized),'normalization must be idempotent for digest-relevant nullable fields');
+}
+
+{
+  const action={...base,effect:'send',target:'recipient@example.com'};
   const authorized=bind(action);
   const r=Gate.assessAgentAction(authorized,{now:NOW,digestFn:()=>null});
   assert.equal(r.decision,'REVIEW','runtime without digest verification must fail closed to review');
@@ -195,4 +201,4 @@ function bind(action,overrides={}){
   assert.equal(plan.decision,'REVIEW','a review child action must propagate review to the plan');
 }
 
-console.log('RUMBO Agent Action Gate V2: 24/24 PASS');
+console.log('RUMBO Agent Action Gate V2: 25/25 PASS');
