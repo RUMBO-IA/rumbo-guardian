@@ -8,7 +8,10 @@ assert.ok(match, 'getLists function must remain present');
 const functionSource = match[0].replace(/\nfunction saveLists$/, '');
 
 function loadGetLists(value) {
-  return Function('localStorage', `return (${functionSource});`)({ getItem: () => value })();
+  const getLists = Function('localStorage', `const LIST_KEY='rumboGuardianDomainListsV03'; return (${functionSource});`)({
+    getItem: () => value,
+  });
+  return getLists();
 }
 
 function assertLists(value, expected) {
