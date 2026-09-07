@@ -133,10 +133,12 @@ function bind(action,overrides={}){
 
 {
   const action={...base,effect:'send',target:'recipient@example.com'};
-  const authorized=bind(action);
+  const authorized=bind(action,{expiresAt:'2026-09-07T09:10:00Z'});
   authorized.authorizationObservedAt=stale;
   const r=Gate.assessAgentAction(authorized,{now:NOW});
-  assert.equal(r.decision,'REVIEW','stale authorization observation should require refresh');
+  assert.equal(r.decision,'DENY','authorization older than the freshness window must no longer be executable');
+  assert.ok(r.reasons.some(x=>x.code==='stale_authorization'));
+  assert.ok(r.reasons.some(x=>x.code==='authorization_expired'));
 }
 
 {
