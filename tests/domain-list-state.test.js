@@ -5,12 +5,10 @@ const path = require('path');
 const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 const match = source.match(/function getLists\(\)\{[\s\S]*?\n\}\nfunction saveLists/);
 assert.ok(match, 'getLists function must remain present');
+const functionSource = match[0].replace(/\nfunction saveLists$/, '');
 
 function loadGetLists(value) {
-  const getLists = Function('localStorage', `${match[0].replace(/\nfunction saveLists[\s\S]*$/, '')}\nreturn getLists;`)(
-    { getItem: () => value }
-  );
-  return getLists();
+  return Function('localStorage', `return (${functionSource});`)({ getItem: () => value })();
 }
 
 function assertLists(value, expected) {
