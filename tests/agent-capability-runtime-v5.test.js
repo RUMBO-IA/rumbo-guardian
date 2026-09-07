@@ -33,8 +33,7 @@ function attestation(adapterId,nonce,overrides={}){
     const dispatcher=new FakeDispatcher();
     const runtime=V5.createCapabilityRuntime({dispatcher});
     const r=await runtime.dispatchProposal({tool:'sendMessage',action:{id:'a1'},input:{message:'hello'}});
-    assert.equal(r.decision,'ALLOW');
-    assert.equal(dispatcher.calls.length,1);ok();
+    assert.equal(r.decision,'ALLOW');assert.equal(dispatcher.calls.length,1);ok();
   }
 
   {
@@ -63,13 +62,31 @@ function attestation(adapterId,nonce,overrides={}){
   {
     const dispatcher=new FakeDispatcher();
     const runtime=V5.createCapabilityRuntime({dispatcher});
+    let getterTouched=0;
+    const input={};
+    Object.defineProperty(input,'message',{enumerable:true,get(){getterTouched++;return 'secret';}});
+    const r=await runtime.dispatchProposal({tool:'sendMessage',input});
+    assert.equal(r.decision,'DENY');assert.match(r.reason,/accessor_property/);assert.equal(getterTouched,0);ok();
+  }
+
+  {
+    const dispatcher=new FakeDispatcher();
+    const runtime=V5.createCapabilityRuntime({dispatcher});
+    const input={message:'x'};input[Symbol('escape')]='hidden';
+    const r=await runtime.dispatchProposal({tool:'sendMessage',input});
+    assert.equal(r.decision,'DENY');assert.match(r.reason,/symbol_property/);ok();
+  }
+
+  {
+    const dispatcher=new FakeDispatcher();
+    const runtime=V5.createCapabilityRuntime({dispatcher});
     const r=await runtime.runUntrustedCode({language:'javascript',code:'require("fs")'});
     assert.equal(r.decision,'DENY');assert.equal(r.reason,'hard_sandbox_unavailable');ok();
   }
 
   {
     const dispatcher=new FakeDispatcher();
-    const adapter={id:'attacker',attest:async({nonce})=>attestation('attacker',nonce),run:async()=>({ok:true})};
+    const adapter={id:'attacker',attest:async({nonce})=>attestation('attacker',nonce),run:async()=>JSON.stringify({ok:true})};
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>true});
     const r=await runtime.runUntrustedCode({code:'1'});
     assert.equal(r.decision,'DENY');assert.equal(r.reason,'untrusted_sandbox_adapter');ok();
@@ -77,7 +94,7 @@ function attestation(adapterId,nonce,overrides={}){
 
   {
     const dispatcher=new FakeDispatcher();
-    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>({ok:true})};
+    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>JSON.stringify({ok:true})};
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted']});
     const r=await runtime.runUntrustedCode({code:'1'});
     assert.equal(r.decision,'DENY');assert.equal(r.reason,'sandbox_attestation_verifier_missing');ok();
@@ -85,7 +102,7 @@ function attestation(adapterId,nonce,overrides={}){
 
   {
     const dispatcher=new FakeDispatcher();
-    const adapter={id:'trusted',attest:async()=>attestation('trusted','wrong-nonce'),run:async()=>({ok:true})};
+    const adapter={id:'trusted',attest:async()=>attestation('trusted','wrong-nonce'),run:async()=>JSON.stringify({ok:true})};
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>true});
     const r=await runtime.runUntrustedCode({code:'1'});
     assert.equal(r.decision,'DENY');assert.equal(r.reason,'sandbox_isolation_requirements_not_met');ok();
@@ -93,7 +110,7 @@ function attestation(adapterId,nonce,overrides={}){
 
   {
     const dispatcher=new FakeDispatcher();
-    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce,{networkIsolation:false}),run:async()=>({ok:true})};
+    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce,{networkIsolation:false}),run:async()=>JSON.stringify({ok:true})};
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>true});
     const r=await runtime.runUntrustedCode({code:'1'});
     assert.equal(r.decision,'DENY');assert.equal(r.reason,'sandbox_isolation_requirements_not_met');ok();
@@ -101,7 +118,7 @@ function attestation(adapterId,nonce,overrides={}){
 
   {
     const dispatcher=new FakeDispatcher();
-    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>({ok:true})};
+    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>JSON.stringify({ok:true})};
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>false});
     const r=await runtime.runUntrustedCode({code:'1'});
     assert.equal(r.decision,'DENY');assert.equal(r.reason,'sandbox_attestation_unverified');ok();
@@ -110,26 +127,44 @@ function attestation(adapterId,nonce,overrides={}){
   {
     const dispatcher=new FakeDispatcher();
     let sawHandler=false;
+    let wireOnly=false;
     const adapter={
       id:'trusted',
       attest:async({nonce})=>attestation('trusted',nonce),
-      run:async({request,capabilities})=>{
-        sawHandler='handler' in capabilities.tools[0];
-        const toolResult=await capabilities.invokeTool({tool:'sendMessage',action:{id:'a2'},input:{message:request.message}});
-        return {toolDecision:toolResult.decision,toolCount:capabilities.tools.length};
+      run:async({requestJson,capabilities})=>{
+        const request=JSON.parse(requestJson);
+        const tools=JSON.parse(capabilities.toolsJson);
+        sawHandler=Boolean(tools[0]&&tools[0].handler);
+        wireOnly=typeof capabilities.invokeToolJson==='function'&&!('invokeTool' in capabilities);
+        const toolResult=JSON.parse(await capabilities.invokeToolJson(JSON.stringify({tool:'sendMessage',action:{id:'a2'},input:{message:request.message}})));
+        return JSON.stringify({toolDecision:toolResult.decision,toolCount:tools.length});
       }
     };
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async(a,{nonce})=>a.proof==='verified-test-proof'&&a.nonce===nonce});
     const r=await runtime.runUntrustedCode({message:'approved'});
-    assert.equal(r.decision,'ALLOW');assert.equal(r.stage,'sandbox_completed');assert.equal(r.toolCalls.length,1);assert.equal(dispatcher.calls.length,1);assert.equal(sawHandler,false);ok();
+    assert.equal(r.decision,'ALLOW');assert.equal(r.stage,'sandbox_completed');assert.equal(r.toolCalls.length,1);assert.equal(dispatcher.calls.length,1);assert.equal(sawHandler,false);assert.equal(wireOnly,true);ok();
   }
 
   {
     const dispatcher=new FakeDispatcher();
-    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>({escape:()=>process})};
+    const adapter={
+      id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),
+      run:async({capabilities})=>{
+        const denied=JSON.parse(await capabilities.invokeToolJson({tool:'sendMessage'}));
+        return JSON.stringify({wireDecision:denied.decision,wireStage:denied.stage});
+      }
+    };
     const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>true});
     const r=await runtime.runUntrustedCode({code:'1'});
-    assert.equal(r.decision,'DENY');assert.equal(r.stage,'sandbox_result_validation');ok();
+    assert.equal(r.decision,'ALLOW');assert.equal(r.result.wireDecision,'DENY');assert.equal(r.result.wireStage,'tool_wire_validation');assert.equal(dispatcher.calls.length,0);ok();
+  }
+
+  {
+    const dispatcher=new FakeDispatcher();
+    const adapter={id:'trusted',attest:async({nonce})=>attestation('trusted',nonce),run:async()=>({escape:'host-object'})};
+    const runtime=V5.createCapabilityRuntime({dispatcher,sandboxAdapter:adapter,trustedSandboxAdapterIds:['trusted'],verifySandboxAttestation:async()=>true});
+    const r=await runtime.runUntrustedCode({code:'1'});
+    assert.equal(r.decision,'DENY');assert.equal(r.stage,'sandbox_result_validation');assert.equal(r.reason,'sandbox_result_not_string');ok();
   }
 
   {
@@ -155,5 +190,6 @@ function attestation(adapterId,nonce,overrides={}){
     ok();
   }
 
-  console.log(`RUMBO Agent Capability Runtime V5: ${passed}/${passed} PASS`);
+  assert.equal(passed,17);
+  console.log('RUMBO Agent Capability Runtime V5: 17/17 PASS');
 })().catch(err=>{console.error(err);process.exitCode=1;});
