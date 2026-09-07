@@ -62,6 +62,8 @@ function strictParseJsonWire(text,label='wire',limits={}){
     i+=token.length;
     const value=Number(token);
     if(!Number.isFinite(value)) fail('non_finite_number');
+    const canonical=JSON.stringify(value);
+    if(canonical!==token) fail('non_canonical_number');
     return value;
   }
 
