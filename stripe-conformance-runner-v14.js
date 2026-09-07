@@ -2,6 +2,7 @@ const crypto=require('node:crypto');
 const {canonicalizeJcs}=require('./jcs-canonicalize-v8.js');
 const Conformance=require('./provider-conformance-v13.js');
 
+const STRIPE_API_ORIGIN='https://api.stripe.com';
 const STRIPE_API_VERSION='2026-02-25.clover';
 const SUITE_VERSION='rumbo.stripe.payment-intent-idempotency.v14';
 const PROVIDER_ID='stripe';
@@ -57,23 +58,30 @@ function encodeForm(form){
   for(const [key,value] of Object.entries(form||{})) out.append(key,String(value));
   return out.toString();
 }
-function makeStripeFetchTransport({secretKey,fetchImpl=globalThis.fetch,baseUrl='https://api.stripe.com',apiVersion=STRIPE_API_VERSION}={}){
+function validConformanceRequest(method,path){
+  if(method==='POST') return path==='/v1/payment_intents';
+  if(method==='GET') return /^\/v1\/payment_intents\/pi_[A-Za-z0-9_]+$/.test(path);
+  return false;
+}
+function makeStripeFetchTransport({secretKey,fetchImpl=globalThis.fetch}={}){
   const secret=validateStripeTestSecret(secretKey);
   if(typeof fetchImpl!=='function') throw new Error('fetch_unavailable');
   return Object.freeze({
     async request({method,path,form,idempotencyKey,simulateResponseLoss=false}){
-      const headers={Authorization:`Bearer ${secret}`,'Stripe-Version':apiVersion};
+      if(!validConformanceRequest(method,path)) throw new Error('invalid_stripe_conformance_request');
+      const headers={Authorization:`Bearer ${secret}`,'Stripe-Version':STRIPE_API_VERSION};
       let body;
       if(method==='POST'){
         headers['Content-Type']='application/x-www-form-urlencoded';
         if(typeof idempotencyKey!=='string'||!idempotencyKey||idempotencyKey.length>255) throw new Error('invalid_idempotency_key');
         headers['Idempotency-Key']=idempotencyKey;body=encodeForm(form);
       }
-      const response=await fetchImpl(`${baseUrl}${path}`,{method,headers,body});
+      const response=await fetchImpl(`${STRIPE_API_ORIGIN}${path}`,{method,headers,body,redirect:'error'});
       const text=await response.text();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES) throw new Error('stripe_response_too_large');
       let parsed;try{parsed=text?JSON.parse(text):{};}catch{throw new Error('stripe_non_json_response');}
       assertPlainJson(parsed);
-      const result={status:response.status,requestId:response.headers&&response.headers.get?response.headers.get('request-id'):null,body:parsed};
+      const requestId=response.headers&&typeof response.headers.get==='function'?response.headers.get('request-id'):null;
+      const result={status:response.status,requestId:typeof requestId==='string'?requestId:null,body:parsed};
       if(simulateResponseLoss){const err=new Error('simulated_response_loss_after_remote_response');err.code='SIMULATED_RESPONSE_LOSS';err.remoteStatus=result.status;err.remoteBodyDigest=responseDigest(parsed);throw err;}
       return result;
     }
@@ -135,4 +143,4 @@ function buildV13Profile({runResult,adapterId,capabilityDigest,protocolVersion=S
   const profile={schema:Conformance.PROFILE_SCHEMA,providerId:PROVIDER_ID,adapterId,protocolVersion,capabilityDigest,suiteVersion:SUITE_VERSION,evidenceDigest:runResult.evidenceDigest,result:Conformance.RESULT};
   return Conformance.normalizeProviderConformanceProfile(profile,{adapterId,protocolVersion,capabilityDigest});
 }
-module.exports={STRIPE_API_VERSION,SUITE_VERSION,PROVIDER_ID,EVIDENCE_SCHEMA,MAX_BODY_BYTES,validateStripeTestSecret,responseDigest,sanitizeResult,makeStripeFetchTransport,runStripeConformance,buildV13Profile};
+module.exports={STRIPE_API_ORIGIN,STRIPE_API_VERSION,SUITE_VERSION,PROVIDER_ID,EVIDENCE_SCHEMA,MAX_BODY_BYTES,validateStripeTestSecret,responseDigest,sanitizeResult,makeStripeFetchTransport,runStripeConformance,buildV13Profile};
