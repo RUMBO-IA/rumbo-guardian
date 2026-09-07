@@ -1,9 +1,9 @@
 const http=require('http'),fs=require('fs'),path=require('path');
-const root=path.resolve(__dirname),port=8766;
+const root=path.resolve(__dirname),realRoot=fs.realpathSync(root),port=8766;
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8'};
 
 function isWithinRoot(file){
-  const relative=path.relative(root,file);
+  const relative=path.relative(realRoot,file);
   return relative!==''&&!relative.startsWith(`..${path.sep}`)&&relative!=='..'&&!path.isAbsolute(relative);
 }
 
@@ -14,9 +14,13 @@ http.createServer((req,res)=>{
   const relative=pathname==='/'?'index.html':pathname.replace(/^\/+/, '');
   const file=path.resolve(root,relative);
   if(!isWithinRoot(file)){res.writeHead(403);return res.end('Forbidden');}
-  fs.stat(file,(err,stat)=>{
-    if(err||!stat.isFile()){res.writeHead(404);return res.end('Not found');}
-    res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'});
-    fs.createReadStream(file).pipe(res);
+  fs.realpath(file,(realErr,realFile)=>{
+    if(realErr){res.writeHead(404);return res.end('Not found');}
+    if(!isWithinRoot(realFile)){res.writeHead(403);return res.end('Forbidden');}
+    fs.stat(realFile,(err,stat)=>{
+      if(err||!stat.isFile()){res.writeHead(404);return res.end('Not found');}
+      res.writeHead(200,{'Content-Type':types[path.extname(realFile)]||'application/octet-stream','Cache-Control':'no-store'});
+      fs.createReadStream(realFile).pipe(res);
+    });
   });
 }).listen(port,'127.0.0.1',()=>console.log(`RUMBO Guardian V0.3 · http://127.0.0.1:${port}/`));
