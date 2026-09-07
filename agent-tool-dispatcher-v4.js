@@ -72,7 +72,9 @@ function createToolDispatcher(options={}){
   const journalCapable=!!(store&&typeof store.consumeWithExecution==='function'&&typeof store.claimExecution==='function'&&typeof store.finishExecution==='function'&&typeof store.getExecution==='function');
   const denied=(stage,reason,extra={})=>({decision:'DENY',authorizationDecision:extra.authorizationDecision||'DENY',stage,reason,executed:false,invocationAttempted:false,effectOutcome:'NOT_ATTEMPTED',receipt:null,...extra});
 
-  function listTools(){ return [...defs.values()].map(({name,effect,implementationId})=>Object.freeze({name,effect,implementationId:implementationId||null})); }
+  function listTools(){
+    return [...defs.values()].map(({name,effect,implementationId})=>Object.freeze(implementationId?{name,effect,implementationId}:{name,effect}));
+  }
   function bindingFor(def,actionId,actionDigest,parametersDigest){
     return {actionId,actionDigest,tool:def.name,effect:def.effect,implementationId:def.implementationId,parametersDigest};
   }
