@@ -21,13 +21,26 @@ function prepareAuthorizedAction(rawAction={},options={}){
     return {decision:'REVIEW',stage:'replay_store',gate,authorization,reservation:{consumed:false,reason:'replay_store_unavailable'},ticket:null};
   }
 
+  const metadata={
+    actionDigest:gate.actionDigest,
+    keyId:authorization.keyId,
+    authorizerFingerprint:authorization.fingerprint
+  };
+
   let reservation;
   try{
-    reservation=store.consume(envelope.authorizationId,{
-      actionDigest:gate.actionDigest,
-      keyId:authorization.keyId,
-      authorizerFingerprint:authorization.fingerprint
-    });
+    if(options.executionContext&&typeof store.consumeWithExecution==='function'){
+      reservation=store.consumeWithExecution(envelope.authorizationId,metadata,{
+        ...options.executionContext,
+        actionId:gate.action.id,
+        actionDigest:gate.actionDigest
+      });
+    }else if(options.executionContext&&options.requireExecutionJournal===true){
+      reservation={consumed:false,reason:'execution_journal_unavailable'};
+      return {decision:'REVIEW',stage:'execution_journal',gate,authorization,reservation,ticket:null};
+    }else{
+      reservation=store.consume(envelope.authorizationId,metadata);
+    }
   }catch(err){
     reservation={consumed:false,reason:'replay_store_error',errorCode:String(err&&err.message||'unknown')};
     return {decision:'DENY',stage:'replay_store',gate,authorization,reservation,ticket:null};
@@ -36,6 +49,7 @@ function prepareAuthorizedAction(rawAction={},options={}){
     return {decision:'DENY',stage:'replay_store',gate,authorization,reservation,ticket:null};
   }
 
+  const executionReserved=!!reservation.execution;
   return {
     decision:'ALLOW',
     stage:'ready',
@@ -48,8 +62,9 @@ function prepareAuthorizedAction(rawAction={},options={}){
       authorizationId:envelope.authorizationId,
       authorizerKeyId:authorization.keyId,
       authorizerFingerprint:authorization.fingerprint,
+      executionState:executionReserved?'RESERVED':null,
       policyVersion:gate.policyVersion,
-      dispatchPolicyVersion:'RUMBO_AGENT_AUTHORIZATION_DISPATCH_V3'
+      dispatchPolicyVersion:executionReserved?'RUMBO_AGENT_AUTHORIZATION_DISPATCH_V10_EXECUTION_BOUND':'RUMBO_AGENT_AUTHORIZATION_DISPATCH_V3'
     }
   };
 }
