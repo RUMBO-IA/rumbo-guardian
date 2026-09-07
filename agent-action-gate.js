@@ -58,6 +58,7 @@
       amount:asFinite(action.amount),
       spendLimit:asFinite(action.spendLimit),
       parametersDigest:String(action.parametersDigest||'').trim().toLowerCase(),
+      toolBindingDigest:String(action.toolBindingDigest||'').trim().toLowerCase(),
       authorizationObservedAt:action.authorizationObservedAt??null,
       replayKey:String(action.replayKey||'').trim(),
       previouslyExecutedReplayKeys:uniq(action.previouslyExecutedReplayKeys||[]),
@@ -68,7 +69,7 @@
 
   function canonicalActionPayload(rawAction={}){
     const action=normalizeAction(rawAction);
-    return JSON.stringify({
+    const payload={
       id:action.id,
       effect:action.effect,
       target:action.target,
@@ -79,7 +80,9 @@
       amount:action.amount,
       spendLimit:action.spendLimit,
       parametersDigest:action.parametersDigest
-    });
+    };
+    if(action.toolBindingDigest) payload.toolBindingDigest=action.toolBindingDigest;
+    return JSON.stringify(payload);
   }
 
   function computeActionDigest(rawAction={},options={}){
@@ -113,6 +116,7 @@
     if(!action.id) review('missing_action_id','Action has no stable identifier.','stable_action_id');
     if(!action.purpose) review('missing_purpose','Action purpose is not explicit.','purpose');
     if(!action.intentAligned) deny('intent_not_explicitly_aligned','Action intent alignment is missing or false.');
+    if(action.toolBindingDigest&&!/^[a-f0-9]{64}$/.test(action.toolBindingDigest)) deny('invalid_tool_binding_digest','Tool binding digest must be a SHA-256 hex digest when present.');
 
     if(action.replayKey&&action.previouslyExecutedReplayKeys.includes(action.replayKey)) deny('replay_detected','The replay key was already executed.');
     if(EXTERNAL_EFFECTS.has(action.effect)&&!action.explicitAuthorization) deny('missing_explicit_authorization','External-effect actions require explicit authorization.');
@@ -155,13 +159,14 @@
 
     if(action.effect==='read'&&action.handlesSecrets&&!action.explicitAuthorization) review('sensitive_read_without_authorization','Reading secret-bearing data requires explicit authorization.','explicit_authorization');
 
+    const policyVersion=action.toolBindingDigest?'RUMBO_AGENT_ACTION_GATE_V2_2_TOOL_BOUND':'RUMBO_AGENT_ACTION_GATE_V2_1_PARAMETERS_BOUND';
     return {
       decision,
       action,
       actionDigest:computeActionDigest(action,options),
       reasons,
       requiredGates:uniq(requiredGates),
-      policyVersion:'RUMBO_AGENT_ACTION_GATE_V2_1_PARAMETERS_BOUND',
+      policyVersion,
       failClosed:true
     };
   }
