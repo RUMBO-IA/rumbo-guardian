@@ -1,6 +1,14 @@
 const crypto=require('node:crypto');
 const {prepareAuthorizedAction}=require('./agent-authorized-dispatch.js');
 
+function assertDensePlainArray(value){
+  const keys=Object.keys(value);
+  if(keys.length!==value.length) throw new Error('sparse_or_decorated_array');
+  for(let i=0;i<value.length;i++){
+    if(keys[i]!==String(i)||!Object.prototype.hasOwnProperty.call(value,i)) throw new Error('sparse_or_decorated_array');
+  }
+}
+
 function canonicalize(value,seen=new Set()){
   if(value===null) return 'null';
   const t=typeof value;
@@ -13,7 +21,12 @@ function canonicalize(value,seen=new Set()){
   if(seen.has(value)) throw new Error('cyclic_input');
   seen.add(value);
   try{
-    if(Array.isArray(value)) return `[${value.map(v=>canonicalize(v,seen)).join(',')}]`;
+    if(Array.isArray(value)){
+      assertDensePlainArray(value);
+      const parts=[];
+      for(let i=0;i<value.length;i++) parts.push(canonicalize(value[i],seen));
+      return `[${parts.join(',')}]`;
+    }
     const proto=Object.getPrototypeOf(value);
     if(proto!==Object.prototype&&proto!==null) throw new Error('non_plain_object');
     const keys=Object.keys(value).sort();
@@ -25,7 +38,15 @@ function canonicalize(value,seen=new Set()){
 
 function deepCloneAndFreeze(value){
   if(value===null||typeof value!=='object') return value;
-  const copy=Array.isArray(value)?value.map(deepCloneAndFreeze):Object.fromEntries(Object.keys(value).map(k=>[k,deepCloneAndFreeze(value[k])]));
+  if(Array.isArray(value)){
+    assertDensePlainArray(value);
+    const copy=[];
+    for(let i=0;i<value.length;i++) copy.push(deepCloneAndFreeze(value[i]));
+    return Object.freeze(copy);
+  }
+  const proto=Object.getPrototypeOf(value);
+  if(proto!==Object.prototype&&proto!==null) throw new Error('non_plain_object');
+  const copy=Object.fromEntries(Object.keys(value).map(k=>[k,deepCloneAndFreeze(value[k])]));
   return Object.freeze(copy);
 }
 
