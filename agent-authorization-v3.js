@@ -33,7 +33,7 @@ function decodeCanonicalEd25519Signature(signature){
 
 function verifyAuthorizationProof(envelope={},options={}){
   const keyId=clean(envelope.keyId);
-  const signature=clean(envelope.signature);
+  const signature=typeof envelope.signature==='string'?envelope.signature:'';
   const trustedPublicKeys=options.trustedPublicKeys||{};
   const publicKeyPem=trustedPublicKeys[keyId];
   const reasons=[];
