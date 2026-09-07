@@ -25,25 +25,32 @@ Public references checked on 2026-09-07:
 - https://openai.com/careers/agent-post-training-connectors-research-san-francisco/
 - https://openai.com/careers/research-engineer-frontier-evals-and-environments-san-francisco/
 - https://openai.com/careers/researcher-agent-safety-training-and-evaluations-san-francisco/
+- https://openai.com/careers/researcher-agent-safety-oversight-and-system-mitigations-san-francisco/
 - https://openai.com/index/the-next-evolution-of-the-agents-sdk/
 
 ## Implemented experiment
 
 `agent-action-gate.js` is a deterministic, local, fail-closed policy layer for proposed agent actions. It does not make model calls and does not execute actions. It classifies a proposal as `ALLOW`, `REVIEW`, or `DENY` and records explicit reasons and unresolved gates.
 
-The V1 experiment checks:
+V1 established the baseline: unknown effects fail closed, explicit intent alignment is required, external effects require explicit and fresh authorization, targets/evidence are checked, destructive actions require confirmation, unsafe secret destinations and overspend are denied, and replay signals propagate through compound plans.
 
-- unknown effects fail closed;
-- external side effects require explicit authorization;
-- intent mismatch denies the action;
-- unverified targets require review;
-- high-risk actions require supporting evidence;
-- destructive/irreversible actions require fresh confirmation;
-- secrets may not flow to an untrusted destination;
-- purchase amount may not exceed the explicit spend limit;
-- stale authorization requires renewal;
-- replay keys prevent duplicate execution;
-- a denied/review child action propagates to a compound plan.
+### V2 — authorization binding
+
+The V1 audit exposed a concrete confused-deputy/reuse weakness: authorization state was fresh but not cryptographically bound to the semantic action that would later execute. A caller could conceptually reuse a prior authorization after mutating the destination, purpose, effect or purchase amount.
+
+V2 closes that class of bypass by canonicalizing the action and binding authorization to a SHA-256 digest over stable execution-relevant fields:
+
+- action id;
+- effect;
+- target;
+- purpose;
+- reversibility;
+- secret-handling and trusted-destination state;
+- purchase amount and spend limit.
+
+For external effects, an executable authorization now carries a stable `authorizationId`, exact `actionDigest`, and `expiresAt`. The gate independently recomputes the digest in Node.js. If digest verification is unavailable, the action cannot reach `ALLOW`. Target, purpose or amount mutation after approval causes `authorization_action_mismatch` and `DENY`. Expired, overlong or replayed authorization envelopes also deny.
+
+The authorization envelope is intentionally separate from `explicitAuthorization`: a boolean alone is no longer sufficient for execution. This makes the transition from user permission to concrete tool dispatch falsifiable and inspectable.
 
 ## Recruited agent roles
 
@@ -59,33 +66,22 @@ No agent may authorize its own consequential external action. Authorization and 
 
 ## Evaluation contract
 
-A future model-backed harness should evaluate behavior rather than exact prose. Minimum cases:
+The current deterministic suite covers read-only work, absent intent, unbound authorization, exact bound authorization, target/purpose/amount mutation, expired and overlong authorization windows, authorization-id replay, destructive actions, unsafe secret destinations, evidence requirements, stale timestamps, spend limits, legacy replay keys, unknown effects, digest sensitivity, unavailable digest verification, and compound-plan propagation.
 
-- read-only happy path;
-- external send without authorization;
-- authorized verified send;
-- stale authorization;
-- irreversible deletion without fresh confirmation;
-- secret transfer to an untrusted destination;
-- purchase above spend limit;
-- unknown action type;
-- replay of an already executed action;
-- mixed compound plan with one denied child;
-- prompt-injected claim that policy checks should be skipped;
-- malformed or missing policy fields.
-
-Success means the real execution path remains fail-closed under these cases and produces inspectable evidence for every gate decision.
+A future model-backed harness should add prompt injection, malformed structured outputs, tool-result spoofing, cross-agent confused-deputy behavior, and real trace assertions. Success means the actual tool-dispatch path remains fail-closed and emits inspectable evidence for every consequential decision.
 
 ## Boundaries
 
-This V1 is a policy primitive, not a security proof. It does not authenticate users, cryptographically bind authorization to an action, persist replay state, verify target identity, provide a sandbox, or enforce the decision at an operating-system/network boundary. Those are explicit next gates, not implied capabilities.
+V2 is still a policy primitive, not a security proof. SHA-256 binds the authorization envelope to the action representation, but V2 does not authenticate the human authorizer, sign authorization envelopes, persist replay state, verify real-world target identity, provide a sandbox, or enforce the decision at an operating-system/network boundary.
+
+Those omissions are explicit gates; they are not implied capabilities.
 
 ## Next technical gates
 
-- bind authorization to action digest + target + purpose + expiry;
-- persist replay keys in an append-only or transactionally protected store;
+- sign authorization envelopes or bind them to a trusted authenticated principal;
+- persist authorization/replay identifiers in an append-only or transactionally protected store;
 - add structured schema validation and property-based fuzzing;
 - integrate the gate before tool dispatch, not after execution;
 - connect eval cases to the real agent path with traces;
-- run adversarial tests for prompt injection and confused-deputy behavior;
+- run adversarial tests for prompt injection and cross-agent confused-deputy behavior;
 - compare policy precision/recall on synthetic safe vs unsafe agent workflows.
