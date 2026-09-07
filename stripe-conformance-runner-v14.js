@@ -8,7 +8,9 @@ const SUITE_VERSION='rumbo.stripe.payment-intent-idempotency.v14';
 const PROVIDER_ID='stripe';
 const EVIDENCE_SCHEMA='rumbo.stripe-conformance-evidence.v14';
 const MAX_BODY_BYTES=1024*1024;
-const verifiedRunResults=new WeakSet();
+const NATIVE_FETCH=globalThis.fetch;
+const liveTransports=new WeakSet();
+const liveRunResults=new WeakSet();
 
 function sha256Text(value){return crypto.createHash('sha256').update(String(value),'utf8').digest('hex');}
 function isSha256(value){return typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);}
@@ -63,10 +65,12 @@ function validConformanceRequest(method,path){
   if(method==='GET') return /^\/v1\/payment_intents\/pi_[A-Za-z0-9_]+$/.test(path);
   return false;
 }
-function makeStripeFetchTransport({secretKey,fetchImpl=globalThis.fetch}={}){
-  const secret=validateStripeTestSecret(secretKey);
+function makeStripeFetchTransport(options={}){
+  const secret=validateStripeTestSecret(options.secretKey);
+  const injectedFetch=Object.prototype.hasOwnProperty.call(options,'fetchImpl');
+  const fetchImpl=injectedFetch?options.fetchImpl:NATIVE_FETCH;
   if(typeof fetchImpl!=='function') throw new Error('fetch_unavailable');
-  return Object.freeze({
+  const transport=Object.freeze({
     async request({method,path,form,idempotencyKey,simulateResponseLoss=false}){
       if(!validConformanceRequest(method,path)) throw new Error('invalid_stripe_conformance_request');
       const headers={Authorization:`Bearer ${secret}`,'Stripe-Version':STRIPE_API_VERSION};
@@ -86,6 +90,8 @@ function makeStripeFetchTransport({secretKey,fetchImpl=globalThis.fetch}={}){
       return result;
     }
   });
+  if(!injectedFetch&&fetchImpl===NATIVE_FETCH) liveTransports.add(transport);
+  return transport;
 }
 function defaultKeyFactory(){return `rumbo-v14-${crypto.randomUUID()}`;}
 function passHttp(response){return response&&response.status>=200&&response.status<300;}
@@ -96,6 +102,7 @@ function idempotencyError(response){
 }
 async function runStripeConformance({transport,keyFactory=defaultKeyFactory,now=()=>new Date().toISOString(),amount=1099,currency='usd'}={}){
   if(!transport||typeof transport.request!=='function') throw new Error('stripe_transport_required');
+  const executionMode=liveTransports.has(transport)?'LIVE_STRIPE_TEST_API':'BEHAVIORAL_MODEL';
   const runId=`v14-${crypto.randomUUID()}`,observedAt=String(typeof now==='function'?now():now);
   const checks=[];const note=(name,passed,details={})=>checks.push(Object.freeze({name,passed:passed===true,...details}));
   let create1,create2,mismatch,lostRetry,retrieve,lostDigest=null,primaryId=null;
@@ -129,15 +136,15 @@ async function runStripeConformance({transport,keyFactory=defaultKeyFactory,now=
   const testMode=[create1,create2,lostRetry,retrieve].filter(Boolean).every(r=>r.livemode===false);
   note('test_mode_only',testMode,{livemodeValues:[create1,create2,lostRetry,retrieve].filter(Boolean).map(r=>r.livemode)});
   const passed=checks.length===5&&checks.every(c=>c.passed===true);
-  const evidence=Object.freeze({schema:EVIDENCE_SCHEMA,providerId:PROVIDER_ID,apiVersion:STRIPE_API_VERSION,suiteVersion:SUITE_VERSION,runId,observedAt,result:passed?'PASS':'FAIL',checks:Object.freeze([...checks])});
+  const evidence=Object.freeze({schema:EVIDENCE_SCHEMA,providerId:PROVIDER_ID,apiVersion:STRIPE_API_VERSION,suiteVersion:SUITE_VERSION,executionMode,runId,observedAt,result:passed?'PASS':'FAIL',checks:Object.freeze([...checks])});
   const evidenceDigest=sha256Text(canonicalizeJcs(evidence));
   const runResult=Object.freeze({result:evidence.result,evidence,evidenceDigest});
-  if(runResult.result==='PASS') verifiedRunResults.add(runResult);
+  if(runResult.result==='PASS'&&executionMode==='LIVE_STRIPE_TEST_API') liveRunResults.add(runResult);
   return runResult;
 }
 function buildV13Profile({runResult,adapterId,capabilityDigest,protocolVersion=STRIPE_API_VERSION}={}){
-  if(!runResult||!verifiedRunResults.has(runResult)||runResult.result!=='PASS'||!isSha256(runResult.evidenceDigest)) throw new Error('live_provider_conformance_not_proven');
-  if(!runResult.evidence||runResult.evidence.schema!==EVIDENCE_SCHEMA||runResult.evidence.providerId!==PROVIDER_ID||runResult.evidence.apiVersion!==STRIPE_API_VERSION||runResult.evidence.suiteVersion!==SUITE_VERSION||runResult.evidence.result!=='PASS') throw new Error('invalid_stripe_conformance_evidence');
+  if(!runResult||!liveRunResults.has(runResult)||runResult.result!=='PASS'||!isSha256(runResult.evidenceDigest)) throw new Error('live_provider_conformance_not_proven');
+  if(!runResult.evidence||runResult.evidence.schema!==EVIDENCE_SCHEMA||runResult.evidence.providerId!==PROVIDER_ID||runResult.evidence.apiVersion!==STRIPE_API_VERSION||runResult.evidence.suiteVersion!==SUITE_VERSION||runResult.evidence.executionMode!=='LIVE_STRIPE_TEST_API'||runResult.evidence.result!=='PASS') throw new Error('invalid_stripe_conformance_evidence');
   const recomputed=sha256Text(canonicalizeJcs(runResult.evidence));
   if(recomputed!==runResult.evidenceDigest) throw new Error('stripe_conformance_evidence_digest_mismatch');
   const profile={schema:Conformance.PROFILE_SCHEMA,providerId:PROVIDER_ID,adapterId,protocolVersion,capabilityDigest,suiteVersion:SUITE_VERSION,evidenceDigest:runResult.evidenceDigest,result:Conformance.RESULT};
