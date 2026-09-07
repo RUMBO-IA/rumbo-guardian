@@ -1,4 +1,5 @@
 const crypto=require('node:crypto');
+const {strictParseJsonWire}=require('./strict-json-wire-v7.js');
 
 const DATA_LIMITS=Object.freeze({maxDepth:64,maxNodes:10000});
 
@@ -64,12 +65,9 @@ function cloneData(value){
 }
 
 function parseJsonWire(text,label='wire'){
-  if(typeof text!=='string') throw new Error(`${label}_not_string`);
-  if(Buffer.byteLength(text,'utf8')>1024*1024) throw new Error(`${label}_too_large`);
-  let value;
-  try{value=JSON.parse(text);}catch{throw new Error(`${label}_invalid_json`);}
+  const value=strictParseJsonWire(text,label,{maxBytes:1024*1024,maxDepth:DATA_LIMITS.maxDepth,maxNodes:DATA_LIMITS.maxNodes});
   assertDataOnly(value);
-  return cloneDataUnchecked(value);
+  return value;
 }
 
 function validAttestation(attestation,adapterId,nonce){
@@ -118,7 +116,7 @@ function createCapabilityRuntime(options={}){
 
     const nonce=crypto.randomBytes(32).toString('hex');
     let attestation;
-    try{attestation=await sandboxAdapter.attest({nonce,profile:'RUMBO_AGENT_CAPABILITY_RUNTIME_V6_HARDENED'});}
+    try{attestation=await sandboxAdapter.attest({nonce,profile:'RUMBO_AGENT_CAPABILITY_RUNTIME_V7_STRICT_WIRE'});}
     catch(err){return {decision:'DENY',stage:'sandbox_attestation',reason:'sandbox_attestation_error',error:String(err&&err.message||err),executed:false,executionOutcome:'NOT_ATTEMPTED',toolCalls:[]};}
 
     if(!validAttestation(attestation,adapterId,nonce)){
@@ -165,11 +163,11 @@ function createCapabilityRuntime(options={}){
       adapterId,
       result,
       toolCalls,
-      runtimePolicyVersion:'RUMBO_AGENT_CAPABILITY_RUNTIME_V6_HARDENED'
+      runtimePolicyVersion:'RUMBO_AGENT_CAPABILITY_RUNTIME_V7_STRICT_WIRE'
     };
   }
 
-  return Object.freeze({dispatchProposal,runUntrustedCode,policyVersion:'RUMBO_AGENT_CAPABILITY_RUNTIME_V6_HARDENED'});
+  return Object.freeze({dispatchProposal,runUntrustedCode,policyVersion:'RUMBO_AGENT_CAPABILITY_RUNTIME_V7_STRICT_WIRE'});
 }
 
 module.exports={DATA_LIMITS,assertDataOnly,cloneData,parseJsonWire,validAttestation,createCapabilityRuntime};
