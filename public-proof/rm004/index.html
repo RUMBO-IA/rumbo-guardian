@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="RUMBO Agent Reliability: evidence before authority. A public-safe technical proof surface.">
+<title>RUMBO Agent Reliability — Evidence Before Authority</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:980px;margin:0 auto;padding:48px 24px;line-height:1.55;background:#0b0f14;color:#e8edf2}
+h1{font-size:42px;line-height:1.05}h2{margin-top:38px}.muted{color:#a9b4bf}.card{padding:20px;border:1px solid #303945;border-radius:14px;margin:18px 0;background:#111821}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}pre{padding:16px;background:#070a0e;border-radius:10px;overflow:auto}
+.badge{display:inline-block;border:1px solid #3f4a57;border-radius:999px;padding:5px 9px;margin-right:8px}.danger{font-weight:700}
+a{color:#9bc8ff}
+</style>
+</head>
+<body>
+<p class="muted">RUMBO · Agent Reliability · Public Proof Surface</p>
+<h1>Evidence before authority</h1>
+<p>Un agente no debería obtener autoridad sólo porque afirma que una tarea está “terminada”. RUMBO separa <strong>claim</strong>, <strong>evidence</strong> y <strong>gate</strong>.</p>
+<div class="card"><span class="badge">RM-004</span><span class="badge">Public-safe</span><h2>La regla</h2><p>Una afirmación relevante sólo puede promoverse dentro del alcance que realmente está respaldado por evidencia suficiente y una política de gates explícita.</p></div>
+<h2>Caso negativo</h2>
+<pre>claim:
+  TASK_COMPLETE=PASS
+
+evidence:
+  "Todo salió bien"
+
+gates:
+  [sin política estructurada]
+
+=> NO_GO / UNPROVEN</pre>
+<h2>Caso positivo</h2>
+<pre>claims:
+  READY=PASS
+  PACKAGE_SHA256=abc123
+
+evidence:
+  READY=PASS
+  PACKAGE_SHA256=abc123
+  TESTS=PASS
+
+gates:
+  GATES=NONE
+
+=> GO / PROVEN</pre>
+<h2>Estado técnico mostrado</h2>
+<div class="card"><p><strong>Semantic runtime:</strong> V1.3.12 + valtown-adapter.2</p><p><strong>Runtime IDs:</strong> 5/5 PASS</p><p><strong>Live acceptance:</strong> 29/29 PASS</p><p class="danger"><strong>Global production:</strong> NO_GO</p></div>
+<h2>Frontera de autoridad</h2>
+<p><code>PASS != autorización global</code></p>
+<p>La prueba semántica no implica aceptación canónica global, aprobación de terceros, publicación en un directorio externo ni autorización de producción.</p>
+<h2>Qué intenta demostrar este caso</h2>
+<p>Que una capa independiente puede distinguir entre “el agente lo dijo” y “existe evidencia suficiente para aceptar esa afirmación dentro de un scope concreto”.</p>
+<p class="muted">RUMBO_PUBLIC_PROOF_MARKER=RM004_V4 · PUBLICATION_STATUS=NOT_CLAIMED_BY_SOURCE_PACKAGE</p>
+</body>
+</html>
