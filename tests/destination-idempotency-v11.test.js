@@ -14,6 +14,7 @@ const NOW='2026-09-07T16:40:00Z',OBS='2026-09-07T16:35:00Z',EXP='2026-09-07T16:4
 const {publicKey,privateKey}=crypto.generateKeyPairSync('ed25519');
 const pub=publicKey.export({type:'spki',format:'pem'});
 const BASE_TOOL={name:'send',effect:'send',implementationId:'send-v11',destinationAdapterId:'adapter-a'};
+const LEGACY={allowLegacySelfAssertedDestinationCapabilities:true};
 
 function signedAction(input,authorizationId,tool=BASE_TOOL){
   const parametersDigest=Dispatch.computeParametersDigest(input);
@@ -27,7 +28,7 @@ function signedAction(input,authorizationId,tool=BASE_TOOL){
 }
 function adapter(adapterId,execute,reconcile){return {adapterId,supportsIdempotency:true,execute,reconcile};}
 function dispatcher(store,destinationAdapter,extra={}){
-  return Dispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v11':pub},gateOptions:{now:NOW},authorizeReconciliation:async()=>true,...extra,tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter}]});
+  return Dispatch.createToolDispatcher({...LEGACY,replayStore:store,trustedPublicKeys:{'operator-v11':pub},gateOptions:{now:NOW},authorizeReconciliation:async()=>true,...extra,tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter}]});
 }
 function reserveDestination(store,input,authorizationId){
   const action=signedAction(input,authorizationId);
@@ -95,7 +96,7 @@ async function main(){
       const {prepared}=reserveDestination(store,input,'v11-live-started');
       const binding={actionId:prepared.ticket.actionId,actionDigest:prepared.ticket.actionDigest,tool:'send',effect:'send',implementationId:'send-v11',parametersDigest:Dispatch.computeParametersDigest(input)};
       assert.equal(store.claimExecution('v11-live-started',binding).claimed,true);assert.equal(store.getExecution('v11-live-started').state,'STARTED');
-      const d=dispatcher(store,adapter('adapter-a',async()=>{throw new Error('must_not_execute');},async()=>{reconcileCalls++;return {}; }));
+      const d=dispatcher(store,adapter('adapter-a',async()=>{throw new Error('must_not_execute');},async()=>{reconcileCalls++;return {};}));
       const deniedLive=await d.reconcileUnknown({authorizationId:'v11-live-started'});assert.equal(deniedLive.reason,'destination_execution_not_reconcilable');assert.equal(reconcileCalls,0);
       const classified=store.recoverInterruptedStarted('2100-01-01T00:00:00Z');assert.equal(classified.count,1);assert.equal(store.getExecution('v11-live-started').state,'FAILED_OR_UNKNOWN');
       store.close();ok();
@@ -104,7 +105,7 @@ async function main(){
       const store=new SQLiteExecutionStoreV11(path.join(tmp,'adapter-substitution.sqlite'));let calls=0;
       const signedForA=signedAction({message:'same'},'v11-adapter-substitution',BASE_TOOL);
       const toolB={name:'send',effect:'send',implementationId:'send-v11',destinationAdapterId:'adapter-b'};
-      const d=Dispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v11':pub},gateOptions:{now:NOW},tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter:adapter('adapter-b',async()=>{calls++;return {};},async()=>{})}]});
+      const d=Dispatch.createToolDispatcher({...LEGACY,replayStore:store,trustedPublicKeys:{'operator-v11':pub},gateOptions:{now:NOW},tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter:adapter('adapter-b',async()=>{calls++;return {};},async()=>{})}]});
       const result=await d.dispatch({tool:'send',input:{message:'same'},action:signedForA});
       assert.equal(Dispatch.computeToolBindingDigest(BASE_TOOL)===Dispatch.computeToolBindingDigest(toolB),false);assert.equal(result.decision,'DENY');assert.equal(calls,0);assert.equal(store.get('v11-adapter-substitution'),null);store.close();ok();
     }
@@ -112,13 +113,13 @@ async function main(){
       const db=path.join(tmp,'reconcile-substitution.sqlite'),store=new SQLiteExecutionStoreV11(db);let key=null;
       const a=adapter('adapter-a',async(input,ctx)=>{key=ctx.idempotencyKey;throw new Error('lost');},async()=>({adapterId:'adapter-a',idempotencyKey:key,status:'SUCCEEDED'}));
       const d=dispatcher(store,a),input={message:'x'};await d.dispatch({tool:'send',input,action:signedAction(input,'v11-reconcile-sub')});
-      const d2=Dispatch.createToolDispatcher({replayStore:store,authorizeReconciliation:async()=>true,tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter:adapter('adapter-b',async()=>{},async()=>({adapterId:'adapter-b',idempotencyKey:key,status:'SUCCEEDED'}))}]});
+      const d2=Dispatch.createToolDispatcher({...LEGACY,replayStore:store,authorizeReconciliation:async()=>true,tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter:adapter('adapter-b',async()=>{},async()=>({adapterId:'adapter-b',idempotencyKey:key,status:'SUCCEEDED'}))}]});
       const result=await d2.reconcileUnknown({authorizationId:'v11-reconcile-sub'});assert.equal(result.reason,'destination_adapter_mismatch');assert.equal(store.getExecution('v11-reconcile-sub').state,'FAILED_OR_UNKNOWN');store.close();ok();
     }
     {
       const store=new SQLiteExecutionStoreV11(path.join(tmp,'authority.sqlite'));let reconcileCalls=0;
       const a=adapter('adapter-a',async()=>{throw new Error('lost');},async()=>{reconcileCalls++;return {};});
-      const d=Dispatch.createToolDispatcher({replayStore:store,trustedPublicKeys:{'operator-v11':pub},gateOptions:{now:NOW},tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter:a}]});
+      const d=Dispatch.createToolDispatcher({...LEGACY,replayStore:store,trustedPublicKeys:{'operator-v11':pub},gateOptions:{now:NOW},tools:[{name:'send',effect:'send',implementationId:'send-v11',destinationAdapter:a}]});
       const input={message:'authority'};await d.dispatch({tool:'send',input,action:signedAction(input,'v11-authority')});const result=await d.reconcileUnknown({authorizationId:'v11-authority'});
       assert.equal(result.reason,'reconciliation_authority_unavailable');assert.equal(reconcileCalls,0);assert.equal(store.getExecution('v11-authority').state,'FAILED_OR_UNKNOWN');store.close();ok();
     }
@@ -130,11 +131,11 @@ async function main(){
       assert.equal(result.decision,'DENY');assert.equal(result.stage,'replay_store');assert.equal(store.get('v11-atomic'),null);assert.equal(store.getExecution('v11-atomic'),null);assert.equal(store.getDestination('v11-atomic'),null);store.close();ok();
     }
     {
-      assert.throws(()=>Dispatch.createToolDispatcher({tools:[{name:'send',effect:'send',implementationId:'x',destinationAdapter:{adapterId:'bad',supportsIdempotency:false,execute:async()=>{},reconcile:async()=>{}}}]}),/invalid_destination_adapter/);ok();
+      assert.throws(()=>Dispatch.createToolDispatcher({...LEGACY,tools:[{name:'send',effect:'send',implementationId:'x',destinationAdapter:{adapterId:'bad',supportsIdempotency:false,execute:async()=>{},reconcile:async()=>{}}}]}),/invalid_destination_adapter/);ok();
     }
 
     assert.equal(passed,13);
-    console.log('RUMBO Destination Idempotency V11: 13/13 PASS + RESERVED recovery + live-STARTED reconciliation guard + no blind retry + signed adapter binding');
+    console.log('RUMBO Destination Idempotency V11: 13/13 PASS + explicit legacy capability mode + RESERVED recovery + live-STARTED reconciliation guard + no blind retry');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 main().catch(err=>{console.error(err);process.exit(1);});
