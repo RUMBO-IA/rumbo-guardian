@@ -31,7 +31,7 @@ async function main(){
  {
    const store3=new InMemoryFencingStore();const lease=await store3.acquire({resourceId:'r3',executionId:'e1',ownerId:'host-a'},{nowMs:0,ttlMs:10});let applied=0;
    const atomic=createAtomicFencedDestination({fencingStore:store3,apply:async(_input)=>{applied++;return {fencingAccepted:false};}});
-   const denied=await atomic.applyWithLease(lease,{});assert.equal(denied.decision,'DENY');assert.equal(denied.reason,'fencing_not_enforced_at_mutation_boundary');assert.equal(applied,1);ok();
+   const denied=await atomic.applyWithLease(lease,{}, {}, {nowMs:0});assert.equal(denied.decision,'DENY');assert.equal(denied.reason,'fencing_not_enforced_at_mutation_boundary');assert.equal(applied,1);ok();
  }
  assert.equal(passed,16);
  console.log('RUMBO Distributed Execution Fencing V15: 16/16 PASS + stale-token rejection + lease expiry + atomic mutation-boundary fencing');
