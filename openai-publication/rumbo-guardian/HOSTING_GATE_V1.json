@@ -16,8 +16,12 @@
       "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
       "direct_initialize_preflight": "PASS",
       "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
-      "independent_hosted_conformance": "PENDING_CURRENT_HEAD_CI",
-      "classification": "DEDICATED_OPENAI_SUBMISSION_CANDIDATE"
+      "independent_hosted_conformance": "PASS",
+      "independent_evidence_basis_commit": "b702d48770a817747ab00b8f8b8de05e5c08c1cb",
+      "hosted_conformance_run_id": 34456562187,
+      "guardian_ci_run_id": 34456562274,
+      "openai_plugin_contract_run_id": 34456562284,
+      "classification": "DEDICATED_OPENAI_SUBMISSION_HOST_CONFORMANCE_PASS"
     },
     "staging_reference": {
       "val": "sebas1/rumbo-guardian-mcp",
@@ -60,7 +64,6 @@
     "review_acceptance": "EXTERNAL"
   },
   "publication_requirements_remaining": [
-    "independent_conformance_on_submission_host",
     "openai_apps_management_write_verified",
     "openai_publisher_identity_verified_and_matching_listing",
     "availability_countries_or_regions_selected_by_publisher",
@@ -68,7 +71,7 @@
     "domain_verification_token_installation_if_portal_issues_challenge",
     "openai_review_and_explicit_publish"
   ],
-  "state": "DEDICATED_SUBMISSION_HOST_CREATED_INDEPENDENT_CONFORMANCE_PENDING",
+  "state": "DEDICATED_SUBMISSION_HOST_CONFORMANCE_PASS_ACCOUNT_AND_PORTAL_GATES_PENDING",
   "production_deploy_authority": false,
   "openai_submission_authority": false,
   "no_spend_policy": "ENFORCED"
