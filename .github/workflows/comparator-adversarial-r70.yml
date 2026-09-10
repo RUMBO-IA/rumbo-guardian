@@ -1,0 +1,277 @@
+name: Comparator adversarial semantics R70
+
+on:
+  push:
+    branches:
+      - audit/comparator-adversarial-r70-20260910
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  COMPARATOR_SHA: 19e111e2141cf333c7daff0f64c5f24acc91dd2e
+  LEAN4EXPORT_SHA: cacf989bd75f608700820f6afc595f32e7a99a4d
+  LANDRUN_SHA: 811cfff51ceaf3d9843708aa6d22e9b84ccac8b4
+  NANODA_SHA: 4c544ed4099c8227f07d5de77ad1e69fb0740a27
+  COMPARE_BLOB: 8bf63632315171a533d41479c7d831d9e6fcd175
+  AXIOMS_BLOB: 8da75bf80b27f2a71ad2312653b105442c5f5992
+  MAIN_BLOB: 95c18e1423e1281e79c72a6dbd9ed917be8a0147
+
+jobs:
+  official-selftests:
+    name: official-comparator-integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Prepare non-root runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          sudo apt-get update
+          sudo apt-get install -y elan jq
+          mkdir -p "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          go version
+          cargo --version
+          systemd-run --version
+
+      - name: Fetch and pin Comparator source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-tags https://github.com/leanprover/comparator.git "$RUNNER_TEMP/comparator"
+          cd "$RUNNER_TEMP/comparator"
+          git checkout --detach "$COMPARATOR_SHA"
+          test "$(git rev-parse HEAD)" = "$COMPARATOR_SHA"
+          test "$(git hash-object Comparator/Compare.lean)" = "$COMPARE_BLOB"
+          test "$(git hash-object Comparator/Axioms.lean)" = "$AXIOMS_BLOB"
+          test "$(git hash-object Main.lean)" = "$MAIN_BLOB"
+          elan toolchain install "$(tr -d '\r\n' < lean-toolchain)"
+          lean --version
+          lake --version
+
+      - name: Build real Landrun and Nanoda from pinned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-tags https://github.com/Zouuup/landrun.git "$RUNNER_TEMP/landrun"
+          cd "$RUNNER_TEMP/landrun"
+          git checkout --detach "$LANDRUN_SHA"
+          test "$(git rev-parse HEAD)" = "$LANDRUN_SHA"
+          go build -trimpath -o "$RUNNER_TEMP/bin/landrun" ./cmd/landrun
+          git clone --no-tags https://github.com/ammkrn/nanoda_lib.git "$RUNNER_TEMP/nanoda_lib"
+          cd "$RUNNER_TEMP/nanoda_lib"
+          git checkout --detach "$NANODA_SHA"
+          test "$(git rev-parse HEAD)" = "$NANODA_SHA"
+          cargo build --release --locked
+          cp target/release/nanoda_bin "$RUNNER_TEMP/bin/nanoda_bin"
+          sha256sum "$RUNNER_TEMP/bin/landrun" "$RUNNER_TEMP/bin/nanoda_bin"
+
+      - name: Build pinned Comparator and lean4export
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/comparator"
+          lake build comparator lean4export
+          test "$(git -C .lake/packages/lean4export rev-parse HEAD)" = "$LEAN4EXPORT_SHA"
+          test -x .lake/build/bin/comparator
+          test -x .lake/packages/lean4export/.lake/build/bin/lean4export
+          sha256sum .lake/build/bin/comparator .lake/packages/lean4export/.lake/build/bin/lean4export
+
+      - name: Run complete upstream Comparator integration suite under outer guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/comparator"
+          LAND="$RUNNER_TEMP/bin/landrun"
+          NANO="$RUNNER_TEMP/bin/nanoda_bin"
+          EXP="$ROOT/.lake/packages/lean4export/.lake/build/bin/lean4export"
+          LEAN="$(command -v lean)"
+          systemd-run --user --wait --collect --pipe \
+            --property='RestrictAddressFamilies=~AF_UNIX' \
+            --working-directory="$ROOT" \
+            -E PATH="$PATH" -E HOME="$HOME" \
+            -E COMPARATOR_LANDRUN="$LAND" \
+            -E COMPARATOR_NANODA="$NANO" \
+            -E COMPARATOR_LEAN4EXPORT="$EXP" \
+            -- "$LEAN" --run runtests.lean 2>&1 | tee "$RUNNER_TEMP/upstream-selftests.log"
+          grep -Fq 'All tests passed!' "$RUNNER_TEMP/upstream-selftests.log"
+
+      - name: Selftest receipt
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '# R70 official Comparator integration-suite receipt'
+            echo
+            echo "Comparator SHA: $COMPARATOR_SHA"
+            echo "lean4export SHA: $LEAN4EXPORT_SHA"
+            echo "Landrun SHA: $LANDRUN_SHA"
+            echo "Nanoda SHA: $NANODA_SHA"
+            echo "Harness: $GITHUB_SHA"
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  targeted-attacks:
+    name: targeted-definition-and-axiom-attacks
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Prepare exact Comparator toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          sudo apt-get update
+          sudo apt-get install -y elan
+          mkdir -p "$RUNNER_TEMP/bin"
+          git clone --no-tags https://github.com/leanprover/comparator.git "$RUNNER_TEMP/comparator"
+          cd "$RUNNER_TEMP/comparator"
+          git checkout --detach "$COMPARATOR_SHA"
+          test "$(git rev-parse HEAD)" = "$COMPARATOR_SHA"
+          test "$(git hash-object Comparator/Compare.lean)" = "$COMPARE_BLOB"
+          test "$(git hash-object Comparator/Axioms.lean)" = "$AXIOMS_BLOB"
+          elan toolchain install "$(tr -d '\r\n' < lean-toolchain)"
+          lake build comparator lean4export
+          test "$(git -C .lake/packages/lean4export rev-parse HEAD)" = "$LEAN4EXPORT_SHA"
+          git clone --no-tags https://github.com/Zouuup/landrun.git "$RUNNER_TEMP/landrun"
+          cd "$RUNNER_TEMP/landrun"
+          git checkout --detach "$LANDRUN_SHA"
+          go build -trimpath -o "$RUNNER_TEMP/bin/landrun" ./cmd/landrun
+
+      - name: Attack 1 - same theorem spelling but altered referenced definition must be rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/definition-mismatch"
+          mkdir -p "$P"
+          cat > "$P/lakefile.toml" <<'EOF'
+          name = "definitionMismatch"
+          version = "0.1.0"
+          [[lean_lib]]
+          name = "Challenge"
+          [[lean_lib]]
+          name = "Solution"
+          EOF
+          cp "$RUNNER_TEMP/comparator/lean-toolchain" "$P/lean-toolchain"
+          cat > "$P/Challenge.lean" <<'EOF'
+          def Meaning : Nat := 1
+          axiom witness : Meaning = 1
+          theorem target : Meaning = 1 := witness
+          EOF
+          cat > "$P/Solution.lean" <<'EOF'
+          def Meaning : Nat := 2
+          axiom witness : Meaning = 1
+          theorem target : Meaning = 1 := witness
+          EOF
+          cat > "$P/config.json" <<'EOF'
+          {
+            "challenge_module": "Challenge",
+            "solution_module": "Solution",
+            "theorem_names": ["target"],
+            "permitted_axioms": ["witness"]
+          }
+          EOF
+          COMP="$RUNNER_TEMP/comparator/.lake/build/bin/comparator"
+          EXP="$RUNNER_TEMP/comparator/.lake/packages/lean4export/.lake/build/bin/lean4export"
+          LAND="$RUNNER_TEMP/bin/landrun"
+          LAKE="$(command -v lake)"
+          set +e
+          systemd-run --user --wait --collect --pipe \
+            --property='RestrictAddressFamilies=~AF_UNIX' \
+            --working-directory="$P" \
+            -E PATH="$PATH" -E HOME="$HOME" \
+            -E COMPARATOR_LANDRUN="$LAND" \
+            -E COMPARATOR_LEAN4EXPORT="$EXP" \
+            -- "$LAKE" env "$COMP" config.json >"$RUNNER_TEMP/definition-mismatch.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/definition-mismatch.log"
+          test "$rc" -ne 0
+          grep -Fq "Const does not match between challenge and target 'Meaning'" "$RUNNER_TEMP/definition-mismatch.log"
+
+      - name: Attack 2 - undeclared proof axiom must be rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/illegal-axiom"
+          mkdir -p "$P"
+          cat > "$P/lakefile.toml" <<'EOF'
+          name = "illegalAxiom"
+          version = "0.1.0"
+          [[lean_lib]]
+          name = "Challenge"
+          [[lean_lib]]
+          name = "Solution"
+          EOF
+          cp "$RUNNER_TEMP/comparator/lean-toolchain" "$P/lean-toolchain"
+          cat > "$P/Challenge.lean" <<'EOF'
+          theorem target : True := by trivial
+          EOF
+          cat > "$P/Solution.lean" <<'EOF'
+          axiom evil : True
+          theorem target : True := evil
+          EOF
+          cat > "$P/config.json" <<'EOF'
+          {
+            "challenge_module": "Challenge",
+            "solution_module": "Solution",
+            "theorem_names": ["target"],
+            "permitted_axioms": []
+          }
+          EOF
+          COMP="$RUNNER_TEMP/comparator/.lake/build/bin/comparator"
+          EXP="$RUNNER_TEMP/comparator/.lake/packages/lean4export/.lake/build/bin/lean4export"
+          LAND="$RUNNER_TEMP/bin/landrun"
+          LAKE="$(command -v lake)"
+          set +e
+          systemd-run --user --wait --collect --pipe \
+            --property='RestrictAddressFamilies=~AF_UNIX' \
+            --working-directory="$P" \
+            -E PATH="$PATH" -E HOME="$HOME" \
+            -E COMPARATOR_LANDRUN="$LAND" \
+            -E COMPARATOR_LEAN4EXPORT="$EXP" \
+            -- "$LAKE" env "$COMP" config.json >"$RUNNER_TEMP/illegal-axiom.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/illegal-axiom.log"
+          test "$rc" -ne 0
+          grep -Fq "Illegal axiom detected: 'evil'" "$RUNNER_TEMP/illegal-axiom.log"
+
+      - name: Verify source-level closure semantics explicitly
+        shell: bash
+        run: |
+          set -euo pipefail
+          C="$RUNNER_TEMP/comparator/Comparator/Compare.lean"
+          A="$RUNNER_TEMP/comparator/Comparator/Axioms.lean"
+          grep -Fq 'worklist := worklist ++ challengeConst.type.getUsedConstants' "$C"
+          grep -Fq 'if challengeConst != solutionConst then' "$C"
+          grep -Fq 'addRelevantConsts solutionConst' "$C"
+          grep -Fq 'runForUsedConsts info validateConst' "$A"
+          grep -Fq 'Illegal axiom detected' "$A"
+
+      - name: Targeted attack receipt
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '# R70 targeted adversarial receipt'
+            echo
+            echo 'Attack: altered transitive statement definition -> must reject'
+            echo 'Attack: undeclared proof axiom -> must reject'
+            echo "Comparator SHA: $COMPARATOR_SHA"
+            echo "Harness: $GITHUB_SHA"
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
