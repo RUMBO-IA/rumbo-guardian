@@ -24,7 +24,7 @@
   "mcp": {
     "url_type": "UNIVERSAL",
     "server_url": "https://rumbo-guardian-openai.val.run/",
-    "host_classification": "DEDICATED_OPENAI_SUBMISSION_CANDIDATE_ZERO_SPEND",
+    "host_classification": "DEDICATED_OPENAI_SUBMISSION_HOST_CONFORMANCE_PASS_ZERO_SPEND",
     "source_clone": "sebas1/rumbo-guardian-mcp@main-v8",
     "protocol": "2025-06-18",
     "authentication": "noauth",
@@ -35,7 +35,8 @@
     "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
     "direct_initialize_preflight": "PASS_HTTP_200_PROTOCOL_2025_06_18",
     "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
-    "independent_ci": "PENDING_NEW_HOST_VERIFICATION"
+    "independent_ci": "PASS_RUN_34456562187",
+    "evidence_basis_commit": "b702d48770a817747ab00b8f8b8de05e5c08c1cb"
   },
   "domain_verification": {
     "challenge_base_url": "https://rumbo-guardian-openai.val.run",
@@ -49,7 +50,10 @@
     "submission_packet": "chatgpt-app-submission.json",
     "positive_test_cases": 5,
     "negative_test_cases": 3,
-    "independent_host_verification": "PENDING_CURRENT_HEAD_CI"
+    "guardian_ci_run": 34456562274,
+    "hosted_mcp_conformance_run": 34456562187,
+    "openai_plugin_contract_run": 34456562284,
+    "independent_host_verification": "PASS"
   },
   "availability": {
     "state": "UNSET_FAIL_CLOSED",
@@ -63,6 +67,15 @@
     "approved": false,
     "published": false
   },
+  "remaining_gates": [
+    "APPS_MANAGEMENT_WRITE",
+    "VERIFIED_PUBLISHER_IDENTITY",
+    "AVAILABILITY_SELECTION",
+    "PORTAL_SCAN_TOOLS",
+    "DOMAIN_CHALLENGE_IF_ISSUED",
+    "POLICY_ATTESTATIONS",
+    "SUBMIT_REVIEW_PUBLISH"
+  ],
   "budget": {
     "money_spend": 0,
     "paid_plan_changes": false,
