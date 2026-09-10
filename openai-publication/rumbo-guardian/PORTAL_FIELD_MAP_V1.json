@@ -9,7 +9,9 @@
     "project_id": "proj_JcDpv5GX0WVzThCSAnhbP8fy",
     "target_discovery": "PASS_CONNECTOR_READBACK",
     "apps_management_write": "UNVERIFIED_ACCOUNT_GATE",
-    "developer_identity": "UNVERIFIED_ACCOUNT_GATE"
+    "developer_identity": "UNVERIFIED_ACCOUNT_GATE",
+    "data_residency": "UNVERIFIED_ACCOUNT_GATE",
+    "mcp_submission_required_residency": "GLOBAL"
   },
   "info": {
     "plugin_name": "RUMBO Guardian",
@@ -37,11 +39,12 @@
     "direct_initialize_preflight": "PASS_HTTP_200_PROTOCOL_2025_06_18",
     "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
     "independent_host_verification": "PASS",
-    "latest_exact_head_verified": "0b1230a24875f258e43ab20bbf02b8a51e590021",
-    "latest_exact_head_runs": {
-      "guardian_ci": 34458702180,
-      "hosted_mcp_conformance": 34458702225,
-      "openai_plugin_contract": 34458702197
+    "last_exact_head_receipt": {
+      "head": "20b33a2e69a0efcbaacc9c2cd116fbb86b0a1750",
+      "guardian_ci": 34459726184,
+      "hosted_mcp_conformance": 34459726166,
+      "openai_plugin_contract": 34459726174,
+      "all_success": true
     },
     "runtime_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0"
   },
@@ -75,6 +78,7 @@
   "remaining_gates": [
     "APPS_MANAGEMENT_WRITE",
     "VERIFIED_PUBLISHER_IDENTITY",
+    "GLOBAL_DATA_RESIDENCY_PROJECT",
     "AVAILABILITY_SELECTION",
     "PORTAL_SCAN_TOOLS",
     "DOMAIN_CHALLENGE_IF_ISSUED",
