@@ -1,0 +1,23 @@
+{
+  "schema": "rumbo.openai-plugin-listing/v1",
+  "display_name": "RUMBO Guardian",
+  "category": "Productivity",
+  "short_description": "Explainable defensive analysis of user-supplied suspicious URLs, messages, signals, and Evidence Ledgers.",
+  "long_description": "RUMBO Guardian analyzes user-supplied URLs and text for phishing, fraud, impersonation, and suspicious-navigation indicators without browsing to the destination. It explains technical evidence and can verify exported Evidence Ledger hash chains. Scores are advisory evidence summaries rather than guarantees or accusations.",
+  "starter_prompts": [
+    "Analyze this URL for phishing indicators without opening it.",
+    "Analyze this suspicious message and explain the evidence.",
+    "Verify whether this exported Evidence Ledger hash chain is intact."
+  ],
+  "publisher_urls": {
+    "website": "https://rumbo.verso.fans/",
+    "support": "UNVERIFIED_SHARED_PUBLISHER_URL",
+    "privacy": "UNVERIFIED_SHARED_PUBLISHER_URL",
+    "terms": "UNVERIFIED_SHARED_PUBLISHER_URL"
+  },
+  "availability": {
+    "state": "UNSET_FAIL_CLOSED",
+    "countries": []
+  },
+  "submission_state": "NOT_SUBMITTED"
+}
