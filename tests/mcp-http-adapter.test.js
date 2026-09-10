@@ -6,12 +6,13 @@ const handler = require('../api/mcp.js');
 
 const ACCEPT = 'application/json, text/event-stream';
 
-function makeReq(method, body, headers = {}) {
+function makeReq(method, body, headers = {}, url = '/mcp') {
   const listeners = {};
   return {
     method,
     body,
     headers,
+    url,
     on(event, callback) { listeners[event] = callback; },
     destroy() {}
   };
@@ -28,8 +29,8 @@ function makeRes() {
   };
 }
 
-async function run(method, body, headers = {}) {
-  const req = makeReq(method, body, headers);
+async function run(method, body, headers = {}, url = '/mcp') {
+  const req = makeReq(method, body, headers, url);
   const res = makeRes();
   await handler(req, res);
   return { req, res, json: res.body ? JSON.parse(res.body) : null };
@@ -50,6 +51,28 @@ async function run(method, body, headers = {}) {
     assert.equal(res.statusCode, 403);
     assert.equal(json.error.message, 'Invalid Origin');
     assert.equal(res.headers['Access-Control-Allow-Origin'], undefined);
+  }
+
+  {
+    const previous = process.env.OPENAI_APPS_CHALLENGE;
+    delete process.env.OPENAI_APPS_CHALLENGE;
+    const { res } = await run('GET', undefined, { host: 'guardian.example.test' }, '/.well-known/openai-apps-challenge');
+    assert.equal(res.statusCode, 404);
+    assert.equal(res.body, '');
+    if (previous === undefined) delete process.env.OPENAI_APPS_CHALLENGE;
+    else process.env.OPENAI_APPS_CHALLENGE = previous;
+  }
+
+  {
+    const previous = process.env.OPENAI_APPS_CHALLENGE;
+    process.env.OPENAI_APPS_CHALLENGE = 'openai-domain-token-example';
+    const { res } = await run('GET', undefined, { host: 'guardian.example.test' }, '/.well-known/openai-apps-challenge');
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body, 'openai-domain-token-example');
+    assert.equal(res.headers['Content-Type'], 'text/plain; charset=utf-8');
+    assert.equal(res.headers['Cache-Control'], 'no-store');
+    if (previous === undefined) delete process.env.OPENAI_APPS_CHALLENGE;
+    else process.env.OPENAI_APPS_CHALLENGE = previous;
   }
 
   {
