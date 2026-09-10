@@ -29,11 +29,16 @@ function makeRes() {
   };
 }
 
+function parseJsonIfPossible(value) {
+  if (!value) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
 async function run(method, body, headers = {}, url = '/mcp') {
   const req = makeReq(method, body, headers, url);
   const res = makeRes();
   await handler(req, res);
-  return { req, res, json: res.body ? JSON.parse(res.body) : null };
+  return { req, res, json: parseJsonIfPossible(res.body) };
 }
 
 (async () => {
