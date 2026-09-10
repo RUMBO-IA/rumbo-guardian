@@ -36,6 +36,8 @@ async function run(method, body, headers = {}) {
 }
 
 (async () => {
+  const commonHeaders = { 'content-type': 'application/json', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION };
+
   {
     const { res } = await run('OPTIONS', undefined);
     assert.equal(res.statusCode, 204);
@@ -66,33 +68,25 @@ async function run(method, body, headers = {}) {
   }
 
   {
-    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 3, method: 'ping' }, {
-      'content-type': 'application/json', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION
-    });
+    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 3, method: 'ping' }, commonHeaders);
     assert.equal(res.statusCode, 200);
     assert.deepEqual(json.result, {});
   }
 
   {
-    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 4, method: 'tools/list' }, {
-      'content-type': 'application/json', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION
-    });
+    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 4, method: 'tools/list' }, commonHeaders);
     assert.equal(res.statusCode, 200);
     assert.deepEqual(json.result.tools.map(tool => tool.name), ['analyze_url', 'analyze_text', 'verify_ledger', 'explain_signal']);
   }
 
   {
-    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 5, method: 'notifications/initialized' }, {
-      'content-type': 'application/json', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION
-    });
+    const { res, json } = await run('POST', { jsonrpc: '2.0', method: 'notifications/initialized' }, commonHeaders);
     assert.equal(res.statusCode, 202);
     assert.equal(json, null);
   }
 
   {
-    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 6, method: 'notifications/initialized' }, {
-      'content-type': 'application/json', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION
-    });
+    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 6, method: 'notifications/initialized' }, commonHeaders);
     assert.equal(res.statusCode, 400);
     assert.equal(json.error.message, 'Notifications MUST NOT include an id');
   }
