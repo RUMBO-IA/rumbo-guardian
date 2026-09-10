@@ -1,7 +1,7 @@
 'use strict';
 
 const base = process.env.RUMBO_GUARDIAN_MCP_BASE || 'https://rumbo-guardian-mcp.val.run';
-const expectedSha = process.env.RUMBO_GUARDIAN_SOURCE_SHA || 'c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1';
+const expectedSha = process.env.RUMBO_GUARDIAN_SOURCE_SHA || '40b9578f48e2160c743ed2462cdc7289a29c1e2a';
 const expectedTools = ['analyze_url', 'analyze_text', 'verify_ledger', 'explain_signal'];
 
 function parsePayload(text) {
@@ -74,5 +74,9 @@ async function callTool(path, id, name, args) {
   const ledger = await callTool(path, 13, 'verify_ledger', { ledger: {} });
   if (ledger?.valid !== false || ledger?.reason !== 'missing_history') throw new Error('VERIFY_LEDGER_PARITY_FAIL');
 
-  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', securitySchemesNoauth:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS' }));
+  const challenge = await fetch(`${base}/.well-known/openai-apps-challenge`, { redirect: 'error' });
+  const challengeText = await challenge.text();
+  if (challenge.status !== 404 || challengeText !== '') throw new Error(`DOMAIN_CHALLENGE_FAIL_CLOSED_MISMATCH:${challenge.status}:${challengeText.slice(0,80)}`);
+
+  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', securitySchemesNoauth:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS', domainChallengeWithoutToken:'PASS_404_EMPTY' }));
 })();
