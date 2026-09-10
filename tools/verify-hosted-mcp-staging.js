@@ -50,6 +50,7 @@ async function callTool(path, id, name, args) {
   if (JSON.stringify(names) !== JSON.stringify(expectedTools)) throw new Error(`TOOLS_MISMATCH:${JSON.stringify(names)}`);
   if (!descriptors.every(tool => tool.annotations?.readOnlyHint === true && tool.annotations?.destructiveHint === false && tool.annotations?.openWorldHint === false)) throw new Error('TOOL_ANNOTATIONS_MISMATCH');
   if (!descriptors.every(tool => Array.isArray(tool.securitySchemes) && tool.securitySchemes.length === 1 && tool.securitySchemes[0]?.type === 'noauth')) throw new Error('TOOL_SECURITY_SCHEMES_NOAUTH_MISMATCH');
+  if (!descriptors.every(tool => tool.outputSchema?.type === 'object')) throw new Error('TOOL_OUTPUT_SCHEMA_MISSING');
 
   const unknown = await request(path, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'definitely_not_a_tool', arguments: {} } });
   const unknownBlocked = unknown.status === 200 && (unknown.json?.result?.isError === true || typeof unknown.json?.error?.code === 'number');
@@ -78,5 +79,5 @@ async function callTool(path, id, name, args) {
   const challengeText = await challenge.text();
   if (challenge.status !== 404 || challengeText !== '') throw new Error(`DOMAIN_CHALLENGE_FAIL_CLOSED_MISMATCH:${challenge.status}:${challengeText.slice(0,80)}`);
 
-  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', securitySchemesNoauth:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS', domainChallengeWithoutToken:'PASS_404_EMPTY' }));
+  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', securitySchemesNoauth:'PASS', outputSchemas:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS', domainChallengeWithoutToken:'PASS_404_EMPTY' }));
 })();
