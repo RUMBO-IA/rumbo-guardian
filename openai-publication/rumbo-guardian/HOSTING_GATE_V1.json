@@ -11,39 +11,27 @@
       "val": "sebas1/rumbo-guardian-openai",
       "http_privacy": "public",
       "public_url": "https://rumbo-guardian-openai.val.run/",
-      "created_by_remix_from": "sebas1/rumbo-guardian-mcp@main-v8",
       "money_spend": 0,
       "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
-      "direct_initialize_preflight": "PASS",
-      "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
       "independent_hosted_conformance": "PASS",
-      "last_exact_head_receipt": {
-        "head": "e6ca70d3b57c2b59da0225c044d63f5a2951c9cc",
-        "guardian_ci": 34459130375,
-        "hosted_mcp_conformance": 34459130374,
-        "openai_plugin_contract": 34459130347,
+      "current_pr_head_receipt": {
+        "head": "634d8e0afcd6e62574f7c396d24875e8111003b4",
+        "guardian_ci": 34460025803,
+        "hosted_mcp_conformance": 34460025721,
+        "openai_plugin_contract": 34460025788,
         "all_success": true
       },
-      "hosted_contract_receipt": {
-        "protocol_2025_06_18": "PASS",
-        "tool_catalog_4_of_4": "PASS",
-        "tool_annotations": "PASS",
+      "contract": {
+        "protocol": "2025-06-18",
+        "tools": ["analyze_url", "analyze_text", "verify_ledger", "explain_signal"],
+        "annotations": "PASS",
         "security_schemes_noauth": "PASS",
-        "output_schemas": "PASS",
-        "unknown_tool_guard": "PASS",
-        "notification_http_202_empty": "PASS",
-        "origin_validation_hostile_403": "PASS",
+        "output_schemas": "PASS_4_OF_4",
+        "origin_validation": "PASS",
         "functional_parity_smoke": "PASS",
         "domain_challenge_without_token": "PASS_404_EMPTY",
         "publisher_support_semantic": "PASS"
-      },
-      "classification": "DEDICATED_OPENAI_SUBMISSION_HOST_CONFORMANCE_PASS"
-    },
-    "domain_verification_readiness": {
-      "challenge_path": "/.well-known/openai-apps-challenge",
-      "token_state": "NOT_ISSUED_NOT_CONFIGURED",
-      "configured_token_local_adapter_test": "PASS",
-      "response_shape_when_configured": "EXACT_RAW_TOKEN_TEXT_PLAIN_NO_STORE"
+      }
     },
     "superseded_hosts": {
       "appdeploy": "FAIL_EXTERNAL_MCP_403_HTML",
@@ -53,13 +41,11 @@
   },
   "publisher_gate": {
     "website": "https://rumbo.verso.fans/",
+    "support": "https://rumbo-openai-support.val.run/",
     "privacy": "https://rumbo.verso.fans/openai-privacy",
     "terms": "https://rumbo.verso.fans/openai-terms",
-    "support": {
-      "portal_candidate_url": "https://rumbo-openai-support.val.run/",
-      "semantic_content": "PASS_HTTP_200_AND_INDEPENDENT_CI",
-      "publisher_identity_alignment": "UNVERIFIED_ACCOUNT_GATE"
-    }
+    "support_semantic": "PASS",
+    "publisher_identity_alignment": "UNVERIFIED_ACCOUNT_GATE"
   },
   "openai_account_gates": {
     "apps_management_write": "UNVERIFIED_ACCOUNT_GATE",
