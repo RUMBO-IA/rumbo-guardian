@@ -6,43 +6,47 @@
   "required_endpoint_path": "/mcp",
   "transport": "MCP 2025-06-18 Streamable HTTP",
   "hosting_observation": {
-    "dedicated_project": "APPDEPLOY_STAGING_PROVEN",
+    "canonical_staging_provider": "Val Town",
+    "dedicated_project": "PASS",
     "existing_rumbo_projects_reusable_as_guardian_evidence": false,
     "portable_node_host": "IMPLEMENTED",
+    "val_town_staging": {
+      "val": "sebas1/rumbo-guardian-mcp",
+      "http_privacy": "public",
+      "public_url": "https://rumbo-guardian-mcp.val.run/",
+      "source_sha_receipt": "c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1",
+      "https_endpoint_reachable": "PASS",
+      "protocol_2025_06_18": "PASS",
+      "tool_catalog_4_of_4": "PASS",
+      "tool_annotations_read_only": "PASS",
+      "unknown_tool_guard": "PASS",
+      "notification_http_202_empty": "PASS",
+      "origin_validation_hostile_403": "PASS",
+      "independent_github_actions_run_id": 34440140703,
+      "independent_hosted_conformance": "PASS",
+      "byte_identical_to_repo_runtime": false,
+      "classification": "STAGING_PORT_CONTRACT_PARITY"
+    },
     "appdeploy_staging": {
       "app_id": "rumbo-guardian-mcp-aaqycs",
-      "public_url": "https://rumbo-guardian-mcp-aaqycs.v2.appdeploy.ai/",
-      "deployment_state": "READY",
-      "source_sha_receipt": "5720a1c752b80f08abf8ac69e908738ec3e4ee31",
       "public_root_https": "PASS",
-      "source_sha_readback": "PASS",
-      "hosted_mcp_post_conformance": "NOT_PROVEN"
+      "public_mcp_external_access": "FAIL_403_HTML",
+      "canonical_mcp_host": false
     },
     "render_attempt": {
-      "workspace": "My Workspace",
-      "service_name": "rumbo-guardian-mcp",
-      "repo": "RUMBO-IA/rumbo-guardian",
-      "branch": "fix/mcp-vercel-stateless-adapter-v1",
-      "plan": "free",
-      "region": "virginia",
-      "auto_deploy": false,
       "result": "BLOCKED_PAYMENT_INFORMATION_REQUIRED",
       "service_created": false
     },
     "railway_attempt": {
-      "workspace": "fscfede-beep's Projects",
-      "project_name": "RUMBO Guardian MCP",
       "result": "BLOCKED_TRIAL_EXPIRED_PLAN_REQUIRED",
       "project_created": false
     }
   },
   "promotion_requirements": [
-    "dedicated_or_explicitly_linked_hosting_target",
-    "exact_source_sha_receipt",
-    "https_endpoint_reachable",
-    "hosted_mcp_conformance_pass",
-    "no_autonomous_browsing_or_external_side_effects",
-    "publisher_support_semantic_pass"
+    "publisher_support_semantic_pass",
+    "openai_account_publication_gates_verified",
+    "functional_parity_smoke_pass",
+    "review_auth_posture_documented"
   ],
   "publisher_gate": {
     "website": "https://rumbo.verso.fans/",
@@ -50,7 +54,8 @@
     "terms": "https://rumbo.verso.fans/openai-terms",
     "support": "BLOCKED_SEMANTIC_CONTENT_FAIL"
   },
-  "state": "STAGING_HOSTED_CONFORMANCE_PENDING",
+  "auth_posture": "INTENTIONALLY_NONE_FOR_PUBLIC_READ_ONLY_STAGING_REVIEW_PENDING",
+  "state": "STAGING_HOSTED_CONFORMANCE_PASS",
   "production_deploy_authority": false,
   "openai_submission_authority": false
 }
