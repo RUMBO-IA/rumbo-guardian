@@ -27,6 +27,12 @@ async function request(path, body, extraHeaders = {}) {
   return { path, status: response.status, contentType: response.headers.get('content-type'), source: response.headers.get('x-rumbo-source-sha'), text, json: parsePayload(text) };
 }
 
+async function callTool(path, id, name, args) {
+  const result = await request(path, { jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } });
+  if (result.status !== 200) throw new Error(`${name.toUpperCase()}_HTTP_FAIL:${result.status}`);
+  return result.json?.result?.structuredContent;
+}
+
 (async () => {
   const initBody = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'github-actions-independent-verifier', version: '1.0.0' } } };
   const candidates = [];
@@ -53,5 +59,18 @@ async function request(path, body, extraHeaders = {}) {
   const hostileOrigin = await request(path, { jsonrpc: '2.0', id: 4, method: 'ping', params: {} }, { origin: 'https://evil.invalid' });
   if (hostileOrigin.status !== 403 || hostileOrigin.json?.error?.message !== 'Invalid Origin') throw new Error(`ORIGIN_VALIDATION_FAIL:${hostileOrigin.status}`);
 
-  console.log(JSON.stringify({ hostedCoreConformance:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', unknownToolGuard:'PASS', notification202:'PASS', hostileOriginStatus:hostileOrigin.status, originValidation:'PASS' }));
+  const urlAnalysis = await callTool(path, 10, 'analyze_url', { url: 'javascript:alert(1)' });
+  if (urlAnalysis?.level !== 'danger' || !urlAnalysis?.reasons?.some(reason => reason.code === 'active_content_scheme')) throw new Error('ANALYZE_URL_PARITY_FAIL');
+
+  const textAnalysis = await callTool(path, 11, 'analyze_text', { text: 'URGENTE: verificá tu cuenta ahora mismo y enviá tu password para evitar el bloqueo.' });
+  const textCodes = textAnalysis?.reasons?.map(reason => reason.code) || [];
+  if (!(textAnalysis?.score > 0) || !textCodes.includes('urgency') || !textCodes.includes('credentials')) throw new Error('ANALYZE_TEXT_PARITY_FAIL');
+
+  const signal = await callTool(path, 12, 'explain_signal', { code: 'active_content_scheme' });
+  if (signal?.supported !== true || signal?.code !== 'active_content_scheme') throw new Error('EXPLAIN_SIGNAL_PARITY_FAIL');
+
+  const ledger = await callTool(path, 13, 'verify_ledger', { ledger: {} });
+  if (ledger?.valid !== false || ledger?.reason !== 'missing_history') throw new Error('VERIFY_LEDGER_PARITY_FAIL');
+
+  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS' }));
 })();
