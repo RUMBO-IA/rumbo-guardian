@@ -3,42 +3,25 @@
   "candidate": "RUMBO Guardian",
   "repository": "RUMBO-IA/rumbo-guardian",
   "branch": "fix/mcp-vercel-stateless-adapter-v1",
-  "required_endpoint_path": "/mcp",
-  "transport": "MCP 2025-06-18 Streamable HTTP",
   "submission_host": {
     "provider": "Val Town",
-    "val": "sebas1/rumbo-guardian-openai",
     "public_url": "https://rumbo-guardian-openai.val.run/",
-    "http_privacy": "public",
     "money_spend": 0,
     "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
-    "conformance": "PASS",
-    "contract": {
-      "protocol": "2025-06-18",
-      "tools": ["analyze_url", "analyze_text", "verify_ledger", "explain_signal"],
-      "annotations": "PASS",
-      "noauth": "PASS",
-      "output_schemas": "PASS_4_OF_4",
-      "origin_validation": "PASS",
-      "functional_smoke": "PASS",
-      "domain_challenge_without_token": "PASS_404_EMPTY",
-      "publisher_support_semantic": "PASS"
-    }
+    "protocol": "2025-06-18",
+    "tools": ["analyze_url", "analyze_text", "verify_ledger", "explain_signal"],
+    "noauth": "PASS",
+    "output_schemas": "PASS_4_OF_4",
+    "origin_validation": "PASS",
+    "functional_smoke": "PASS",
+    "publisher_support_semantic": "PASS"
   },
-  "last_exact_head_receipt": {
-    "head": "4ac3239249a2ca0eaf425b1c7f515a0dbb9c34ff",
-    "guardian_ci": 34460223245,
-    "hosted_mcp_conformance": 34460223138,
-    "openai_plugin_contract": 34460223143,
+  "latest_verified_receipt": {
+    "head": "99186c42ffe7e431d8d9ddc19ce49c9ee3f527ea",
+    "guardian_ci": 34460407700,
+    "hosted_mcp_conformance": 34460407621,
+    "openai_plugin_contract": 34460407422,
     "all_success": true
-  },
-  "publisher_gate": {
-    "website": "https://rumbo.verso.fans/",
-    "support": "https://rumbo-openai-support.val.run/",
-    "privacy": "https://rumbo.verso.fans/openai-privacy",
-    "terms": "https://rumbo.verso.fans/openai-terms",
-    "support_semantic": "PASS",
-    "publisher_identity_alignment": "UNVERIFIED_ACCOUNT_GATE"
   },
   "openai_account_gates": {
     "apps_management_write": "UNVERIFIED_ACCOUNT_GATE",
@@ -46,17 +29,13 @@
     "project_data_residency": "UNVERIFIED_ACCOUNT_GATE",
     "required_for_mcp_submission": "GLOBAL"
   },
-  "remaining": [
-    "APPS_MANAGEMENT_WRITE",
-    "VERIFIED_PUBLISHER_IDENTITY",
-    "GLOBAL_DATA_RESIDENCY_PROJECT",
-    "AVAILABILITY_SELECTION",
-    "PORTAL_SCAN_TOOLS",
-    "DOMAIN_CHALLENGE_IF_ISSUED",
-    "POLICY_ATTESTATIONS",
-    "SUBMIT_REVIEW_PUBLISH"
-  ],
-  "state": "TECHNICAL_SUBMISSION_BOUNDARY_PASS_ACCOUNT_AND_PORTAL_GATES_PENDING",
+  "availability": "UNSET_FAIL_CLOSED",
+  "portal_scan_tools": "NOT_EXECUTED",
+  "domain_challenge": "INSTALL_ONLY_IF_ISSUED",
+  "policy_attestations": "NOT_EXECUTED",
+  "submission": false,
+  "approved": false,
+  "published": false,
   "production_deploy_authority": false,
   "openai_submission_authority": false,
   "no_spend_policy": "ENFORCED"
