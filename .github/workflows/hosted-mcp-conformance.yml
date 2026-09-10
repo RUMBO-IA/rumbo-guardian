@@ -25,3 +25,7 @@ jobs:
           RUMBO_GUARDIAN_MCP_BASE: https://rumbo-guardian-mcp.val.run
           RUMBO_GUARDIAN_SOURCE_SHA: c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1
         run: node tools/verify-hosted-mcp-staging.js
+      - name: Verify publisher support semantics
+        env:
+          RUMBO_PUBLISHER_SUPPORT_URL: https://rumbo-openai-support.val.run/
+        run: node tools/verify-publisher-support.js
