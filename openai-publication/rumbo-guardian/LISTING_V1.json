@@ -20,7 +20,7 @@
     "privacy": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
     "terms": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
     "support": "HTTP_200_SEMANTIC_PAGE_VERIFIED_ALTERNATE_HOST",
-    "support_independent_ci": "PASS_RUN_34457747282",
+    "support_independent_ci": "PASS_RUN_34458910113",
     "publisher_identity_match": "UNVERIFIED_ACCOUNT_GATE"
   },
   "mcp": {
@@ -29,7 +29,7 @@
     "protocol": "2025-06-18",
     "authentication": "noauth",
     "tool_count": 4,
-    "hosted_conformance": "PASS_RUN_34457747282",
+    "hosted_conformance": "PASS_RUN_34458910113",
     "output_schemas": "PASS_4_OF_4",
     "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0"
   },
@@ -55,6 +55,12 @@
     "countries": []
   },
   "submission_state": "NOT_SUBMITTED",
+  "evidence_source_head": "20748993a352b46a1bef687fb55928b2f29f2d57",
+  "evidence_workflow_runs": {
+    "guardian_ci": 34458910201,
+    "hosted_mcp_conformance": 34458910113,
+    "openai_plugin_contract": 34458910074
+  },
   "budget": {
     "money_spend": 0,
     "billing_changes": false,
