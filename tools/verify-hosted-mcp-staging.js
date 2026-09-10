@@ -1,7 +1,7 @@
 'use strict';
 
 const base = process.env.RUMBO_GUARDIAN_MCP_BASE || 'https://rumbo-guardian-mcp.val.run';
-const expectedSha = process.env.RUMBO_GUARDIAN_SOURCE_SHA || '40b9578f48e2160c743ed2462cdc7289a29c1e2a';
+const expectedSha = process.env.RUMBO_GUARDIAN_SOURCE_SHA || '89cbd20685604a01be8b17a09584a1e7364b4fb0';
 const expectedTools = ['analyze_url', 'analyze_text', 'verify_ledger', 'explain_signal'];
 
 function parsePayload(text) {
