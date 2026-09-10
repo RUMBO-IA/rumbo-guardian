@@ -17,11 +17,12 @@
       "direct_initialize_preflight": "PASS",
       "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
       "independent_hosted_conformance": "PASS",
-      "evidence_source_head": "2e82e232491d6c5410a8d35fe1178851ab79a873",
-      "evidence_workflow_runs": {
-        "guardian_ci": 34458609631,
-        "hosted_mcp_conformance": 34458609780,
-        "openai_plugin_contract": 34458609856
+      "last_exact_head_receipt": {
+        "head": "e6ca70d3b57c2b59da0225c044d63f5a2951c9cc",
+        "guardian_ci": 34459130375,
+        "hosted_mcp_conformance": 34459130374,
+        "openai_plugin_contract": 34459130347,
+        "all_success": true
       },
       "hosted_contract_receipt": {
         "protocol_2025_06_18": "PASS",
@@ -38,18 +39,11 @@
       },
       "classification": "DEDICATED_OPENAI_SUBMISSION_HOST_CONFORMANCE_PASS"
     },
-    "staging_reference": {
-      "val": "sebas1/rumbo-guardian-mcp",
-      "public_url": "https://rumbo-guardian-mcp.val.run/",
-      "independent_hosted_conformance": "PASS",
-      "functional_parity_smoke": "PASS"
-    },
     "domain_verification_readiness": {
       "challenge_path": "/.well-known/openai-apps-challenge",
       "token_state": "NOT_ISSUED_NOT_CONFIGURED",
       "configured_token_local_adapter_test": "PASS",
-      "response_shape_when_configured": "EXACT_RAW_TOKEN_TEXT_PLAIN_NO_STORE",
-      "portal_requirement": "CONDITIONAL_WHEN_PORTAL_SHOWS_DOMAIN_NOT_VERIFIED"
+      "response_shape_when_configured": "EXACT_RAW_TOKEN_TEXT_PLAIN_NO_STORE"
     },
     "superseded_hosts": {
       "appdeploy": "FAIL_EXTERNAL_MCP_403_HTML",
@@ -64,27 +58,23 @@
     "support": {
       "portal_candidate_url": "https://rumbo-openai-support.val.run/",
       "semantic_content": "PASS_HTTP_200_AND_INDEPENDENT_CI",
-      "same_publisher_domain": false,
-      "openai_documentation_same_domain_requirement": "NOT_STATED",
-      "openai_documentation_matching_publisher_requirement": "REQUIRED",
       "publisher_identity_alignment": "UNVERIFIED_ACCOUNT_GATE"
-    },
-    "superseded_canonical_support": {
-      "url": "https://rumbo.verso.fans/openai-support",
-      "state": "BLOCKED_SEMANTIC_CONTENT_FAIL"
     }
   },
-  "auth_posture": {
-    "scheme": "noauth",
-    "tool_scope": "PUBLIC_READ_ONLY_LOCAL_ANALYSIS",
-    "review_acceptance": "EXTERNAL"
+  "openai_account_gates": {
+    "apps_management_write": "UNVERIFIED_ACCOUNT_GATE",
+    "publisher_identity": "UNVERIFIED_ACCOUNT_GATE",
+    "project_data_residency": "UNVERIFIED_ACCOUNT_GATE",
+    "required_for_mcp_submission": "GLOBAL_DATA_RESIDENCY_PER_CURRENT_OPENAI_REVIEW_DOCS"
   },
   "publication_requirements_remaining": [
     "openai_apps_management_write_verified",
     "openai_publisher_identity_verified_and_matching_listing",
+    "openai_project_global_data_residency_verified",
     "availability_countries_or_regions_selected_by_publisher",
     "portal_scan_tools_and_validation_pass",
     "domain_verification_token_installation_if_portal_issues_challenge",
+    "policy_attestations",
     "openai_review_and_explicit_publish"
   ],
   "state": "DEDICATED_SUBMISSION_HOST_CONFORMANCE_PASS_ACCOUNT_AND_PORTAL_GATES_PENDING",
