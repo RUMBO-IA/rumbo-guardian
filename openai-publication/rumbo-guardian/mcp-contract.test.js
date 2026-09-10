@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { tools, handleMcpRequest } = require('./mcp-contract.js');
+const { tools, handleMcpRequest, PROTOCOL_VERSION } = require('./mcp-contract.js');
 
 (async () => {
   assert.deepEqual(tools.map((tool) => tool.name), ['analyze_url','analyze_text','verify_ledger','explain_signal']);
@@ -13,9 +13,18 @@ const { tools, handleMcpRequest } = require('./mcp-contract.js');
     assert.equal(tool.outputSchema.type, 'object');
   }
 
-  const init = await handleMcpRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
-  assert.equal(init.result.protocolVersion, '2025-06-18');
+  const initRequest = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'test', version: '1' } } };
+  const init = await handleMcpRequest(initRequest);
+  assert.equal(init.result.protocolVersion, PROTOCOL_VERSION);
   assert.equal(init.result.serverInfo.name, 'rumbo-guardian');
+
+  const missing = await handleMcpRequest({ jsonrpc: '2.0', id: 11, method: 'initialize', params: { protocolVersion: PROTOCOL_VERSION } });
+  assert.equal(missing.error.code, -32602);
+  assert.equal(missing.error.data.supportedProtocolVersion, PROTOCOL_VERSION);
+
+  const unsupported = await handleMcpRequest({ ...initRequest, id: 12, params: { ...initRequest.params, protocolVersion: '2025-03-26' } });
+  assert.equal(unsupported.error.code, -32602);
+  assert.equal(unsupported.error.data.supportedProtocolVersion, PROTOCOL_VERSION);
 
   const list = await handleMcpRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
   assert.equal(list.result.tools.length, 4);
