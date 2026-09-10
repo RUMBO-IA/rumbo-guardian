@@ -2,12 +2,24 @@
   "schema": "rumbo.openai-plugin-hosting-gate/v1",
   "candidate": "RUMBO Guardian",
   "repository": "RUMBO-IA/rumbo-guardian",
-  "branch": "openai-plugin-packaging-v1-20260909",
+  "branch": "fix/mcp-vercel-stateless-adapter-v1",
   "required_endpoint_path": "/mcp",
   "transport": "MCP 2025-06-18 Streamable HTTP",
   "hosting_observation": {
     "dedicated_project": "NOT_PROVEN",
-    "existing_rumbo_projects_reusable_as_guardian_evidence": false
+    "existing_rumbo_projects_reusable_as_guardian_evidence": false,
+    "portable_node_host": "IMPLEMENTED",
+    "render_attempt": {
+      "workspace": "My Workspace",
+      "service_name": "rumbo-guardian-mcp",
+      "repo": "RUMBO-IA/rumbo-guardian",
+      "branch": "fix/mcp-vercel-stateless-adapter-v1",
+      "plan": "free",
+      "region": "virginia",
+      "auto_deploy": false,
+      "result": "BLOCKED_PAYMENT_INFORMATION_REQUIRED",
+      "service_created": false
+    }
   },
   "promotion_requirements": [
     "dedicated_or_explicitly_linked_hosting_target",
@@ -23,7 +35,7 @@
     "terms": "https://rumbo.verso.fans/openai-terms",
     "support": "BLOCKED_SEMANTIC_CONTENT_FAIL"
   },
-  "state": "HOSTING_TARGET_REQUIRED",
+  "state": "HOSTING_EXTERNAL_ACCOUNT_GATE",
   "production_deploy_authority": false,
   "openai_submission_authority": false
 }
