@@ -1,0 +1,229 @@
+name: Navier-Stokes no-cache source verification R71
+
+on:
+  push:
+    branches:
+      - audit/ns-no-cache-r71-20260910
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NS_REPO: https://github.com/openai/NavierStokesAndEuler.git
+  NS_SHA: 8937a8f4cbc7abaab5e9e97d1cc7f5d2319d9538
+  MATHLIB_SHA: 85e3a25e006c35636f0e53b0e9296caca2685bc0
+  COMPARATOR_SHA: 19e111e2141cf333c7daff0f64c5f24acc91dd2e
+  LEAN4EXPORT_SHA: cacf989bd75f608700820f6afc595f32e7a99a4d
+  LANDRUN_SHA: 811cfff51ceaf3d9843708aa6d22e9b84ccac8b4
+  NANODA_SHA: 4c544ed4099c8227f07d5de77ad1e69fb0740a27
+  NS_CHALLENGE_BLOB: 673fb19e26e60818d446363afd953f618719f99b
+  NS_CONFIG_BLOB: b5fd32b1211faf7d282dac09d70be5527da9f486
+
+jobs:
+  no-cache-comparator:
+    name: no-cache-checker-controlled-comparator
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Prepare fresh non-root runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          sudo apt-get update
+          sudo apt-get install -y elan jq
+          mkdir -p "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          go version
+          cargo --version
+          systemd-run --version
+
+      - name: Fetch immutable OpenAI proof source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          git clone --no-tags "$NS_REPO" "$ROOT"
+          cd "$ROOT"
+          git checkout --detach "$NS_SHA"
+          test "$(git rev-parse HEAD)" = "$NS_SHA"
+          test "$(git hash-object ComparatorChallenges/NavierStokes.lean)" = "$NS_CHALLENGE_BLOB"
+          test "$(git hash-object ComparatorChallenges/NavierStokes.json)" = "$NS_CONFIG_BLOB"
+          test "$(grep -c '^import ' ComparatorChallenges/NavierStokes.lean)" -eq 1
+          grep -Fxq 'import Mathlib' ComparatorChallenges/NavierStokes.lean
+          test "$(tr -d '\r\n' < lean-toolchain)" = 'leanprover/lean4:v4.34.0-rc2'
+
+      - name: Install exact Lean
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          elan toolchain install "$(tr -d '\r\n' < lean-toolchain)"
+          lean --version
+          lake --version
+
+      - name: Replace dependency control with checker-owned Lake config
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          cd "$ROOT"
+          cat > lakefile.toml <<EOF
+          name = "NavierStokesAndEulerNoCacheVerifier"
+          version = "0.1.0"
+          defaultTargets = ["NavierStokes", "Euler", "ComparatorChallenges"]
+
+          [[require]]
+          name = "mathlib"
+          scope = "leanprover-community"
+          git = "https://github.com/leanprover-community/mathlib4.git"
+          rev = "$MATHLIB_SHA"
+
+          [[require]]
+          name = "Comparator"
+          scope = "leanprover"
+          git = "https://github.com/leanprover/comparator.git"
+          rev = "$COMPARATOR_SHA"
+
+          [[lean_lib]]
+          name = "NavierStokes"
+          globs = ["NavierStokes", "NavierStokes.+"]
+
+          [[lean_lib]]
+          name = "Euler"
+          leanOptions = { autoImplicit = false, warningAsError = true }
+          globs = ["Euler", "Euler.+"]
+
+          [[lean_lib]]
+          name = "ComparatorChallenges"
+          globs = ["ComparatorChallenges.+"]
+          EOF
+          rm -rf .lake lake-manifest.json
+          lake update
+          python3 - <<'PY'
+          import json, os
+          m=json.load(open('lake-manifest.json', encoding='utf-8'))
+          revs={p['name']:p['rev'] for p in m['packages']}
+          for name,want in {'mathlib':os.environ['MATHLIB_SHA'],'Comparator':os.environ['COMPARATOR_SHA']}.items():
+              got=revs.get(name)
+              print(f'{name}={got}')
+              if got != want:
+                  raise SystemExit(f'{name} mismatch: {got} != {want}')
+          PY
+
+      - name: Assert no Mathlib precompiled cache exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          if find "$ROOT/.lake/packages/mathlib" -type f -name '*.olean' -print -quit | grep -q .; then
+            echo 'Unexpected precompiled Mathlib .olean detected before verification.' >&2
+            exit 1
+          fi
+          echo 'PRECOMPILED_MATHLIB_OLEAN=0'
+
+      - name: Build external trust components from pinned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-tags https://github.com/Zouuup/landrun.git "$RUNNER_TEMP/landrun"
+          cd "$RUNNER_TEMP/landrun"
+          git checkout --detach "$LANDRUN_SHA"
+          test "$(git rev-parse HEAD)" = "$LANDRUN_SHA"
+          go build -trimpath -o "$RUNNER_TEMP/bin/landrun" ./cmd/landrun
+
+          git clone --no-tags https://github.com/ammkrn/nanoda_lib.git "$RUNNER_TEMP/nanoda_lib"
+          cd "$RUNNER_TEMP/nanoda_lib"
+          git checkout --detach "$NANODA_SHA"
+          test "$(git rev-parse HEAD)" = "$NANODA_SHA"
+          cargo build --release --locked
+          test -x target/release/nanoda_bin
+          sha256sum "$RUNNER_TEMP/bin/landrun" target/release/nanoda_bin
+
+      - name: Build pinned Comparator tooling only
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          cd "$ROOT/.lake/packages/Comparator"
+          test "$(git rev-parse HEAD)" = "$COMPARATOR_SHA"
+          lake build comparator
+          cd .lake/packages/lean4export
+          test "$(git rev-parse HEAD)" = "$LEAN4EXPORT_SHA"
+          lake build lean4export
+          test -x .lake/build/bin/lean4export
+
+      - name: Reassert solution and Mathlib remain uncompiled before Comparator
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          test ! -e "$ROOT/.lake/build/lib/lean/NavierStokes/ComparatorSolution.olean"
+          if find "$ROOT/.lake/packages/mathlib" -type f -name '*.olean' -print -quit | grep -q .; then
+            echo 'Mathlib became precompiled before Comparator unexpectedly.' >&2
+            exit 1
+          fi
+          if git -C "$ROOT" grep -nE '(^|[^A-Za-z])(sorry|admit)([^A-Za-z]|$)' -- NavierStokes Euler; then
+            echo 'Unexpected proof-hole marker found in solution source tree.' >&2
+            exit 1
+          fi
+
+      - name: Verify outer sandbox guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          systemd-run --user --wait --collect --pipe \
+            --property='RestrictAddressFamilies=~AF_UNIX' \
+            -- /usr/bin/true
+
+      - name: Run Navier-Stokes Comparator with Mathlib compiled from pinned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          cd "$ROOT"
+          export COMPARATOR_LANDRUN="$RUNNER_TEMP/bin/landrun"
+          export COMPARATOR_NANODA="$RUNNER_TEMP/nanoda_lib/target/release/nanoda_bin"
+          export COMPARATOR_LEAN4EXPORT="$ROOT/.lake/packages/Comparator/.lake/packages/lean4export/.lake/build/bin/lean4export"
+          COMP="$ROOT/.lake/packages/Comparator/.lake/build/bin/comparator"
+          LAKE="$(command -v lake)"
+          START=$(date +%s)
+          systemd-run --user --wait --collect --pipe \
+            --property='RestrictAddressFamilies=~AF_UNIX' \
+            --working-directory="$ROOT" \
+            -E PATH="$PATH" -E HOME="$HOME" \
+            -E COMPARATOR_LANDRUN="$COMPARATOR_LANDRUN" \
+            -E COMPARATOR_NANODA="$COMPARATOR_NANODA" \
+            -E COMPARATOR_LEAN4EXPORT="$COMPARATOR_LEAN4EXPORT" \
+            -- "$LAKE" env "$COMP" ComparatorChallenges/NavierStokes.json \
+            2>&1 | tee "$RUNNER_TEMP/comparator-r71.log"
+          END=$(date +%s)
+          echo "R71_COMPARATOR_SECONDS=$((END-START))"
+          grep -Fq 'Your solution is okay!' "$RUNNER_TEMP/comparator-r71.log"
+
+      - name: Emit R71 no-cache receipt
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '# R71 no-cache Navier-Stokes receipt'
+            echo
+            echo "Harness commit: $GITHUB_SHA"
+            echo "OpenAI source SHA: $NS_SHA"
+            echo "Mathlib source SHA: $MATHLIB_SHA"
+            echo "Comparator SHA: $COMPARATOR_SHA"
+            echo "lean4export SHA: $LEAN4EXPORT_SHA"
+            echo "Landrun SHA: $LANDRUN_SHA"
+            echo "Nanoda SHA: $NANODA_SHA"
+            echo 'Mathlib cache command: NOT USED'
+            echo 'Precompiled Mathlib .olean before Comparator: FORBIDDEN'
+            echo 'Outer guard: RestrictAddressFamilies=~AF_UNIX'
+            echo "Runner: $RUNNER_NAME / $RUNNER_OS / $RUNNER_ARCH"
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
