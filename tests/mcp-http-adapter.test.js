@@ -36,16 +36,24 @@ async function run(method, body, headers = {}) {
 }
 
 (async () => {
-  const commonHeaders = { 'content-type': 'application/json', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION };
+  const commonHeaders = { 'content-type': 'application/json', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION, host: 'guardian.example.test' };
 
   {
-    const { res } = await run('OPTIONS', undefined);
+    const { res } = await run('OPTIONS', undefined, { host: 'guardian.example.test', origin: 'https://guardian.example.test' });
     assert.equal(res.statusCode, 204);
     assert.equal(res.headers['MCP-Protocol-Version'], PROTOCOL_VERSION);
+    assert.equal(res.headers['Access-Control-Allow-Origin'], 'https://guardian.example.test');
   }
 
   {
-    const { res, json } = await run('GET', undefined);
+    const { res, json } = await run('POST', { jsonrpc: '2.0', id: 0, method: 'ping' }, { ...commonHeaders, origin: 'https://evil.invalid' });
+    assert.equal(res.statusCode, 403);
+    assert.equal(json.error.message, 'Invalid Origin');
+    assert.equal(res.headers['Access-Control-Allow-Origin'], undefined);
+  }
+
+  {
+    const { res, json } = await run('GET', undefined, { host: 'guardian.example.test' });
     assert.equal(res.statusCode, 405);
     assert.equal(json.error, 'METHOD_NOT_ALLOWED');
   }
@@ -54,14 +62,14 @@ async function run(method, body, headers = {}) {
     const { res, json } = await run('POST', {
       jsonrpc: '2.0', id: 1, method: 'initialize',
       params: { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'test', version: '1.0.0' } }
-    }, { 'content-type': 'application/json', accept: ACCEPT });
+    }, { 'content-type': 'application/json', accept: ACCEPT, host: 'guardian.example.test' });
     assert.equal(res.statusCode, 200);
     assert.equal(json.result.protocolVersion, PROTOCOL_VERSION);
   }
 
   {
     const { res, json } = await run('POST', { jsonrpc: '2.0', id: 2, method: 'ping' }, {
-      'content-type': 'application/json', accept: ACCEPT
+      'content-type': 'application/json', accept: ACCEPT, host: 'guardian.example.test'
     });
     assert.equal(res.statusCode, 400);
     assert.equal(json.error.message, 'Missing or invalid MCP-Protocol-Version');
@@ -93,7 +101,7 @@ async function run(method, body, headers = {}) {
 
   {
     const { res, json } = await run('POST', { jsonrpc: '2.0', id: 7, method: 'ping' }, {
-      'content-type': 'text/plain', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION
+      'content-type': 'text/plain', accept: ACCEPT, 'mcp-protocol-version': PROTOCOL_VERSION, host: 'guardian.example.test'
     });
     assert.equal(res.statusCode, 415);
     assert.equal(json.error.message, 'Unsupported Content-Type');
@@ -101,7 +109,7 @@ async function run(method, body, headers = {}) {
 
   {
     const { res, json } = await run('POST', { jsonrpc: '2.0', id: 8, method: 'ping' }, {
-      'content-type': 'application/json', accept: 'application/json', 'mcp-protocol-version': PROTOCOL_VERSION
+      'content-type': 'application/json', accept: 'application/json', 'mcp-protocol-version': PROTOCOL_VERSION, host: 'guardian.example.test'
     });
     assert.equal(res.statusCode, 406);
     assert.equal(json.error.message, 'Accept must include application/json and text/event-stream');
