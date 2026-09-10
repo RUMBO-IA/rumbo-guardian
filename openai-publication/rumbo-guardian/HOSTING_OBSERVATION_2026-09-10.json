@@ -1,0 +1,24 @@
+{
+  "schema": "rumbo.openai-plugin-hosting-observation/v1",
+  "observed_at": "2026-09-10T03:27:00Z",
+  "candidate": "RUMBO Guardian",
+  "source_sha": "1f6884de5e3e466788d23093190cfb7231489abe",
+  "hosting_provider": "Vercel",
+  "linked_rumbo_repository_project": {
+    "name": "rumbo-ia-publica",
+    "project_id": "prj_ja64KXsOwlIqUawUyBe8VYu4Gc2i",
+    "latest_production_deployment_sha": "8ee2805160beec527f114ff4d4ccb260d2a83d53",
+    "latest_production_deployment_state": "READY"
+  },
+  "guardian_dedicated_project": "NOT_FOUND_IN_CONNECTED_VERCEL_TEAM",
+  "guardian_mcp_endpoint": "NOT_PROVEN",
+  "reuse_of_existing_rumbo_project_as_guardian_evidence": false,
+  "reason": "The available Vercel project inventory contains RUMBO web/control projects but no project explicitly identified as RUMBO Guardian. The existing rumbo-ia-publica deployment is sourced from RUMBO-IA/Rumbo, not RUMBO-IA/rumbo-guardian, so it cannot prove the Guardian runtime source SHA.",
+  "promotion_state": "BLOCKED_FAIL_CLOSED",
+  "next_evidence_required": [
+    "dedicated_or_explicitly_linked_guardian_host",
+    "guardian_source_sha_receipt",
+    "reachable_https_mcp_endpoint",
+    "hosted_mcp_conformance_pass"
+  ]
+}

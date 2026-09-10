@@ -1,0 +1,42 @@
+name: OpenAI Plugin Contract
+
+on:
+  pull_request:
+    paths:
+      - 'openai-publication/rumbo-guardian/**'
+      - 'chatgpt-app-submission.json'
+      - 'scripts/verify-openai-guardian-hosted.mjs'
+      - '.github/workflows/openai-plugin-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-openai-plugin-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact candidate checkout
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.2'
+      - name: Syntax check
+        run: |
+          node --check openai-publication/rumbo-guardian/runtime-adapter.js
+          node --check openai-publication/rumbo-guardian/mcp-contract.js
+          node --check openai-publication/rumbo-guardian/mcp-contract.test.js
+          node --check openai-publication/rumbo-guardian/verify-submission.js
+          node --check scripts/verify-openai-guardian-hosted.mjs
+      - name: Runtime adapter regression
+        run: node openai-publication/rumbo-guardian/runtime-adapter.test.js
+      - name: MCP contract regression
+        run: node openai-publication/rumbo-guardian/mcp-contract.test.js
+      - name: Submission packet alignment
+        run: node openai-publication/rumbo-guardian/verify-submission.js
