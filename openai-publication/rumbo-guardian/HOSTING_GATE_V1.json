@@ -51,7 +51,7 @@
     "railway_attempt": { "result": "BLOCKED_TRIAL_EXPIRED_PLAN_REQUIRED", "project_created": false }
   },
   "promotion_requirements": [
-    "publisher_support_semantic_pass",
+    "canonical_publisher_support_semantic_pass_or_review_accepts_alternate_support_url",
     "openai_account_publication_gates_verified",
     "review_auth_posture_documented"
   ],
@@ -59,7 +59,19 @@
     "website": "https://rumbo.verso.fans/",
     "privacy": "https://rumbo.verso.fans/openai-privacy",
     "terms": "https://rumbo.verso.fans/openai-terms",
-    "support": "BLOCKED_SEMANTIC_CONTENT_FAIL"
+    "canonical_support": {
+      "url": "https://rumbo.verso.fans/openai-support",
+      "state": "BLOCKED_SEMANTIC_CONTENT_FAIL"
+    },
+    "alternate_support": {
+      "url": "https://rumbo-openai-support.val.run/",
+      "state": "SEMANTIC_PASS_HTTP_200",
+      "scope": "RUMBO apps and plugins distributed through OpenAI surfaces",
+      "contact": "sebastian@rumbo.verso.fans",
+      "policy_links": "PASS",
+      "same_publisher_domain": false,
+      "review_acceptability": "UNVERIFIED"
+    }
   },
   "auth_posture": "INTENTIONALLY_NONE_FOR_PUBLIC_READ_ONLY_STAGING_REVIEW_PENDING",
   "state": "STAGING_HOSTED_CONFORMANCE_AND_FUNCTIONAL_SMOKE_PASS",
