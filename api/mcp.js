@@ -5,12 +5,36 @@ const { handleMcpRequest, PROTOCOL_VERSION } = require('../openai-publication/ru
 const MAX_BODY_BYTES = 1024 * 1024;
 const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
 const REQUIRED_ACCEPT_TYPES = ['application/json', 'text/event-stream'];
+const OPENAI_CHALLENGE_PATH = '/.well-known/openai-apps-challenge';
 
 function sendJson(res, status, payload, extraHeaders = {}) {
   res.statusCode = status;
   res.setHeader('Content-Type', JSON_CONTENT_TYPE);
   for (const [name, value] of Object.entries(extraHeaders)) res.setHeader(name, value);
   res.end(payload === null ? '' : JSON.stringify(payload));
+}
+
+function sendText(res, status, value = '') {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(value);
+}
+
+function requestPath(req) {
+  try {
+    return new URL(String(req.url || '/'), 'https://guardian.invalid').pathname;
+  } catch {
+    return '/';
+  }
+}
+
+function maybeServeOpenAIChallenge(req, res) {
+  if (req.method !== 'GET' || requestPath(req) !== OPENAI_CHALLENGE_PATH) return false;
+  const token = process.env.OPENAI_APPS_CHALLENGE;
+  if (typeof token !== 'string' || !token.trim()) sendText(res, 404, '');
+  else sendText(res, 200, token);
+  return true;
 }
 
 function validatedOrigin(req) {
@@ -76,6 +100,8 @@ function bodyBytes(req) {
 }
 
 module.exports = async function mcp(req, res) {
+  if (maybeServeOpenAIChallenge(req, res)) return;
+
   const originCheck = validatedOrigin(req);
   if (!originCheck.valid) {
     return sendJson(res, 403, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Origin' } }, allowHeaders());
