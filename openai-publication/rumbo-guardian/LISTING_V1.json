@@ -11,9 +11,15 @@
   ],
   "publisher_urls": {
     "website": "https://rumbo.verso.fans/",
-    "support": "UNVERIFIED_SHARED_PUBLISHER_URL",
-    "privacy": "UNVERIFIED_SHARED_PUBLISHER_URL",
-    "terms": "UNVERIFIED_SHARED_PUBLISHER_URL"
+    "support": "BLOCKED_SEMANTIC_CONTENT_FAIL:https://rumbo.verso.fans/openai-support",
+    "privacy": "https://rumbo.verso.fans/openai-privacy",
+    "terms": "https://rumbo.verso.fans/openai-terms"
+  },
+  "publisher_url_evidence": {
+    "website": "HTTP_200_PUBLIC",
+    "privacy": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
+    "terms": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
+    "support": "HTTP_200_WRONG_CONTENT_GENERIC_HOMEPAGE"
   },
   "availability": {
     "state": "UNSET_FAIL_CLOSED",
