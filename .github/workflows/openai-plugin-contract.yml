@@ -5,6 +5,7 @@ on:
     paths:
       - 'openai-publication/rumbo-guardian/**'
       - 'chatgpt-app-submission.json'
+      - 'scripts/verify-openai-guardian-hosted.mjs'
       - '.github/workflows/openai-plugin-contract.yml'
 
 permissions:
@@ -32,6 +33,7 @@ jobs:
           node --check openai-publication/rumbo-guardian/mcp-contract.js
           node --check openai-publication/rumbo-guardian/mcp-contract.test.js
           node --check openai-publication/rumbo-guardian/verify-submission.js
+          node --check scripts/verify-openai-guardian-hosted.mjs
       - name: Runtime adapter regression
         run: node openai-publication/rumbo-guardian/runtime-adapter.test.js
       - name: MCP contract regression
