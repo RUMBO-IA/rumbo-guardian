@@ -1,47 +1,38 @@
-# RUMBO No-Spend Resource Policy V1
+# RUMBO OpenAI publication — zero-spend resource policy V1
 
-Status: ACTIVE
+## Hard constraint
 
-## Objective
+`MONEY_SPEND = 0`.
 
-Advance RUMBO publication and reliability work using only already-connected or free resources. No purchase, billing mutation, paid plan activation, domain purchase, credit purchase, or automatic recharge is authorized by this policy.
+This lane may use only already-connected or free resources. It must not purchase API credits, enable auto-recharge, enter or modify billing information, upgrade a provider plan, buy a domain, authorize a paid deployment, or create any other monetary obligation.
 
-## Allowed resources
+## Allowed execution
 
-- GitHub repository, pull requests, issues, and GitHub Actions within existing account limits.
-- OpenAI Platform organization/project inspection and existing connected capabilities.
-- Existing Vercel Hobby team/projects and read-only deployment/runtime inspection.
-- Existing Val Town staging already provisioned for RUMBO Guardian.
-- Local/remote Desktop Commander only when transport is actually reachable.
-- Existing ChatGPT/OpenAI documentation and public resources.
+- Existing GitHub repositories, branches, pull requests, issues, and Actions already available to RUMBO.
+- Existing OpenAI Platform organization/project readback and zero-cost configuration surfaces.
+- Existing ChatGPT/Codex/Plugin capabilities included in the user's current access.
+- Existing Val Town free-tier/public HTTP resources and other providers only while they remain zero-cost and do not request billing activation.
+- Local execution on user-owned hardware when the remote bridge is actually reachable.
+- Public documentation and independent HTTP verification.
 
-## Explicitly prohibited
+## Fail-closed rules
 
-- Adding payment methods.
-- Enabling paid plans or trials that require payment.
-- Buying domains.
-- Purchasing API credits.
-- Enabling auto-recharge.
-- Creating paid infrastructure.
-- Treating a payment-gated provider as available.
+1. A provider asking for payment information, plan upgrade, paid credits, or billing activation is a hard stop for that provider.
+2. Never treat a trial, credit grant, coupon, or promotional balance as authorization to spend.
+3. Never enable auto-recharge.
+4. Never convert technical readiness into OpenAI submission, approval, or publication authority.
+5. Never fabricate a domain-verification token, publisher identity, geographic availability decision, reviewer credential, or policy attestation.
+6. Do not weaken repository identity protections, branch protection, approval rules, or security checks to make a gate pass.
 
-## Promotion rules
+## Current zero-spend surfaces
 
-A resource is usable only when its access state is proven by a successful tool operation. `online`, `configured`, or `created` without a successful readback is not execution evidence.
+- Dedicated Guardian OpenAI submission host: Val Town public endpoint, zero spend.
+- Dedicated RUMBO OpenAI support surface: Val Town public endpoint, zero spend.
+- GitHub Actions independent hosted conformance and publisher-support semantic verification.
+- OpenAI Platform target readback: organization `Rumbo`, project `Default project`; billing mutation is not required for the current Guardian submission preparation work.
 
-A deployment is never promoted solely because another RUMBO project is healthy. Repository, commit SHA, endpoint, and runtime identity must match the candidate.
+## Promotion doctrine
 
-## OpenAI API usage
+`TECHNICAL_PASS != AUTHORIZATION != SUBMISSION != REVIEW_ACCEPTANCE != PUBLICATION`.
 
-API-key creation is not itself evidence of spend authorization. No API key is created by this policy unless a separate explicit user request requires it. No paid API call is intentionally initiated under this policy.
-
-## Stop conditions
-
-Stop and record a gate when a provider requires payment, the connected transport times out, identity cannot be verified, or a write would weaken an existing security/ruleset control.
-
-## Current known gates
-
-- Render: payment information required; no service created.
-- Railway: trial/plan gate; no project created.
-- Desktop Commander: transport/liveness must be proven before remote execution.
-- OpenAI publication: account-side publication gates remain separate from technical MCP conformance.
+The candidate remains fail-closed on Apps Management Write, verified publisher identity, publisher-selected availability, portal Scan Tools/validation, conditional domain challenge, policy attestations, review, and explicit publication.
