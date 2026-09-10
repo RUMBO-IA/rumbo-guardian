@@ -13,9 +13,23 @@ function sendJson(res, status, payload, extraHeaders = {}) {
   res.end(payload === null ? '' : JSON.stringify(payload));
 }
 
-function allowHeaders() {
+function validatedOrigin(req) {
+  const raw = req.headers?.origin;
+  if (raw === undefined) return { valid: true, origin: null };
+  if (typeof raw !== 'string' || !raw.trim()) return { valid: false, origin: null };
+  try {
+    const parsed = new URL(raw);
+    const host = String(req.headers?.host || '').trim().toLowerCase();
+    const valid = parsed.protocol === 'https:' && !parsed.username && !parsed.password && parsed.host.toLowerCase() === host && parsed.pathname === '/' && !parsed.search && !parsed.hash;
+    return { valid, origin: valid ? parsed.origin : null };
+  } catch {
+    return { valid: false, origin: null };
+  }
+}
+
+function allowHeaders(origin = null) {
   return {
-    'Access-Control-Allow-Origin': '*',
+    ...(origin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}),
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Accept, MCP-Protocol-Version',
     'Access-Control-Expose-Headers': 'MCP-Protocol-Version',
@@ -62,7 +76,11 @@ function bodyBytes(req) {
 }
 
 module.exports = async function mcp(req, res) {
-  const headers = allowHeaders();
+  const originCheck = validatedOrigin(req);
+  if (!originCheck.valid) {
+    return sendJson(res, 403, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Origin' } }, allowHeaders());
+  }
+  const headers = allowHeaders(originCheck.origin);
   if (req.method === 'OPTIONS') return sendJson(res, 204, null, headers);
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'METHOD_NOT_ALLOWED' }, { ...headers, Allow: 'POST, OPTIONS' });
 
