@@ -3,7 +3,7 @@
   "candidate": "RUMBO Guardian",
   "repository": "RUMBO-IA/rumbo-guardian",
   "branch": "fix/mcp-vercel-stateless-adapter-v1",
-  "verified_repository_head": "60b34cf89c4da0b1f7dc174bb7840ce0f990e726",
+  "verified_repository_head": "7cc094a0f0a9cfdbd5f75403586ddcc03af6fd12",
   "required_endpoint_path": "/mcp",
   "transport": "MCP 2025-06-18 Streamable HTTP",
   "hosting_observation": {
@@ -26,9 +26,9 @@
       "independent_github_actions_run_id": 34440140703,
       "independent_functional_smoke_run_id": 34440399123,
       "latest_exact_head_runs": {
-        "guardian_ci": 34440650795,
-        "hosted_mcp_conformance": 34440650744,
-        "openai_plugin_contract": 34440650701
+        "guardian_ci": 34441956140,
+        "hosted_mcp_conformance": 34441956152,
+        "openai_plugin_contract": 34441956150
       },
       "independent_hosted_conformance": "PASS",
       "functional_parity_smoke": "PASS",
