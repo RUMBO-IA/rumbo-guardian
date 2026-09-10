@@ -1,0 +1,179 @@
+name: Navier-Stokes dependency provenance R73
+
+on:
+  push:
+    branches:
+      - audit/ns-dependency-provenance-r73-20260910
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NS_REPO: https://github.com/openai/NavierStokesAndEuler.git
+  NS_SHA: 8937a8f4cbc7abaab5e9e97d1cc7f5d2319d9538
+  ORIGINAL_MANIFEST_BLOB: f07a8454cb6200d90bcc4371bc9965e9f8f46c7d
+  MATHLIB_SHA: 85e3a25e006c35636f0e53b0e9296caca2685bc0
+  COMPARATOR_SHA: 19e111e2141cf333c7daff0f64c5f24acc91dd2e
+  MATHLIB_NO_CACHE_ON_UPDATE: "1"
+
+jobs:
+  dependency-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Prepare fresh runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y elan jq
+          test "$(id -u)" -ne 0
+          test "$MATHLIB_NO_CACHE_ON_UPDATE" = "1"
+
+      - name: Fetch exact proof tree and preserve original manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          git clone --no-tags "$NS_REPO" "$ROOT"
+          cd "$ROOT"
+          git checkout --detach "$NS_SHA"
+          test "$(git rev-parse HEAD)" = "$NS_SHA"
+          test "$(git hash-object lake-manifest.json)" = "$ORIGINAL_MANIFEST_BLOB"
+          cp lake-manifest.json "$RUNNER_TEMP/original-manifest.json"
+          elan toolchain install "$(tr -d '\r\n' < lean-toolchain)"
+
+      - name: Independently resolve dependency closure without cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          cd "$ROOT"
+          cat > lakefile.toml <<EOF
+          name = "NavierStokesDependencyAudit"
+          version = "0.1.0"
+
+          [[require]]
+          name = "mathlib"
+          scope = "leanprover-community"
+          git = "https://github.com/leanprover-community/mathlib4.git"
+          rev = "$MATHLIB_SHA"
+
+          [[require]]
+          name = "Comparator"
+          scope = "leanprover"
+          git = "https://github.com/leanprover/comparator.git"
+          rev = "$COMPARATOR_SHA"
+
+          [[lean_lib]]
+          name = "NavierStokes"
+          globs = ["NavierStokes", "NavierStokes.+"]
+
+          [[lean_lib]]
+          name = "Euler"
+          leanOptions = { autoImplicit = false, warningAsError = true }
+          globs = ["Euler", "Euler.+"]
+
+          [[lean_lib]]
+          name = "ComparatorChallenges"
+          globs = ["ComparatorChallenges.+"]
+          EOF
+          rm -rf .lake lake-manifest.json
+          lake update 2>&1 | tee "$RUNNER_TEMP/lake-update-r73.log"
+          if grep -Fq 'Attempting to download' "$RUNNER_TEMP/lake-update-r73.log"; then
+            echo 'Unexpected Mathlib binary cache download.' >&2
+            exit 1
+          fi
+          cp lake-manifest.json "$RUNNER_TEMP/independent-manifest.json"
+
+      - name: Compare original and independently resolved package graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          old=json.load(open(os.environ['RUNNER_TEMP']+'/original-manifest.json', encoding='utf-8'))
+          new=json.load(open(os.environ['RUNNER_TEMP']+'/independent-manifest.json', encoding='utf-8'))
+          fields=('name','url','type','scope','rev','subDir')
+          def canon(m):
+              return {p['name']: tuple(p.get(k) for k in fields) for p in m['packages']}
+          a,b=canon(old),canon(new)
+          print('original_packages=', len(a))
+          print('independent_packages=', len(b))
+          missing=sorted(set(a)-set(b)); extra=sorted(set(b)-set(a))
+          if missing or extra:
+              raise SystemExit(f'package-set mismatch missing={missing} extra={extra}')
+          bad=[]
+          for name in sorted(a):
+              if a[name] != b[name]: bad.append((name,a[name],b[name]))
+              print(name, b[name][4], b[name][1])
+          if bad:
+              raise SystemExit('package metadata mismatch: '+repr(bad))
+          expected={
+            'Comparator':'19e111e2141cf333c7daff0f64c5f24acc91dd2e',
+            'mathlib':'85e3a25e006c35636f0e53b0e9296caca2685bc0',
+            'lean4export':'cacf989bd75f608700820f6afc595f32e7a99a4d',
+            'plausible':'d9598f07b1bc701f1e3aae163d2681c1fd978793',
+            'LeanSearchClient':'ba67e212be1197b84c1f1f6299488a10a3002713',
+            'importGraph':'d8823026ac7ef130c253089d95685f9877b95323',
+            'proofwidgets':'a8acbfd87375ff4abe14ce09db5b7664d383bc7f',
+            'aesop':'18889deb9e83ea7420ef51c160d6f88552e744e3',
+            'Qq':'507746ab8f4b643ccdacb2ec4cdb5853fa9f8ab3',
+            'batteries':'d54dddc581e08be364c278052863524bff7a99a9',
+            'Cli':'ab3a82db9fea14cf0fd7f5a2de650f4b534640af',
+          }
+          if set(b) != set(expected):
+              raise SystemExit(f'unexpected package names: {sorted(set(b)^set(expected))}')
+          for n,rev in expected.items():
+              if b[n][4] != rev: raise SystemExit(f'{n}: {b[n][4]} != {rev}')
+          for n,v in b.items():
+              url=v[1]
+              if not isinstance(url,str) or not url.startswith('https://github.com/'):
+                  raise SystemExit(f'non-GitHub dependency URL for {n}: {url}')
+              if v[2] != 'git': raise SystemExit(f'non-git dependency {n}: {v[2]}')
+          print('DEPENDENCY_GRAPH_MATCH=PASS')
+          PY
+
+      - name: Verify every materialized package checkout matches manifest SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/NavierStokesAndEuler"
+          cd "$ROOT"
+          jq -r '.packages[] | [.name,.rev] | @tsv' lake-manifest.json | while IFS=$'\t' read -r name rev; do
+            got=$(git -C ".lake/packages/$name" rev-parse HEAD)
+            echo "$name expected=$rev actual=$got"
+            test "$got" = "$rev"
+          done
+          OLEANS=$(find .lake/packages/mathlib -type f -name '*.olean' | wc -l)
+          echo "MATHLIB_OLEAN_AFTER_RESOLUTION=$OLEANS"
+          test "$OLEANS" -eq 0
+          if find .lake/packages -type l -print -quit | grep -q .; then
+            echo 'Unexpected symlink in materialized dependency tree.' >&2
+            exit 1
+          fi
+
+      - name: Emit provenance receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '# R73 dependency provenance receipt'
+            echo
+            echo "Harness: $GITHUB_SHA"
+            echo "OpenAI proof SHA: $NS_SHA"
+            echo "Original manifest blob: $ORIGINAL_MANIFEST_BLOB"
+            echo "Original manifest SHA256: $(sha256sum "$RUNNER_TEMP/original-manifest.json" | awk '{print $1}')"
+            echo "Independent manifest SHA256: $(sha256sum "$RUNNER_TEMP/independent-manifest.json" | awk '{print $1}')"
+            echo 'Dependency graph equality: PASS'
+            echo 'Materialized package HEAD verification: PASS'
+            echo 'Mathlib post-update binary cache: DISABLED'
+            echo 'Mathlib .olean after resolution: 0'
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
