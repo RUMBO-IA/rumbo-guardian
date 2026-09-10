@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'openai-publication/rumbo-guardian/**'
+      - 'chatgpt-app-submission.json'
       - '.github/workflows/openai-plugin-contract.yml'
 
 permissions:
@@ -30,7 +31,10 @@ jobs:
           node --check openai-publication/rumbo-guardian/runtime-adapter.js
           node --check openai-publication/rumbo-guardian/mcp-contract.js
           node --check openai-publication/rumbo-guardian/mcp-contract.test.js
+          node --check openai-publication/rumbo-guardian/verify-submission.js
       - name: Runtime adapter regression
         run: node openai-publication/rumbo-guardian/runtime-adapter.test.js
       - name: MCP contract regression
         run: node openai-publication/rumbo-guardian/mcp-contract.test.js
+      - name: Submission packet alignment
+        run: node openai-publication/rumbo-guardian/verify-submission.js
