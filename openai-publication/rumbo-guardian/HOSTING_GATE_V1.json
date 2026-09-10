@@ -17,10 +17,10 @@
       "direct_initialize_preflight": "PASS",
       "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
       "independent_hosted_conformance": "PASS",
-      "independent_evidence_basis_commit": "b702d48770a817747ab00b8f8b8de05e5c08c1cb",
-      "hosted_conformance_run_id": 34456562187,
-      "guardian_ci_run_id": 34456562274,
-      "openai_plugin_contract_run_id": 34456562284,
+      "latest_verified_repository_head": "bea52b3ece1fb338bd5b1cc7fd6f5da628224880",
+      "hosted_conformance_run_id": 34456963033,
+      "guardian_ci_run_id": 34456962936,
+      "openai_plugin_contract_run_id": 34456962971,
       "classification": "DEDICATED_OPENAI_SUBMISSION_HOST_CONFORMANCE_PASS"
     },
     "staging_reference": {
@@ -48,7 +48,7 @@
     "terms": "https://rumbo.verso.fans/openai-terms",
     "support": {
       "portal_candidate_url": "https://rumbo-openai-support.val.run/",
-      "semantic_content": "PASS_HTTP_200",
+      "semantic_content": "PASS_HTTP_200_AND_INDEPENDENT_CI",
       "same_publisher_domain": false,
       "openai_documentation_same_domain_requirement": "NOT_STATED",
       "publisher_identity_alignment": "UNVERIFIED_ACCOUNT_GATE"
