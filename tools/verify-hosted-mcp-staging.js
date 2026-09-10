@@ -45,9 +45,11 @@ async function callTool(path, id, name, args) {
   const path = selected.path;
 
   const tools = await request(path, { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
-  const names = tools.json?.result?.tools?.map(tool => tool.name) || [];
+  const descriptors = tools.json?.result?.tools || [];
+  const names = descriptors.map(tool => tool.name);
   if (JSON.stringify(names) !== JSON.stringify(expectedTools)) throw new Error(`TOOLS_MISMATCH:${JSON.stringify(names)}`);
-  if (!tools.json.result.tools.every(tool => tool.annotations?.readOnlyHint === true && tool.annotations?.destructiveHint === false && tool.annotations?.openWorldHint === false)) throw new Error('TOOL_ANNOTATIONS_MISMATCH');
+  if (!descriptors.every(tool => tool.annotations?.readOnlyHint === true && tool.annotations?.destructiveHint === false && tool.annotations?.openWorldHint === false)) throw new Error('TOOL_ANNOTATIONS_MISMATCH');
+  if (!descriptors.every(tool => Array.isArray(tool.securitySchemes) && tool.securitySchemes.length === 1 && tool.securitySchemes[0]?.type === 'noauth')) throw new Error('TOOL_SECURITY_SCHEMES_NOAUTH_MISMATCH');
 
   const unknown = await request(path, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'definitely_not_a_tool', arguments: {} } });
   const unknownBlocked = unknown.status === 200 && (unknown.json?.result?.isError === true || typeof unknown.json?.error?.code === 'number');
@@ -72,5 +74,5 @@ async function callTool(path, id, name, args) {
   const ledger = await callTool(path, 13, 'verify_ledger', { ledger: {} });
   if (ledger?.valid !== false || ledger?.reason !== 'missing_history') throw new Error('VERIFY_LEDGER_PARITY_FAIL');
 
-  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS' }));
+  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', securitySchemesNoauth:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS' }));
 })();
