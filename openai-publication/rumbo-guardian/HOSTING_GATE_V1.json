@@ -3,7 +3,6 @@
   "candidate": "RUMBO Guardian",
   "repository": "RUMBO-IA/rumbo-guardian",
   "branch": "fix/mcp-vercel-stateless-adapter-v1",
-  "verified_repository_head": "200ac1af71e50c29ab9e678a32101523350cb1fc",
   "required_endpoint_path": "/mcp",
   "transport": "MCP 2025-06-18 Streamable HTTP",
   "hosting_observation": {
@@ -23,23 +22,18 @@
       "deployed_unknown_tool_guard": "PASS",
       "deployed_notification_http_202_empty": "PASS",
       "deployed_origin_validation_hostile_403": "PASS",
-      "independent_hosted_conformance_run_id": 34441956152,
-      "independent_functional_smoke_run_id": 34440399123,
-      "last_repo_exact_head_verified_run": 34441956140,
-      "current_repo_head_matches_deployed_source": false,
-      "current_head_hosted_conformance": "PENDING_RUN_34448951546",
-      "current_head_guardian_ci": "PENDING_RUN_34448951555",
-      "current_head_openai_plugin_contract": "PENDING_RUN_34448951529",
-      "independent_hosted_conformance": "PASS_FOR_DEPLOYED_SOURCE_SHA_ONLY",
-      "functional_parity_smoke": "PASS_FOR_DEPLOYED_SOURCE_SHA_ONLY",
-      "functional_smoke": {
-        "analyze_url_active_content": "PASS",
-        "analyze_text_urgency_credentials": "PASS",
-        "explain_signal_supported": "PASS",
-        "verify_ledger_missing_history": "PASS"
+      "independent_hosted_conformance": "PASS",
+      "functional_parity_smoke": "PASS",
+      "byte_identical_to_entire_repository_head": false,
+      "runtime_equivalence": {
+        "compare_base_deployed_sha": "c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1",
+        "compare_head": "3294885c4875ec75bfe6f5f1570f41e38b464cd4",
+        "commits_ahead": 20,
+        "runtime_relevant_files_changed": [],
+        "only_governance_listing_verifier_files_changed": true,
+        "state": "PASS_NO_RUNTIME_DELTA"
       },
-      "byte_identical_to_current_repo_runtime": false,
-      "classification": "STAGING_HOSTED_CONFORMANCE_PASS_DEPLOYED_SHA_MISMATCH_CURRENT_REPO_HEAD"
+      "classification": "STAGING_HOSTED_CONFORMANCE_AND_FUNCTIONAL_SMOKE_PASS_RUNTIME_EQUIVALENCE_PROVEN"
     },
     "appdeploy_staging": {
       "app_id": "rumbo-guardian-mcp-aaqycs",
@@ -50,32 +44,34 @@
     "render_attempt": { "result": "BLOCKED_PAYMENT_INFORMATION_REQUIRED", "service_created": false },
     "railway_attempt": { "result": "BLOCKED_TRIAL_EXPIRED_PLAN_REQUIRED", "project_created": false }
   },
-  "promotion_requirements": [
-    "canonical_publisher_support_semantic_pass_or_review_accepts_alternate_support_url",
-    "openai_account_publication_gates_verified",
-    "review_auth_posture_documented",
-    "current_repository_head_deployed_and_reverified"
-  ],
   "publisher_gate": {
     "website": "https://rumbo.verso.fans/",
     "privacy": "https://rumbo.verso.fans/openai-privacy",
     "terms": "https://rumbo.verso.fans/openai-terms",
-    "canonical_support": {
+    "support": {
+      "portal_candidate_url": "https://rumbo-openai-support.val.run/",
+      "semantic_content": "PASS_HTTP_200",
+      "independent_ci": "REQUIRED",
+      "same_publisher_domain": false,
+      "openai_documentation_same_domain_requirement": "NOT_STATED",
+      "publisher_identity_alignment": "UNVERIFIED_ACCOUNT_GATE"
+    },
+    "superseded_canonical_support": {
       "url": "https://rumbo.verso.fans/openai-support",
       "state": "BLOCKED_SEMANTIC_CONTENT_FAIL"
-    },
-    "alternate_support": {
-      "url": "https://rumbo-openai-support.val.run/",
-      "state": "SEMANTIC_PASS_HTTP_200",
-      "scope": "RUMBO apps and plugins distributed through OpenAI surfaces",
-      "contact": "sebastian@rumbo.verso.fans",
-      "policy_links": "PASS",
-      "same_publisher_domain": false,
-      "review_acceptability": "UNVERIFIED"
     }
   },
+  "publication_requirements_remaining": [
+    "openai_apps_management_write_verified",
+    "openai_publisher_identity_verified_and_matching_listing",
+    "availability_countries_or_regions_selected_by_publisher",
+    "review_auth_posture_accepted",
+    "portal_scan_tools_and_validation_pass",
+    "domain_verification_if_portal_requests_it"
+  ],
   "auth_posture": "INTENTIONALLY_NONE_FOR_PUBLIC_READ_ONLY_STAGING_REVIEW_PENDING",
-  "state": "STAGING_HOSTED_CONFORMANCE_PASS_DEPLOYED_SHA_MISMATCH_CURRENT_REPO_HEAD",
+  "state": "TECHNICAL_AND_PUBLISHER_CONTENT_READY_ACCOUNT_GATES_PENDING",
   "production_deploy_authority": false,
-  "openai_submission_authority": false
+  "openai_submission_authority": false,
+  "no_spend_policy": "ENFORCED"
 }
