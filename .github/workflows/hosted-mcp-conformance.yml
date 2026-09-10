@@ -23,7 +23,7 @@ jobs:
       - name: Verify public staging MCP
         env:
           RUMBO_GUARDIAN_MCP_BASE: https://rumbo-guardian-mcp.val.run
-          RUMBO_GUARDIAN_SOURCE_SHA: c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1
+          RUMBO_GUARDIAN_SOURCE_SHA: 40b9578f48e2160c743ed2462cdc7289a29c1e2a
         run: node tools/verify-hosted-mcp-staging.js
       - name: Verify publisher support semantics
         env:
