@@ -28,39 +28,32 @@
     "url_type": "UNIVERSAL",
     "server_url": "https://rumbo-guardian-openai.val.run/",
     "host_classification": "DEDICATED_OPENAI_SUBMISSION_HOST_CONFORMANCE_PASS_ZERO_SPEND",
-    "source_clone": "sebas1/rumbo-guardian-mcp@main-v8",
     "protocol": "2025-06-18",
     "authentication": "noauth",
     "reviewer_credentials": "NOT_REQUIRED_FOR_ANONYMOUS_TOOL_SURFACE",
     "scan_tools": "NOT_EXECUTED_PORTAL_GATE",
-    "tool_count_expected": 4,
     "tool_names_expected": ["analyze_url", "analyze_text", "verify_ledger", "explain_signal"],
     "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
-    "direct_initialize_preflight": "PASS_HTTP_200_PROTOCOL_2025_06_18",
-    "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
+    "output_schemas": "PASS_4_OF_4",
     "independent_host_verification": "PASS",
-    "last_exact_head_receipt": {
-      "head": "20b33a2e69a0efcbaacc9c2cd116fbb86b0a1750",
-      "guardian_ci": 34459726184,
-      "hosted_mcp_conformance": 34459726166,
-      "openai_plugin_contract": 34459726174,
-      "all_success": true
-    },
-    "runtime_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0"
+    "latest_verified_pr_head_before_this_doc_commit": "ca426cd7071204de71d68e99d2f7a2efd870f2b7",
+    "latest_verified_runs": {
+      "guardian_ci": 34460133272,
+      "hosted_mcp_conformance": 34460133247,
+      "openai_plugin_contract": 34460133205
+    }
   },
   "domain_verification": {
-    "challenge_base_url": "https://rumbo-guardian-openai.val.run",
     "challenge_url": "https://rumbo-guardian-openai.val.run/.well-known/openai-apps-challenge",
     "token_state": "NOT_ISSUED_NOT_CONFIGURED",
     "expected_without_token": "HTTP_404_EMPTY",
-    "action_if_portal_issues_token": "INSTALL_EXACT_TOKEN_IN_OPENAI_APPS_CHALLENGE_ENV_AND_VERIFY_PLAINTEXT_RESPONSE",
+    "action_if_portal_issues_token": "INSTALL_EXACT_TOKEN_AND_VERIFY_PLAINTEXT_RESPONSE",
     "action_without_portal_token": "DO_NOT_CONFIGURE_OR_FABRICATE_TOKEN"
   },
   "testing": {
     "submission_packet": "chatgpt-app-submission.json",
     "positive_test_cases": 5,
     "negative_test_cases": 3,
-    "tool_output_schemas": "PASS_4_OF_4",
     "independent_host_verification": "PASS"
   },
   "availability": {
@@ -68,7 +61,6 @@
     "countries_or_regions": [],
     "decision_owner": "PUBLISHER"
   },
-  "release_notes": "Initial RUMBO Guardian plugin candidate with four bounded read-only defensive MCP tools, explicit noauth metadata, a dedicated zero-spend OpenAI submission host, Origin protection, output schemas, independent cloud conformance, semantic support verification, and fail-closed domain-verification readiness.",
   "attestation_and_submission": {
     "policy_attestations": "NOT_EXECUTED_PORTAL_GATE",
     "submit_for_review": false,
