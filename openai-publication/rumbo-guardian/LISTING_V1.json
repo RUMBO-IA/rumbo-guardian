@@ -20,9 +20,31 @@
     "privacy": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
     "terms": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
     "support": "HTTP_200_SEMANTIC_PAGE_VERIFIED_ALTERNATE_HOST",
-    "support_independent_ci": "REQUIRED_BY_HOSTED_MCP_CONFORMANCE_WORKFLOW",
+    "support_independent_ci": "PASS_RUN_34453180919",
     "publisher_identity_match": "UNVERIFIED_ACCOUNT_GATE"
   },
+  "mcp": {
+    "url_type": "UNIVERSAL",
+    "server_url": "https://rumbo-guardian-mcp.val.run/",
+    "protocol": "2025-06-18",
+    "authentication": "noauth",
+    "tool_count": 4,
+    "hosted_conformance": "PASS_RUN_34453180919",
+    "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0"
+  },
+  "domain_verification": {
+    "challenge_base_origin": "https://rumbo-guardian-mcp.val.run",
+    "challenge_path": "/.well-known/openai-apps-challenge",
+    "token_state": "NOT_ISSUED_NOT_CONFIGURED",
+    "fail_closed_without_token": "PASS_404_EMPTY",
+    "install_token_only_if_portal_requests": true
+  },
+  "review_tests": {
+    "positive": 5,
+    "negative": 3,
+    "submission_packet": "chatgpt-app-submission.json"
+  },
+  "release_notes": "Initial RUMBO Guardian plugin candidate: four bounded read-only defensive tools for local analysis of user-supplied URLs/text, signal explanation, and Evidence Ledger verification; public MCP staging with explicit noauth metadata, Origin protection, independent conformance checks, and fail-closed domain-verification readiness.",
   "superseded_support_observation": {
     "url": "https://rumbo.verso.fans/openai-support",
     "state": "HTTP_200_WRONG_CONTENT_GENERIC_HOMEPAGE"
