@@ -1,0 +1,186 @@
+name: Navier-Stokes independent reproducibility R65
+
+on:
+  push:
+    branches:
+      - audit/navier-stokes-repro-20260910
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NS_REPO: https://github.com/openai/NavierStokesAndEuler.git
+  NS_SHA: 8937a8f4cbc7abaab5e9e97d1cc7f5d2319d9538
+  MATHLIB_SHA: 85e3a25e006c35636f0e53b0e9296caca2685bc0
+  COMPARATOR_SHA: 19e111e2141cf333c7daff0f64c5f24acc91dd2e
+  LEAN4EXPORT_SHA: cacf989bd75f608700820f6afc595f32e7a99a4d
+  LANDRUN_SHA: 811cfff51ceaf3d9843708aa6d22e9b84ccac8b4
+  NANODA_SHA: 4c544ed4099c8227f07d5de77ad1e69fb0740a27
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Prepare free runner toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y elan jq
+          mkdir -p "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          go version
+          cargo --version
+          git --version
+          uname -a
+
+      - name: Checkout exact OpenAI proof tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-tags "$NS_REPO" "$RUNNER_TEMP/NavierStokesAndEuler"
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          git checkout --detach "$NS_SHA"
+          test "$(git rev-parse HEAD)" = "$NS_SHA"
+          echo "SOURCE_SHA=$(git rev-parse HEAD)"
+          test "$(tr -d '\r\n' < lean-toolchain)" = "leanprover/lean4:v4.34.0-rc2"
+          python3 - <<'PY'
+          import json, os
+          with open('lake-manifest.json', encoding='utf-8') as f:
+              m = json.load(f)
+          revs = {p['name']: p['rev'] for p in m['packages']}
+          expected = {
+              'mathlib': os.environ['MATHLIB_SHA'],
+              'Comparator': os.environ['COMPARATOR_SHA'],
+          }
+          for name, sha in expected.items():
+              got = revs.get(name)
+              print(f'{name}={got}')
+              if got != sha:
+                  raise SystemExit(f'{name} pin mismatch: {got} != {sha}')
+          PY
+
+      - name: Install exact Lean toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          TOOLCHAIN="$(tr -d '\r\n' < lean-toolchain)"
+          elan toolchain install "$TOOLCHAIN"
+          lean --version
+          lake --version
+
+      - name: Fetch Mathlib cache and build proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          lake exe cache get 2>&1 | tee "$RUNNER_TEMP/cache.log"
+          lake build 2>&1 | tee "$RUNNER_TEMP/lake-build.log"
+
+      - name: Build pinned landrun from source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-tags https://github.com/Zouuup/landrun.git "$RUNNER_TEMP/landrun"
+          cd "$RUNNER_TEMP/landrun"
+          git checkout --detach "$LANDRUN_SHA"
+          test "$(git rev-parse HEAD)" = "$LANDRUN_SHA"
+          go build -trimpath -o "$RUNNER_TEMP/bin/landrun" ./cmd/landrun
+          "$RUNNER_TEMP/bin/landrun" --help >/dev/null
+          sha256sum "$RUNNER_TEMP/bin/landrun"
+
+      - name: Build pinned nanoda kernel from source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-tags https://github.com/ammkrn/nanoda_lib.git "$RUNNER_TEMP/nanoda_lib"
+          cd "$RUNNER_TEMP/nanoda_lib"
+          git checkout --detach "$NANODA_SHA"
+          test "$(git rev-parse HEAD)" = "$NANODA_SHA"
+          cargo build --release --locked
+          test -x target/release/nanoda_bin
+          sha256sum target/release/nanoda_bin
+
+      - name: Build pinned Comparator and lean4export
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler/.lake/packages/Comparator"
+          test "$(git rev-parse HEAD)" = "$COMPARATOR_SHA"
+          lake build comparator
+          cd .lake/packages/lean4export
+          test "$(git rev-parse HEAD)" = "$LEAN4EXPORT_SHA"
+          lake build lean4export
+          test -x .lake/build/bin/lean4export
+          sha256sum .lake/build/bin/lean4export
+
+      - name: Reject unexpected proof holes in solution trees
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          if git grep -nE '(^|[^A-Za-z])(sorry|admit)([^A-Za-z]|$)' -- 'NavierStokes/*.lean' 'Euler/*.lean'; then
+            echo 'Unexpected proof hole marker found outside ComparatorChallenges.' >&2
+            exit 1
+          fi
+
+      - name: Run Navier-Stokes Comparator with Nanoda
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          export COMPARATOR_LANDRUN="$RUNNER_TEMP/bin/landrun"
+          export COMPARATOR_NANODA="$RUNNER_TEMP/nanoda_lib/target/release/nanoda_bin"
+          export COMPARATOR_LEAN4EXPORT="$RUNNER_TEMP/NavierStokesAndEuler/.lake/packages/Comparator/.lake/packages/lean4export/.lake/build/bin/lean4export"
+          lake exe comparator ComparatorChallenges/NavierStokes.json 2>&1 | tee "$RUNNER_TEMP/comparator-navier-stokes.log"
+
+      - name: Run Euler Comparator with Nanoda
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          export COMPARATOR_LANDRUN="$RUNNER_TEMP/bin/landrun"
+          export COMPARATOR_NANODA="$RUNNER_TEMP/nanoda_lib/target/release/nanoda_bin"
+          export COMPARATOR_LEAN4EXPORT="$RUNNER_TEMP/NavierStokesAndEuler/.lake/packages/Comparator/.lake/packages/lean4export/.lake/build/bin/lean4export"
+          lake exe comparator ComparatorChallenges/Euler.json 2>&1 | tee "$RUNNER_TEMP/comparator-euler.log"
+
+      - name: Fresh axiom printouts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/NavierStokesAndEuler"
+          lake env lean NavierStokes/ComparatorSolution.lean 2>&1 | tee "$RUNNER_TEMP/axioms-navier-stokes.log"
+          lake env lean Euler/Solution.lean 2>&1 | tee "$RUNNER_TEMP/axioms-euler.log"
+          if grep -R "sorryAx" "$RUNNER_TEMP/axioms-navier-stokes.log" "$RUNNER_TEMP/axioms-euler.log"; then
+            echo 'sorryAx found in main-result axiom output.' >&2
+            exit 1
+          fi
+
+      - name: Emit reproducibility receipt
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          {
+            echo '# R65 Navier-Stokes independent reproducibility receipt'
+            echo
+            echo "Harness commit: $GITHUB_SHA"
+            echo "OpenAI proof SHA: $NS_SHA"
+            echo "Mathlib SHA: $MATHLIB_SHA"
+            echo "Comparator SHA: $COMPARATOR_SHA"
+            echo "lean4export SHA: $LEAN4EXPORT_SHA"
+            echo "landrun SHA: $LANDRUN_SHA"
+            echo "nanoda SHA: $NANODA_SHA"
+            echo "Runner: $RUNNER_NAME"
+            echo "OS: $RUNNER_OS"
+            echo "Arch: $RUNNER_ARCH"
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } | tee "$RUNNER_TEMP/R65_RECEIPT.md" >> "$GITHUB_STEP_SUMMARY"
