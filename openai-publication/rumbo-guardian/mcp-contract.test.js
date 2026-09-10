@@ -17,6 +17,7 @@ function assertClosedShape(schema, value) {
     assert.equal(tool.annotations.readOnlyHint, true);
     assert.equal(tool.annotations.openWorldHint, false);
     assert.equal(tool.annotations.destructiveHint, false);
+    assert.deepEqual(tool.securitySchemes, [{ type: 'noauth' }]);
     assert.equal(tool.inputSchema.type, 'object');
     assert.equal(tool.outputSchema.type, 'object');
   }
