@@ -20,7 +20,7 @@
     "privacy": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
     "terms": "HTTP_200_SEMANTIC_PAGE_VERIFIED",
     "support": "HTTP_200_SEMANTIC_PAGE_VERIFIED_ALTERNATE_HOST",
-    "support_independent_ci": "PASS_RUN_34458910113",
+    "support_independent_ci": "PASS_RUN_34459923979",
     "publisher_identity_match": "UNVERIFIED_ACCOUNT_GATE"
   },
   "mcp": {
@@ -29,7 +29,7 @@
     "protocol": "2025-06-18",
     "authentication": "noauth",
     "tool_count": 4,
-    "hosted_conformance": "PASS_RUN_34458910113",
+    "hosted_conformance": "PASS_RUN_34459923979",
     "output_schemas": "PASS_4_OF_4",
     "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0"
   },
@@ -46,20 +46,22 @@
     "submission_packet": "chatgpt-app-submission.json"
   },
   "release_notes": "Initial RUMBO Guardian plugin candidate: four bounded read-only defensive tools for local analysis of user-supplied URLs/text, signal explanation, and Evidence Ledger verification; dedicated zero-spend public MCP host with explicit noauth metadata, Origin protection, output schemas, independent conformance checks, semantic support verification, and fail-closed domain-verification readiness.",
-  "superseded_support_observation": {
-    "url": "https://rumbo.verso.fans/openai-support",
-    "state": "HTTP_200_WRONG_CONTENT_GENERIC_HOMEPAGE"
-  },
   "availability": {
     "state": "UNSET_FAIL_CLOSED",
     "countries": []
   },
+  "account_gates": {
+    "apps_management_write": "UNVERIFIED",
+    "publisher_identity": "UNVERIFIED",
+    "project_global_data_residency": "UNVERIFIED"
+  },
   "submission_state": "NOT_SUBMITTED",
-  "evidence_source_head": "20748993a352b46a1bef687fb55928b2f29f2d57",
-  "evidence_workflow_runs": {
-    "guardian_ci": 34458910201,
-    "hosted_mcp_conformance": 34458910113,
-    "openai_plugin_contract": 34458910074
+  "last_exact_head_receipt": {
+    "head": "f6c74c723a324b02e5e672ad659015581dad14a4",
+    "guardian_ci": 34459923884,
+    "hosted_mcp_conformance": 34459923979,
+    "openai_plugin_contract": 34459923915,
+    "all_success": true
   },
   "budget": {
     "money_spend": 0,
