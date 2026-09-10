@@ -37,11 +37,11 @@
     "direct_initialize_preflight": "PASS_HTTP_200_PROTOCOL_2025_06_18",
     "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
     "independent_host_verification": "PASS",
-    "evidence_source_head": "6a26bd4d6262ad3861c9f784422d89ab620346cb",
+    "evidence_source_head": "18bd4d413b677c7b2e171863cd750df8dd9897df",
     "evidence_workflow_runs": {
-      "guardian_ci": 34457747364,
-      "hosted_mcp_conformance": 34457747282,
-      "openai_plugin_contract": 34457747247
+      "guardian_ci": 34458524496,
+      "hosted_mcp_conformance": 34458524467,
+      "openai_plugin_contract": 34458524511
     }
   },
   "domain_verification": {
