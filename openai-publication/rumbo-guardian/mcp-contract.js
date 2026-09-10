@@ -3,13 +3,93 @@
 const Adapter = require('./runtime-adapter.js');
 const PROTOCOL_VERSION = '2025-06-18';
 
+const reasonSchema = {
+  type: 'object',
+  properties: {
+    points: { type: 'number' },
+    title: { type: 'string' },
+    detail: { type: 'string' },
+    code: { type: 'string' }
+  },
+  required: ['points', 'title', 'detail', 'code'],
+  additionalProperties: false
+};
+
+const redirectHopSchema = {
+  type: 'object',
+  properties: {
+    param: { type: 'string' },
+    url: { type: 'string' },
+    domain: { type: 'string' },
+    score: { type: 'number', minimum: 0, maximum: 100 },
+    label: { type: 'string' },
+    reasons: { type: 'array', items: { type: 'string' } },
+    decodePasses: { type: 'integer', minimum: 1, maximum: 3 }
+  },
+  required: ['param', 'url', 'domain', 'score', 'label', 'reasons', 'decodePasses'],
+  additionalProperties: false
+};
+
+const urlAnalysisSchema = {
+  type: 'object',
+  properties: {
+    score: { type: 'number', minimum: 0, maximum: 100 },
+    level: { type: 'string', enum: ['safe', 'caution', 'danger', 'neutral'] },
+    label: { type: 'string' },
+    verdict: { type: 'string' },
+    guide: { type: 'string' },
+    domain: { type: 'string' },
+    domainStatus: { type: 'string', enum: ['trusted', 'blocked', 'neutral'] },
+    url: { type: 'string' },
+    reasons: { type: 'array', items: reasonSchema },
+    redirectTargets: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          param: redirectHopSchema.properties.param,
+          url: redirectHopSchema.properties.url,
+          domain: redirectHopSchema.properties.domain,
+          score: redirectHopSchema.properties.score,
+          label: redirectHopSchema.properties.label,
+          reasons: redirectHopSchema.properties.reasons,
+          decodePasses: redirectHopSchema.properties.decodePasses,
+          chain: { type: 'array', items: redirectHopSchema }
+        },
+        required: ['param', 'url', 'domain', 'score', 'label', 'reasons', 'decodePasses', 'chain'],
+        additionalProperties: false
+      }
+    }
+  },
+  required: ['score', 'level', 'label', 'domain', 'domainStatus', 'url', 'reasons'],
+  additionalProperties: false
+};
+
+const textAnalysisSchema = {
+  type: 'object',
+  properties: {
+    score: { type: 'number', minimum: 0, maximum: 100 },
+    level: { type: 'string', enum: ['safe', 'caution', 'danger', 'neutral'] },
+    label: { type: 'string' },
+    verdict: { type: 'string' },
+    guide: { type: 'string' },
+    reasons: { type: 'array', items: reasonSchema },
+    links: { type: 'array', items: { type: 'string' } },
+    linkResults: { type: 'array', items: urlAnalysisSchema },
+    text: { type: 'string' },
+    kind: { type: 'string' }
+  },
+  required: ['score', 'level', 'label', 'verdict', 'guide', 'reasons', 'links', 'linkResults', 'text', 'kind'],
+  additionalProperties: false
+};
+
 const tools = [
   {
     name: 'analyze_url',
     title: 'Analyze suspicious URL',
     description: 'Analyzes one user-supplied URL locally for defensive phishing and navigation indicators without opening or fetching the destination.',
     inputSchema: { type: 'object', properties: { url: { type: 'string', minLength: 1, maxLength: 16384 } }, required: ['url'], additionalProperties: false },
-    outputSchema: { type: 'object', additionalProperties: true },
+    outputSchema: urlAnalysisSchema,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false }
   },
   {
@@ -17,7 +97,7 @@ const tools = [
     title: 'Analyze suspicious text',
     description: 'Analyzes user-supplied text for defensive phishing, fraud, impersonation, credential-request, and urgency indicators without external actions.',
     inputSchema: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 16384 } }, required: ['text'], additionalProperties: false },
-    outputSchema: { type: 'object', additionalProperties: true },
+    outputSchema: textAnalysisSchema,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false }
   },
   {
@@ -50,7 +130,7 @@ async function handleMcpRequest(request) {
     if (!params || params.protocolVersion !== PROTOCOL_VERSION || !isRecord(params.capabilities) || !clientInfo || typeof clientInfo.name !== 'string' || !clientInfo.name || typeof clientInfo.version !== 'string' || !clientInfo.version) {
       return rpcError(request.id, -32602, 'Invalid initialize parameters', { supportedProtocolVersion: PROTOCOL_VERSION });
     }
-    return rpcResult(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'rumbo-guardian', version: '0.1.1-bounded' }, instructions: 'Defensive read-only analysis of user-supplied URLs, text, Guardian signals, and Evidence Ledgers. No autonomous browsing or external actions.' });
+    return rpcResult(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'rumbo-guardian', version: '0.1.2-bounded' }, instructions: 'Defensive read-only analysis of user-supplied URLs, text, Guardian signals, and Evidence Ledgers. No autonomous browsing or external actions.' });
   }
   if (request.method === 'notifications/initialized') return null;
   if (request.method === 'ping') return rpcResult(request.id, {});
@@ -68,4 +148,4 @@ async function handleMcpRequest(request) {
   return rpcError(request.id, -32601, 'Method not found');
 }
 
-module.exports = { tools, handleMcpRequest, PROTOCOL_VERSION };
+module.exports = { tools, handleMcpRequest, PROTOCOL_VERSION, urlAnalysisSchema, textAnalysisSchema };
