@@ -21,7 +21,7 @@ This lane may use only already-connected or free resources. It must not purchase
 2. Never treat a trial, credit grant, coupon, or promotional balance as authorization to spend.
 3. Never enable auto-recharge.
 4. Never convert technical readiness into OpenAI submission, approval, or publication authority.
-5. Never fabricate a domain-verification token, publisher identity, geographic availability decision, reviewer credential, or policy attestation.
+5. Never fabricate a domain-verification token, publisher identity, geographic availability decision, reviewer credential, policy attestation, or project data-residency state.
 6. Do not weaken repository identity protections, branch protection, approval rules, or security checks to make a gate pass.
 
 ## Current zero-spend surfaces
@@ -31,8 +31,12 @@ This lane may use only already-connected or free resources. It must not purchase
 - GitHub Actions independent hosted conformance and publisher-support semantic verification.
 - OpenAI Platform target readback: organization `Rumbo`, project `Default project`; billing mutation is not required for the current Guardian submission preparation work.
 
+## OpenAI account gates that cost nothing to verify
+
+The current OpenAI review requirements state that projects with EU data residency cannot submit plugins with MCP servers; the publishing project must use global data residency. RUMBO therefore treats `PROJECT_DATA_RESIDENCY` as an account gate until the Platform portal proves the Default project's residency. Do not create or pay for a replacement project merely to satisfy this gate; first inspect the existing project.
+
 ## Promotion doctrine
 
 `TECHNICAL_PASS != AUTHORIZATION != SUBMISSION != REVIEW_ACCEPTANCE != PUBLICATION`.
 
-The candidate remains fail-closed on Apps Management Write, verified publisher identity, publisher-selected availability, portal Scan Tools/validation, conditional domain challenge, policy attestations, review, and explicit publication.
+The candidate remains fail-closed on Apps Management Write, verified publisher identity, global project data residency, publisher-selected availability, portal Scan Tools/validation, conditional domain challenge, policy attestations, review, and explicit publication.
