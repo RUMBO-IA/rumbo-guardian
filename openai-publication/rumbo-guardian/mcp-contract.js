@@ -83,6 +83,8 @@ const textAnalysisSchema = {
   additionalProperties: false
 };
 
+const noauth = [{ type: 'noauth' }];
+
 const tools = [
   {
     name: 'analyze_url',
@@ -90,6 +92,7 @@ const tools = [
     description: 'Analyzes one user-supplied URL locally for defensive phishing and navigation indicators without opening or fetching the destination.',
     inputSchema: { type: 'object', properties: { url: { type: 'string', minLength: 1, maxLength: 16384 } }, required: ['url'], additionalProperties: false },
     outputSchema: urlAnalysisSchema,
+    securitySchemes: noauth,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false }
   },
   {
@@ -98,6 +101,7 @@ const tools = [
     description: 'Analyzes user-supplied text for defensive phishing, fraud, impersonation, credential-request, and urgency indicators without external actions.',
     inputSchema: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 16384 } }, required: ['text'], additionalProperties: false },
     outputSchema: textAnalysisSchema,
+    securitySchemes: noauth,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false }
   },
   {
@@ -106,6 +110,7 @@ const tools = [
     description: 'Verifies the supplied Evidence Ledger hash-chain structure locally and returns integrity results without modifying the ledger.',
     inputSchema: { type: 'object', properties: { ledger: { type: 'object' } }, required: ['ledger'], additionalProperties: false },
     outputSchema: { type: 'object', properties: { valid: { type: 'boolean' }, entries: { type: 'integer' }, brokenAt: {}, reason: {}, rootHash: { type: 'string' } }, required: ['valid','entries'], additionalProperties: true },
+    securitySchemes: noauth,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false }
   },
   {
@@ -114,6 +119,7 @@ const tools = [
     description: 'Explains one Guardian signal code and its limitation without making an accusation or taking an external action.',
     inputSchema: { type: 'object', properties: { code: { type: 'string', minLength: 1, maxLength: 256 } }, required: ['code'], additionalProperties: false },
     outputSchema: { type: 'object', properties: { code: { type: 'string' }, explanation: { type: 'string' }, supported: { type: 'boolean' } }, required: ['code','explanation','supported'], additionalProperties: false },
+    securitySchemes: noauth,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false }
   }
 ];
