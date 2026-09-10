@@ -1,0 +1,68 @@
+name: Comparator sandbox preflight R66
+
+on:
+  push:
+    branches:
+      - audit/comparator-sandbox-preflight-20260910
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Verify non-privileged runner identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "uid=$(id -u) gid=$(id -g) user=$(id -un)"
+          test "$(id -u)" -ne 0
+          systemd-run --version
+
+      - name: Probe Comparator outer sandbox guard
+        id: sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROP='RestrictAddressFamilies=~AF_UNIX'
+          if systemd-run --user --wait --collect --pipe \
+              --property="$PROP" \
+              -- /usr/bin/bash -lc 'echo USER_GUARD_OK; id -u; id -g'; then
+            echo 'route=user' | tee -a "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'user systemd route unavailable; probing a system unit whose payload is forced back to the non-root runner uid' >&2
+          UID_NOW="$(id -u)"
+          GID_NOW="$(id -g)"
+          if sudo systemd-run --wait --collect --pipe \
+              --uid="$UID_NOW" --gid="$GID_NOW" \
+              --property="$PROP" \
+              -- /usr/bin/bash -lc 'echo SYSTEM_GUARD_OK; id -u; id -g'; then
+            echo 'route=system-unit-nonroot-payload' | tee -a "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'No tested systemd-run route can enforce the Comparator AF_UNIX guard on this runner.' >&2
+          exit 1
+
+      - name: Verify guard property was applied
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "selected_route=${{ steps.sandbox.outputs.route }}"
+          test -n "${{ steps.sandbox.outputs.route }}"
+          {
+            echo '# R66 Comparator sandbox preflight'
+            echo
+            echo "Harness commit: $GITHUB_SHA"
+            echo "Runner: $RUNNER_NAME / $RUNNER_OS / $RUNNER_ARCH"
+            echo "Selected route: ${{ steps.sandbox.outputs.route }}"
+            echo 'Required property: RestrictAddressFamilies=~AF_UNIX'
+          } >> "$GITHUB_STEP_SUMMARY"
