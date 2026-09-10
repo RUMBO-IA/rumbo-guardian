@@ -1,6 +1,7 @@
 'use strict';
 
 const Adapter = require('./runtime-adapter.js');
+const PROTOCOL_VERSION = '2025-06-18';
 
 const tools = [
   {
@@ -38,11 +39,19 @@ const tools = [
 ];
 
 function rpcResult(id, result) { return { jsonrpc: '2.0', id, result }; }
-function rpcError(id, code, message) { return { jsonrpc: '2.0', id: id ?? null, error: { code, message } }; }
+function rpcError(id, code, message, data) { return { jsonrpc: '2.0', id: id ?? null, error: { code, message, ...(data === undefined ? {} : { data }) } }; }
+function isRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 
 async function handleMcpRequest(request) {
   if (!request || request.jsonrpc !== '2.0' || typeof request.method !== 'string') return rpcError(request?.id, -32600, 'Invalid Request');
-  if (request.method === 'initialize') return rpcResult(request.id, { protocolVersion: '2025-06-18', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'rumbo-guardian', version: '0.1.0-bounded' }, instructions: 'Defensive read-only analysis of user-supplied URLs, text, Guardian signals, and Evidence Ledgers. No autonomous browsing or external actions.' });
+  if (request.method === 'initialize') {
+    const params = isRecord(request.params) ? request.params : null;
+    const clientInfo = params && isRecord(params.clientInfo) ? params.clientInfo : null;
+    if (!params || params.protocolVersion !== PROTOCOL_VERSION || !isRecord(params.capabilities) || !clientInfo || typeof clientInfo.name !== 'string' || !clientInfo.name || typeof clientInfo.version !== 'string' || !clientInfo.version) {
+      return rpcError(request.id, -32602, 'Invalid initialize parameters', { supportedProtocolVersion: PROTOCOL_VERSION });
+    }
+    return rpcResult(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'rumbo-guardian', version: '0.1.1-bounded' }, instructions: 'Defensive read-only analysis of user-supplied URLs, text, Guardian signals, and Evidence Ledgers. No autonomous browsing or external actions.' });
+  }
   if (request.method === 'notifications/initialized') return null;
   if (request.method === 'ping') return rpcResult(request.id, {});
   if (request.method === 'tools/list') return rpcResult(request.id, { tools });
@@ -59,4 +68,4 @@ async function handleMcpRequest(request) {
   return rpcError(request.id, -32601, 'Method not found');
 }
 
-module.exports = { tools, handleMcpRequest };
+module.exports = { tools, handleMcpRequest, PROTOCOL_VERSION };
