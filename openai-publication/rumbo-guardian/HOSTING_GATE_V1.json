@@ -17,11 +17,11 @@
       "direct_initialize_preflight": "PASS",
       "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
       "independent_hosted_conformance": "PASS",
-      "evidence_source_head": "6a26bd4d6262ad3861c9f784422d89ab620346cb",
+      "evidence_source_head": "2e82e232491d6c5410a8d35fe1178851ab79a873",
       "evidence_workflow_runs": {
-        "guardian_ci": 34457747364,
-        "hosted_mcp_conformance": 34457747282,
-        "openai_plugin_contract": 34457747247
+        "guardian_ci": 34458609631,
+        "hosted_mcp_conformance": 34458609780,
+        "openai_plugin_contract": 34458609856
       },
       "hosted_contract_receipt": {
         "protocol_2025_06_18": "PASS",
@@ -33,7 +33,8 @@
         "notification_http_202_empty": "PASS",
         "origin_validation_hostile_403": "PASS",
         "functional_parity_smoke": "PASS",
-        "domain_challenge_without_token": "PASS_404_EMPTY"
+        "domain_challenge_without_token": "PASS_404_EMPTY",
+        "publisher_support_semantic": "PASS"
       },
       "classification": "DEDICATED_OPENAI_SUBMISSION_HOST_CONFORMANCE_PASS"
     },
