@@ -35,8 +35,8 @@
     "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
     "direct_initialize_preflight": "PASS_HTTP_200_PROTOCOL_2025_06_18",
     "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
-    "independent_ci": "PASS_RUN_34456562187",
-    "evidence_basis_commit": "b702d48770a817747ab00b8f8b8de05e5c08c1cb"
+    "independent_ci": "PASS_RUN_34456725521",
+    "evidence_basis_commit": "f6a04da93865c77ec8649a2f4aee5bb656b81ec0"
   },
   "domain_verification": {
     "challenge_base_url": "https://rumbo-guardian-openai.val.run",
@@ -50,9 +50,9 @@
     "submission_packet": "chatgpt-app-submission.json",
     "positive_test_cases": 5,
     "negative_test_cases": 3,
-    "guardian_ci_run": 34456562274,
-    "hosted_mcp_conformance_run": 34456562187,
-    "openai_plugin_contract_run": 34456562284,
+    "guardian_ci_run": 34456725791,
+    "hosted_mcp_conformance_run": 34456725521,
+    "openai_plugin_contract_run": 34456725678,
     "independent_host_verification": "PASS"
   },
   "availability": {
