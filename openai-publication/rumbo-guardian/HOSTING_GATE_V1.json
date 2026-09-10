@@ -1,0 +1,29 @@
+{
+  "schema": "rumbo.openai-plugin-hosting-gate/v1",
+  "candidate": "RUMBO Guardian",
+  "repository": "RUMBO-IA/rumbo-guardian",
+  "branch": "openai-plugin-packaging-v1-20260909",
+  "required_endpoint_path": "/mcp",
+  "transport": "MCP 2025-06-18 Streamable HTTP",
+  "hosting_observation": {
+    "dedicated_project": "NOT_PROVEN",
+    "existing_rumbo_projects_reusable_as_guardian_evidence": false
+  },
+  "promotion_requirements": [
+    "dedicated_or_explicitly_linked_hosting_target",
+    "exact_source_sha_receipt",
+    "https_endpoint_reachable",
+    "hosted_mcp_conformance_pass",
+    "no_autonomous_browsing_or_external_side_effects",
+    "publisher_support_semantic_pass"
+  ],
+  "publisher_gate": {
+    "website": "https://rumbo.verso.fans/",
+    "privacy": "https://rumbo.verso.fans/openai-privacy",
+    "terms": "https://rumbo.verso.fans/openai-terms",
+    "support": "BLOCKED_SEMANTIC_CONTENT_FAIL"
+  },
+  "state": "HOSTING_TARGET_REQUIRED",
+  "production_deploy_authority": false,
+  "openai_submission_authority": false
+}
