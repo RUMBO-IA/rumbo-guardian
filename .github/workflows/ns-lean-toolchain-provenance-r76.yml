@@ -1,0 +1,145 @@
+name: Navier-Stokes Lean toolchain provenance R76
+
+on:
+  push:
+    branches:
+      - audit/ns-lean-toolchain-provenance-r76-20260910
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  LEAN_TOOLCHAIN: leanprover/lean4:v4.34.0-rc2
+  LEAN_TAG: v4.34.0-rc2
+  LEAN_COMMIT: 6a10ac8c22beadecabdbb0919c2b50214762f91d
+  LEAN_ASSET: lean-4.34.0-rc2-linux.tar.zst
+  LEAN_ASSET_SHA256: 3d011041203acacf300d343a39673f7d233743397993797c941346ae9e5df1a8
+
+jobs:
+  toolchain-provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout audit harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Prepare fresh runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          sudo apt-get update
+          sudo apt-get install -y elan zstd
+          curl --version
+          git --version
+          sha256sum --version | head -1
+
+      - name: Verify release tag resolves to expected Lean source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="$RUNNER_TEMP/lean4-source"
+          git clone --filter=blob:none --no-checkout https://github.com/leanprover/lean4.git "$SRC"
+          git -C "$SRC" fetch --no-tags origin "refs/tags/$LEAN_TAG:refs/tags/$LEAN_TAG"
+          GOT=$(git -C "$SRC" rev-parse "refs/tags/$LEAN_TAG^{commit}")
+          echo "LEAN_TAG_COMMIT=$GOT"
+          test "$GOT" = "$LEAN_COMMIT"
+
+      - name: Download and verify official Linux release artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$RUNNER_TEMP/$LEAN_ASSET"
+          URL="https://github.com/leanprover/lean4/releases/download/$LEAN_TAG/$LEAN_ASSET"
+          curl -fL --retry 3 --retry-all-errors -o "$ARCHIVE" "$URL"
+          echo "$LEAN_ASSET_SHA256  $ARCHIVE" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/release"
+          tar --use-compress-program=unzstd -xf "$ARCHIVE" -C "$RUNNER_TEMP/release"
+          RELEASE_ROOT="$RUNNER_TEMP/release/lean-4.34.0-rc2-linux"
+          test -x "$RELEASE_ROOT/bin/lean"
+          "$RELEASE_ROOT/bin/lean" --version | tee "$RUNNER_TEMP/release-lean-version.txt"
+          grep -Fq 'Lean (version 4.34.0-rc2' "$RUNNER_TEMP/release-lean-version.txt"
+          grep -Fq "$LEAN_COMMIT" "$RUNNER_TEMP/release-lean-version.txt"
+
+      - name: Install same toolchain through Elan and verify reported commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          elan toolchain install "$LEAN_TOOLCHAIN"
+          elan default "$LEAN_TOOLCHAIN"
+          lean --version | tee "$RUNNER_TEMP/elan-lean-version.txt"
+          grep -Fq 'Lean (version 4.34.0-rc2' "$RUNNER_TEMP/elan-lean-version.txt"
+          grep -Fq "$LEAN_COMMIT" "$RUNNER_TEMP/elan-lean-version.txt"
+          elan which lean
+
+      - name: Compare Elan installation with hash-pinned official artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_ROOT="$RUNNER_TEMP/release/lean-4.34.0-rc2-linux"
+          ELAN_LEAN=$(elan which lean)
+          ELAN_ROOT=$(dirname "$(dirname "$ELAN_LEAN")")
+          echo "RELEASE_ROOT=$RELEASE_ROOT"
+          echo "ELAN_ROOT=$ELAN_ROOT"
+          for rel in bin/lean bin/lake bin/leanc; do
+            test -f "$RELEASE_ROOT/$rel"
+            test -f "$ELAN_ROOT/$rel"
+            echo "release $rel $(sha256sum "$RELEASE_ROOT/$rel" | awk '{print $1}')"
+            echo "elan    $rel $(sha256sum "$ELAN_ROOT/$rel" | awk '{print $1}')"
+            cmp -s "$RELEASE_ROOT/$rel" "$ELAN_ROOT/$rel"
+          done
+          python3 - "$RELEASE_ROOT" "$ELAN_ROOT" <<'PY'
+          import hashlib, os, sys
+          a, b = sys.argv[1:]
+          roots = ['bin', 'lib/lean']
+          def inventory(root):
+              out = []
+              for sub in roots:
+                  base = os.path.join(root, sub)
+                  for dp, dns, fns in os.walk(base, followlinks=False):
+                      for name in sorted(dns + fns):
+                          p = os.path.join(dp, name)
+                          rel = os.path.relpath(p, root)
+                          if os.path.islink(p):
+                              out.append((rel, 'L', os.readlink(p)))
+                          elif os.path.isfile(p):
+                              h = hashlib.sha256()
+                              with open(p, 'rb') as f:
+                                  for chunk in iter(lambda: f.read(1024*1024), b''):
+                                      h.update(chunk)
+                              out.append((rel, 'F', h.hexdigest()))
+              return sorted(out)
+          ia, ib = inventory(a), inventory(b)
+          print('RELEASE_INVENTORY_ENTRIES=', len(ia))
+          print('ELAN_INVENTORY_ENTRIES=', len(ib))
+          if ia != ib:
+              only_a = [x for x in ia if x not in set(ib)][:20]
+              only_b = [x for x in ib if x not in set(ia)][:20]
+              raise SystemExit(f'toolchain tree mismatch release_only={only_a} elan_only={only_b}')
+          agg = hashlib.sha256(repr(ia).encode()).hexdigest()
+          print('TOOLCHAIN_CONTENT_TREE_SHA256=', agg)
+          print('ELAN_EQUALS_OFFICIAL_RELEASE=PASS')
+          PY
+
+      - name: Emit R76 provenance receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '# R76 Lean toolchain provenance receipt'
+            echo
+            echo "Harness: $GITHUB_SHA"
+            echo "Lean tag: $LEAN_TAG"
+            echo "Lean source commit: $LEAN_COMMIT"
+            echo "Official Linux asset: $LEAN_ASSET"
+            echo "Official asset SHA256: $LEAN_ASSET_SHA256"
+            echo 'Tag -> source commit: PASS'
+            echo 'Official release archive digest: PASS'
+            echo 'Release binary version/commit: PASS'
+            echo 'Elan binary version/commit: PASS'
+            echo 'Elan critical toolchain tree equals official release: PASS'
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
