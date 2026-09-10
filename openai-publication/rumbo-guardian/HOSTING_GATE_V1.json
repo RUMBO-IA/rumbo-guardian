@@ -23,9 +23,17 @@
       "notification_http_202_empty": "PASS",
       "origin_validation_hostile_403": "PASS",
       "independent_github_actions_run_id": 34440140703,
+      "independent_functional_smoke_run_id": 34440399123,
       "independent_hosted_conformance": "PASS",
+      "functional_parity_smoke": "PASS",
+      "functional_smoke": {
+        "analyze_url_active_content": "PASS",
+        "analyze_text_urgency_credentials": "PASS",
+        "explain_signal_supported": "PASS",
+        "verify_ledger_missing_history": "PASS"
+      },
       "byte_identical_to_repo_runtime": false,
-      "classification": "STAGING_PORT_CONTRACT_PARITY"
+      "classification": "STAGING_PORT_CONTRACT_AND_FUNCTIONAL_SMOKE_PARITY"
     },
     "appdeploy_staging": {
       "app_id": "rumbo-guardian-mcp-aaqycs",
@@ -45,7 +53,6 @@
   "promotion_requirements": [
     "publisher_support_semantic_pass",
     "openai_account_publication_gates_verified",
-    "functional_parity_smoke_pass",
     "review_auth_posture_documented"
   ],
   "publisher_gate": {
@@ -55,7 +62,7 @@
     "support": "BLOCKED_SEMANTIC_CONTENT_FAIL"
   },
   "auth_posture": "INTENTIONALLY_NONE_FOR_PUBLIC_READ_ONLY_STAGING_REVIEW_PENDING",
-  "state": "STAGING_HOSTED_CONFORMANCE_PASS",
+  "state": "STAGING_HOSTED_CONFORMANCE_AND_FUNCTIONAL_SMOKE_PASS",
   "production_deploy_authority": false,
   "openai_submission_authority": false
 }
