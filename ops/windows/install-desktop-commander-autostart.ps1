@@ -22,28 +22,38 @@ $userId = if ($env:USERDOMAIN) {
 }
 
 $quotedScript = '"' + $installedScript + '"'
-$action = New-ScheduledTaskAction \
-  -Execute 'powershell.exe' \
-  -Argument "-NoProfile -ExecutionPolicy Bypass -File $quotedScript"
+$actionArgs = @{
+  Execute = 'powershell.exe'
+  Argument = "-NoProfile -ExecutionPolicy Bypass -File $quotedScript"
+}
+$action = New-ScheduledTaskAction @actionArgs
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $userId
-$principal = New-ScheduledTaskPrincipal \
-  -UserId $userId \
-  -LogonType Interactive \
-  -RunLevel Limited
-$settings = New-ScheduledTaskSettingsSet \
-  -StartWhenAvailable \
-  -RestartCount 5 \
-  -RestartInterval (New-TimeSpan -Minutes 1) \
-  -ExecutionTimeLimit ([TimeSpan]::Zero) \
-  -MultipleInstances IgnoreNew
 
-Register-ScheduledTask \
-  -TaskName $TaskName \
-  -Action $action \
-  -Trigger $trigger \
-  -Principal $principal \
-  -Settings $settings \
-  -Force | Out-Null
+$principalArgs = @{
+  UserId = $userId
+  LogonType = 'Interactive'
+  RunLevel = 'Limited'
+}
+$principal = New-ScheduledTaskPrincipal @principalArgs
+
+$settingsArgs = @{
+  StartWhenAvailable = $true
+  RestartCount = 5
+  RestartInterval = (New-TimeSpan -Minutes 1)
+  ExecutionTimeLimit = [TimeSpan]::Zero
+  MultipleInstances = 'IgnoreNew'
+}
+$settings = New-ScheduledTaskSettingsSet @settingsArgs
+
+$registerArgs = @{
+  TaskName = $TaskName
+  Action = $action
+  Trigger = $trigger
+  Principal = $principal
+  Settings = $settings
+  Force = $true
+}
+Register-ScheduledTask @registerArgs | Out-Null
 
 $task = Get-ScheduledTask -TaskName $TaskName
 [pscustomobject]@{
