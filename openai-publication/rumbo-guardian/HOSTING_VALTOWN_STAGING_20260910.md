@@ -1,52 +1,61 @@
-# RUMBO Guardian — Val Town staging receipt — 2026-09-10
+# RUMBO Guardian — Val Town hosting receipt — 2026-09-10
 
-Canonical staging val: `sebas1/rumbo-guardian-mcp`
+Canonical OpenAI submission val: `sebas1/rumbo-guardian-openai`.
 
-Public MCP endpoint: `https://rumbo-guardian-mcp.val.run/`
+Public MCP endpoint: `https://rumbo-guardian-openai.val.run/`.
 
-Access: `privacy=public`, `httpPrivacy=public`.
+Access: public HTTP, no authentication required for the bounded read-only tool surface.
 
-Source receipt exposed by the staging server: `c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1`.
+Deployed runtime source receipt: `89cbd20685604a01be8b17a09584a1e7364b4fb0`.
 
-The Val Town implementation is a staging port/adaptation of the bounded Guardian contract. It is not byte-identical to the GitHub CommonJS runtime.
+The Val Town implementation is a staging/submission port of the Guardian contract. It is not byte-identical to the GitHub CommonJS runtime; this distinction is deliberate and recorded.
 
 ## Independent hosted verification
 
-GitHub Actions workflow: `Hosted MCP Conformance`.
+GitHub Actions `Hosted MCP Conformance` verifies the public endpoint from an independent runner.
 
-Run #8 / id `34440140703`: PASS for remote initialize, exact four-tool catalog, read-only annotations, unknown-tool rejection, HTTP 202 empty notification semantics, and hostile-Origin HTTP 403.
+Verified behavior includes:
+- MCP protocol `2025-06-18`;
+- exact four-tool catalog: `analyze_url`, `analyze_text`, `verify_ledger`, `explain_signal`;
+- explicit read-only / non-destructive / closed-world annotations;
+- explicit `noauth` security scheme;
+- `outputSchema` present on all four public tools;
+- unknown-tool rejection;
+- `notifications/initialized` -> HTTP 202 with empty body;
+- hostile Origin -> HTTP 403;
+- functional parity smoke for all four tool families;
+- domain challenge without a portal-issued token -> HTTP 404 empty body.
 
-Run #12 / id `34440399123`: PASS after adding functional smoke probes.
+Latest exact branch-head verification receipt before this documentation-only update:
+- source head `ff85394809bcb24ac5286973eacb286e03b8ebf8`;
+- Guardian CI run `34459012192`: SUCCESS;
+- Hosted MCP Conformance run `34459012115`: SUCCESS;
+- OpenAI Plugin Contract run `34459012164`: SUCCESS.
 
-Functional smoke probes passed:
-- `analyze_url("javascript:alert(1)")` => danger + `active_content_scheme`;
-- `analyze_text(...)` => nonzero risk with `urgency` + `credentials`;
-- `explain_signal("active_content_scheme")` => `supported=true`;
-- `verify_ledger({})` => `valid=false`, `reason=missing_history`.
+Publisher support semantic verification is part of the hosted workflow and passes against `https://rumbo-openai-support.val.run/`.
 
-Gate-promotion head `a72a6c8ed27b664c51e4126ba987bcb2da7cd5fc` passed Guardian CI #176, Hosted MCP Conformance #16, and OpenAI Plugin Contract #38.
+## Zero-spend evidence
 
-Final receipt head `98d5996bb71f3d7c157896fd29606b6f47ad0b0a` was freshly verified after persisting this evidence:
-- Guardian CI #177 / run `34440585023`: PASS;
-- Hosted MCP Conformance #18 / run `34440585107`: PASS;
-- OpenAI Plugin Contract #39 / run `34440585074`: PASS.
+`MONEY_SPEND = 0`.
 
-## Superseded hosting observations
+Val Town hosting and the support surface were created with existing free resources. Render was rejected before provisioning by a payment-information gate and Railway by a plan/trial gate; neither caused billing mutation. No API credits, paid plan, domain purchase, or auto-recharge was enabled.
 
-AppDeploy remains useful as a public UI staging surface, but independent GitHub Actions received HTTP 403 HTML from its `/mcp` and `/api/mcp` paths. It is therefore not canonical remote MCP hosting evidence.
+## Remaining gates
 
-Render was blocked before provisioning by a payment-information gate. Railway was blocked by an expired-trial/plan gate. Neither caused a billing mutation.
+`APPS_MANAGEMENT_WRITE = UNVERIFIED_ACCOUNT_GATE`
 
-## Classification
+`PUBLISHER_IDENTITY = UNVERIFIED_ACCOUNT_GATE`
 
-`STAGING_HOSTED_CONFORMANCE = PASS`
+`AVAILABILITY = UNSET_FAIL_CLOSED`
 
-`HOSTED_FUNCTIONAL_PARITY_SMOKE = PASS`
+`PORTAL_SCAN_TOOLS = NOT_EXECUTED`
 
-`BYTE_IDENTICAL_RUNTIME = NO`
+`DOMAIN_CHALLENGE = INSTALL_ONLY_IF_PORTAL_ISSUES_TOKEN`
 
-`PUBLISHER_SUPPORT_SEMANTIC = BLOCKED`
+`POLICY_ATTESTATIONS = NOT_EXECUTED`
 
 `OPENAI_SUBMISSION = NO`
+
+`PUBLISHED = NO`
 
 `PRODUCTION = NO_GO`
