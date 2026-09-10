@@ -27,6 +27,12 @@ async function request(path, body, extraHeaders = {}) {
   return { path, status: response.status, contentType: response.headers.get('content-type'), source: response.headers.get('x-rumbo-source-sha'), text, json: parsePayload(text) };
 }
 
+async function rawPost(path, body, headers) {
+  const response = await fetch(`${base}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const text = await response.text();
+  return { status: response.status, text, json: parsePayload(text), contentType: response.headers.get('content-type') };
+}
+
 async function callTool(path, id, name, args) {
   const result = await request(path, { jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } });
   if (result.status !== 200) throw new Error(`${name.toUpperCase()}_HTTP_FAIL:${result.status}`);
@@ -75,9 +81,27 @@ async function callTool(path, id, name, args) {
   const ledger = await callTool(path, 13, 'verify_ledger', { ledger: {} });
   if (ledger?.valid !== false || ledger?.reason !== 'missing_history') throw new Error('VERIFY_LEDGER_PARITY_FAIL');
 
+  const getResponse = await fetch(`${base}${path}`, { method: 'GET', headers: { accept: 'application/json, text/event-stream', 'mcp-protocol-version': '2025-06-18' } });
+  const getType = getResponse.headers.get('content-type') || '';
+  const getConformant = getResponse.status === 405 || (getResponse.status === 200 && getType.includes('text/event-stream'));
+  if (getResponse.body) await getResponse.body.cancel().catch(() => {});
+  if (!getConformant) throw new Error(`GET_TRANSPORT_SEMANTICS_FAIL:${getResponse.status}:${getType}`);
+
+  const badContentType = await rawPost(path, { jsonrpc: '2.0', id: 20, method: 'ping', params: {} }, { 'content-type': 'text/plain', accept: 'application/json, text/event-stream', 'mcp-protocol-version': '2025-06-18' });
+  if (badContentType.status !== 415) throw new Error(`CONTENT_TYPE_GATE_FAIL:${badContentType.status}`);
+
+  const badAccept = await rawPost(path, { jsonrpc: '2.0', id: 21, method: 'ping', params: {} }, { 'content-type': 'application/json', accept: 'application/json', 'mcp-protocol-version': '2025-06-18' });
+  if (badAccept.status !== 406) throw new Error(`DUAL_ACCEPT_GATE_FAIL:${badAccept.status}`);
+
+  const badVersion = await rawPost(path, { jsonrpc: '2.0', id: 22, method: 'ping', params: {} }, { 'content-type': 'application/json', accept: 'application/json, text/event-stream', 'mcp-protocol-version': '1900-01-01' });
+  if (badVersion.status !== 400) throw new Error(`PROTOCOL_VERSION_GATE_FAIL:${badVersion.status}`);
+
+  const invalidNotification = await rawPost(path, { jsonrpc: '2.0', id: 23, method: 'notifications/initialized', params: {} }, { 'content-type': 'application/json', accept: 'application/json, text/event-stream', 'mcp-protocol-version': '2025-06-18' });
+  if (invalidNotification.status === 202 && invalidNotification.text === '') throw new Error('NOTIFICATION_WITH_ID_ACCEPTED_AS_NOTIFICATION');
+
   const challenge = await fetch(`${base}/.well-known/openai-apps-challenge`, { redirect: 'error' });
   const challengeText = await challenge.text();
   if (challenge.status !== 404 || challengeText !== '') throw new Error(`DOMAIN_CHALLENGE_FAIL_CLOSED_MISMATCH:${challenge.status}:${challengeText.slice(0,80)}`);
 
-  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', securitySchemesNoauth:'PASS', outputSchemas:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS', domainChallengeWithoutToken:'PASS_404_EMPTY' }));
+  console.log(JSON.stringify({ hostedCoreConformance:'PASS', hostedFunctionalParitySmoke:'PASS', transportNegativeConformance:'PASS', publicPath:path || '/', sourceSha:selected.source, protocol:selected.json.result.protocolVersion, tools:names, annotations:'PASS', securitySchemesNoauth:'PASS', outputSchemas:'PASS', unknownToolGuard:'PASS', notification202:'PASS', originValidation:'PASS', getSemantics:'PASS', contentType415:'PASS', dualAccept406:'PASS', protocolVersion400:'PASS', notificationWithIdRejected:'PASS', analyzeUrl:'PASS', analyzeText:'PASS', explainSignal:'PASS', verifyLedgerNegative:'PASS', domainChallengeWithoutToken:'PASS_404_EMPTY' }));
 })();
