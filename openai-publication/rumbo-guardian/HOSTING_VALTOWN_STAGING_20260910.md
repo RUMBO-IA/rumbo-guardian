@@ -24,7 +24,10 @@ Functional smoke probes passed:
 - `explain_signal("active_content_scheme")` => `supported=true`;
 - `verify_ledger({})` => `valid=false`, `reason=missing_history`.
 
-Repository verification on head `ff0ce54fba686b7ab56a81ef6952dc5c1986337b` also passed Guardian CI #174 and OpenAI Plugin Contract #36.
+Repository head `a72a6c8ed27b664c51e4126ba987bcb2da7cd5fc` was freshly verified after gate promotion:
+- Guardian CI #176 / run `34440496039`: PASS;
+- Hosted MCP Conformance #16 / run `34440496041`: PASS;
+- OpenAI Plugin Contract #38 / run `34440496027`: PASS.
 
 ## Superseded hosting observations
 
