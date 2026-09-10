@@ -3,7 +3,7 @@
   "candidate": "RUMBO Guardian",
   "repository": "RUMBO-IA/rumbo-guardian",
   "branch": "fix/mcp-vercel-stateless-adapter-v1",
-  "verified_repository_head": "7cc094a0f0a9cfdbd5f75403586ddcc03af6fd12",
+  "verified_repository_head": "200ac1af71e50c29ab9e678a32101523350cb1fc",
   "required_endpoint_path": "/mcp",
   "transport": "MCP 2025-06-18 Streamable HTTP",
   "hosting_observation": {
@@ -15,31 +15,31 @@
       "val": "sebas1/rumbo-guardian-mcp",
       "http_privacy": "public",
       "public_url": "https://rumbo-guardian-mcp.val.run/",
-      "source_sha_receipt": "c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1",
+      "deployed_source_sha": "c7e1483dcf5a40c2efa0ee6c45b2b91dc534ddc1",
       "https_endpoint_reachable": "PASS",
-      "protocol_2025_06_18": "PASS",
-      "tool_catalog_4_of_4": "PASS",
-      "tool_annotations_read_only": "PASS",
-      "unknown_tool_guard": "PASS",
-      "notification_http_202_empty": "PASS",
-      "origin_validation_hostile_403": "PASS",
-      "independent_github_actions_run_id": 34440140703,
+      "deployed_protocol_2025_06_18": "PASS",
+      "deployed_tool_catalog_4_of_4": "PASS",
+      "deployed_tool_annotations_read_only": "PASS",
+      "deployed_unknown_tool_guard": "PASS",
+      "deployed_notification_http_202_empty": "PASS",
+      "deployed_origin_validation_hostile_403": "PASS",
+      "independent_hosted_conformance_run_id": 34441956152,
       "independent_functional_smoke_run_id": 34440399123,
-      "latest_exact_head_runs": {
-        "guardian_ci": 34441956140,
-        "hosted_mcp_conformance": 34441956152,
-        "openai_plugin_contract": 34441956150
-      },
-      "independent_hosted_conformance": "PASS",
-      "functional_parity_smoke": "PASS",
+      "last_repo_exact_head_verified_run": 34441956140,
+      "current_repo_head_matches_deployed_source": false,
+      "current_head_hosted_conformance": "PENDING_RUN_34448951546",
+      "current_head_guardian_ci": "PENDING_RUN_34448951555",
+      "current_head_openai_plugin_contract": "PENDING_RUN_34448951529",
+      "independent_hosted_conformance": "PASS_FOR_DEPLOYED_SOURCE_SHA_ONLY",
+      "functional_parity_smoke": "PASS_FOR_DEPLOYED_SOURCE_SHA_ONLY",
       "functional_smoke": {
         "analyze_url_active_content": "PASS",
         "analyze_text_urgency_credentials": "PASS",
         "explain_signal_supported": "PASS",
         "verify_ledger_missing_history": "PASS"
       },
-      "byte_identical_to_repo_runtime": false,
-      "classification": "STAGING_PORT_CONTRACT_AND_FUNCTIONAL_SMOKE_PARITY"
+      "byte_identical_to_current_repo_runtime": false,
+      "classification": "STAGING_HOSTED_CONFORMANCE_PASS_DEPLOYED_SHA_MISMATCH_CURRENT_REPO_HEAD"
     },
     "appdeploy_staging": {
       "app_id": "rumbo-guardian-mcp-aaqycs",
@@ -53,7 +53,8 @@
   "promotion_requirements": [
     "canonical_publisher_support_semantic_pass_or_review_accepts_alternate_support_url",
     "openai_account_publication_gates_verified",
-    "review_auth_posture_documented"
+    "review_auth_posture_documented",
+    "current_repository_head_deployed_and_reverified"
   ],
   "publisher_gate": {
     "website": "https://rumbo.verso.fans/",
@@ -74,7 +75,7 @@
     }
   },
   "auth_posture": "INTENTIONALLY_NONE_FOR_PUBLIC_READ_ONLY_STAGING_REVIEW_PENDING",
-  "state": "STAGING_HOSTED_CONFORMANCE_AND_FUNCTIONAL_SMOKE_PASS",
+  "state": "STAGING_HOSTED_CONFORMANCE_PASS_DEPLOYED_SHA_MISMATCH_CURRENT_REPO_HEAD",
   "production_deploy_authority": false,
   "openai_submission_authority": false
 }
