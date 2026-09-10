@@ -37,12 +37,13 @@
     "direct_initialize_preflight": "PASS_HTTP_200_PROTOCOL_2025_06_18",
     "direct_tools_list_preflight": "PASS_4_OF_4_EXPLICIT_NOAUTH",
     "independent_host_verification": "PASS",
-    "evidence_source_head": "18bd4d413b677c7b2e171863cd750df8dd9897df",
-    "evidence_workflow_runs": {
-      "guardian_ci": 34458524496,
-      "hosted_mcp_conformance": 34458524467,
-      "openai_plugin_contract": 34458524511
-    }
+    "latest_exact_head_verified": "0b1230a24875f258e43ab20bbf02b8a51e590021",
+    "latest_exact_head_runs": {
+      "guardian_ci": 34458702180,
+      "hosted_mcp_conformance": 34458702225,
+      "openai_plugin_contract": 34458702197
+    },
+    "runtime_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0"
   },
   "domain_verification": {
     "challenge_base_url": "https://rumbo-guardian-openai.val.run",
