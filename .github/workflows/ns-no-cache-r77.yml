@@ -3,7 +3,7 @@ name: Navier-Stokes source-only no-cache verification R77
 on:
   push:
     branches:
-      - audit/ns-no-cache-r77-20260910
+      - audit/ns-no-cache-r77-20260911
   workflow_dispatch:
 
 permissions:
