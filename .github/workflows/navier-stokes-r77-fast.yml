@@ -226,7 +226,18 @@ jobs:
           set -euo pipefail
           cd "$RUNNER_TEMP/NavierStokesAndEuler/.lake/packages/Comparator"
           test "$(git rev-parse HEAD)" = "$COMPARATOR_SHA"
-          lake build comparator
+          for attempt in 1 2 3; do
+            if lake build comparator; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Comparator build failed after 3 attempts" >&2
+              exit 1
+            fi
+            echo "Comparator build attempt $attempt failed; cleaning partial lean4export clone and retrying" >&2
+            rm -rf .lake/packages/lean4export
+            sleep $((attempt * 10))
+          done
           cd .lake/packages/lean4export
           test "$(git rev-parse HEAD)" = "$LEAN4EXPORT_SHA"
           lake build lean4export
