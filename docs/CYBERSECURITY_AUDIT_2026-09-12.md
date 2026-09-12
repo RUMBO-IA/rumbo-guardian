@@ -27,15 +27,17 @@ The V15 documentation correctly states that the in-memory fencing implementation
 
 **Severity:** High for CI/CD supply-chain integrity.
 
-`ci.yml` and `pages.yml` referenced third-party GitHub Actions by movable major tags (`@v4`, `@v5`, `@v3`). GitHub's secure-use guidance states that pinning an action to a full commit SHA is the immutable form and recommends least-privilege workflow permissions.
+`ci.yml` and `pages.yml` referenced external GitHub Actions by movable major tags (`@v4`, `@v5`, `@v3`). GitHub's secure-use guidance states that pinning an action to a full commit SHA is the immutable form and recommends least-privilege workflow permissions.
 
 Candidate remediation in `security/github-actions-supply-chain-r1`:
 
-- pin every external action to a verified 40-character commit SHA;
+- pin every external repository action to a verified 40-character commit SHA;
+- require Docker actions, if later introduced, to use an immutable `sha256` image digest;
 - keep version comments for maintainability;
 - set `persist-credentials: false` on checkout because these jobs do not push repository content;
 - bound CI/Pages jobs with `timeout-minutes: 15`;
-- add `tests/github-actions-supply-chain.test.js` so a future tag-based `uses:` reference fails CI.
+- reject workflow-level `write-all` and require separate review before introducing `pull_request_target`;
+- add `tests/github-actions-supply-chain.test.js` so these invariants fail closed in CI.
 
 Current pin set, resolved from the upstream action repositories on 2026-09-12:
 
@@ -44,6 +46,12 @@ Current pin set, resolved from the upstream action repositories on 2026-09-12:
 - `actions/configure-pages` v5 -> `983d7736d9b0ae728b81ab479565c72886d7745b`
 - `actions/upload-pages-artifact` v3 -> `56afc609e74202658d3ffba0e8f6dda462b719fa`
 - `actions/deploy-pages` v4 -> `d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e`
+
+### Verification and self-audit
+
+The first regression guard correctly passed the pinned workflows but a self-audit identified an avoidable escape hatch: `docker://` actions were exempt from immutable-reference enforcement. That exemption was removed and replaced with mandatory `@sha256:<64-hex>` digest binding.
+
+Implementation head `0e92a19a3ea3ca2c65094d1d54242ab4fd0dc662` then passed Guardian CI run `34714656248` (#233), including syntax checks, the hardened supply-chain policy test and the full existing `npm test` suite.
 
 ## Confirmed finding GOV-2026-002 — governance is protected but not absolute
 
@@ -56,6 +64,10 @@ Status: `OPEN / HARDENING_REQUIRED`, separate from SEC-2026-001.
 `SECURITY.md` and `EVIDENCE.md` still describe the public Guardian V1.0.0 security/evidence baseline, while current `main` contains the later agent authorization/dispatch/capability/conformance/fencing chain through V15. This is primarily an assurance/documentation gap, not evidence of a runtime bypass.
 
 Status: `OPEN / DOCUMENTATION_RECONCILIATION_REQUIRED`.
+
+## Secret-exposure spot check
+
+Repository code search on the audited canonical head found no `sk-proj-` literal and no `API_KEY=` literal. A search for private-key language matched generated ephemeral test keypairs and unrelated SQL `BEGIN` tokens, not a committed PEM private key. This is a bounded repository search, not a substitute for GitHub secret scanning or a full history scan.
 
 ## Agentic-AI threat mapping
 
@@ -72,10 +84,11 @@ References:
 ## Gate result
 
 `SEC_2026_001_SOURCE_REMEDIATION=IMPLEMENTED_CANDIDATE`
-`SEC_2026_001_REMOTE_CI=NOT_YET_PROVEN`
+`SEC_2026_001_IMPLEMENTATION_HEAD_CI=PASS`
 `GUARDIAN_MAIN_PROTECTION=PROVEN_CLASSIC_PROTECTION`
 `GUARDIAN_RULESETS=NONE`
 `ADMIN_NO_BYPASS=NOT_PROVEN`
 `V15_PRODUCTION_MULTIHOST=NOT_PROVEN`
+`EVIDENCE_FRESHNESS_RECONCILIATION=OPEN`
 `MERGE=NO_GO`
 `PRODUCTION=NO_GO`
