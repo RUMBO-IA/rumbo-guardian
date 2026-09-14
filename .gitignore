@@ -4,6 +4,11 @@ brave-*/
 *.tail.b64
 *.log
 
+# Desktop build artifacts
+desktop-dist/
+src-tauri/target/
+src-tauri/icons/icon.ico
+
 # OS/editor noise
 Thumbs.db
 .DS_Store
