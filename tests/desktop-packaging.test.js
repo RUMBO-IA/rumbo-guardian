@@ -47,7 +47,8 @@ function testTauriContract() {
 
   const cargo = readText('src-tauri/Cargo.toml');
   assert.match(cargo, /edition\s*=\s*"2021"/);
-  assert.match(cargo, /tauri\s*=\s*\{\s*version\s*=\s*"2"/);
+  assert.match(cargo, /tauri-build\s*=\s*\{\s*version\s*=\s*"=2\.6\.3"/);
+  assert.match(cargo, /tauri\s*=\s*\{\s*version\s*=\s*"=2\.11\.5"/);
   assert.doesNotMatch(cargo, /tauri-plugin-(shell|fs|updater)/);
 
   const main = readText('src-tauri/src/main.rs');
@@ -75,8 +76,8 @@ function testDesktopWorkflowContract() {
   assert.match(workflow, /node-version:\s*['"]?22/);
   assert.match(workflow, /npm run release:validate/);
   assert.match(workflow, /node tests\/desktop-packaging\.test\.js/);
-  assert.match(workflow, /cargo check/);
-  assert.match(workflow, /npx --yes @tauri-apps\/cli@2\.11\.4 build --bundles nsis/);
+  assert.match(workflow, /cargo check --locked/);
+  assert.match(workflow, /npx --yes @tauri-apps\/cli@2\.11\.4 build --bundles nsis -- --locked/);
   assert.doesNotMatch(workflow, /cargo install tauri-cli/);
   assert.match(workflow, /actions\/upload-artifact@v4/);
   assert.doesNotMatch(workflow, /TAURI_SIGNING_PRIVATE_KEY/);
