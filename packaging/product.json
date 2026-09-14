@@ -4,7 +4,7 @@
   "id": "rumbo-guardian",
   "name": "RUMBO Guardian",
   "version": "1.0.0",
-  "surfaces": ["web", "pwa", "browser-extension"],
+  "surfaces": ["web", "pwa", "browser-extension", "desktop-windows"],
   "browser": {
     "manifest_version": 3,
     "permissions": [
@@ -14,6 +14,15 @@
       "storage"
     ],
     "host_permissions": []
+  },
+  "desktop": {
+    "windows": {
+      "framework": "tauri-2",
+      "target": "x86_64-pc-windows-msvc",
+      "bundle": "nsis",
+      "signing": "not-proven",
+      "updater": "disabled"
+    }
   },
   "trust": {
     "sbom": "required",
