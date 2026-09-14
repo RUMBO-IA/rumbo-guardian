@@ -34,8 +34,11 @@ jobs:
       - name: Stage desktop assets
         run: npm run desktop:assets
 
+      - name: Generate Rust lockfile candidate
+        run: cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+
       - name: Check Rust shell
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
 
       - name: Run Guardian syntax checks
         run: npm run check
@@ -44,7 +47,14 @@ jobs:
         run: npm test
 
       - name: Build unsigned NSIS installer
-        run: npx --yes @tauri-apps/cli@2.11.4 build --bundles nsis
+        run: npx --yes @tauri-apps/cli@2.11.4 build --bundles nsis -- --locked
+
+      - name: Upload Rust lockfile candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: rumbo-guardian-cargo-lock
+          path: src-tauri/Cargo.lock
+          if-no-files-found: error
 
       - name: Upload unsigned installer artifact
         uses: actions/upload-artifact@v4
