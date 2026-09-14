@@ -25,10 +25,6 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Install Tauri CLI v2
-        shell: pwsh
-        run: cargo install tauri-cli --version "^2.0" --locked
-
       - name: Validate release foundation
         run: npm run release:validate
 
@@ -48,7 +44,7 @@ jobs:
         run: npm test
 
       - name: Build unsigned NSIS installer
-        run: cargo tauri build --bundles nsis
+        run: npx --yes @tauri-apps/cli@2.11.4 build --bundles nsis
 
       - name: Upload unsigned installer artifact
         uses: actions/upload-artifact@v4
