@@ -4,7 +4,7 @@
   "id": "rumbo-guardian",
   "name": "RUMBO Guardian",
   "version": "1.0.0",
-  "surfaces": ["web", "browser-extension", "desktop-windows"],
+  "surfaces": ["web", "pwa", "browser-extension"],
   "browser": {
     "manifest_version": 3,
     "permissions": [
