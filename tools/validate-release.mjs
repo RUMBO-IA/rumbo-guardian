@@ -22,8 +22,8 @@ function parseArgs(argv) {
   return args;
 }
 
-function readJson(path) {
-  return JSON.parse(readFileSync(path, 'utf8'));
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, 'utf8'));
 }
 
 function isString(value) {
@@ -34,13 +34,17 @@ function sortedUnique(values) {
   return [...new Set(values)].sort();
 }
 
-function validate(product, release, extension) {
+function validate(product, release, extension, packageJson) {
   const errors = [];
   const push = (code) => errors.push(code);
 
   if (product?.schema !== 'rumbo.product/v1') push('product_schema_invalid');
   if (product?.id !== 'rumbo-guardian') push('product_id_invalid');
   if (!isString(product?.version)) push('product_version_missing');
+
+  if (!isString(packageJson?.version)) push('package_version_missing');
+  if (packageJson?.version !== product?.version) push('package_version_mismatch');
+
   if (release?.schema !== 'rumbo.release/v1') push('release_schema_invalid');
   if (release?.product !== product?.id) push('product_mismatch');
   if (release?.version !== product?.version) push('version_mismatch');
@@ -61,6 +65,9 @@ function validate(product, release, extension) {
 
   const manifestVersion = extension?.manifest_version;
   if (manifestVersion !== product?.browser?.manifest_version) push('extension_manifest_version_mismatch');
+  if (!isString(extension?.version)) push('extension_version_missing');
+  else if (extension.version !== product?.version) push('extension_version_mismatch');
+
   const extensionPermissions = Array.isArray(extension?.permissions) ? sortedUnique(extension.permissions) : [];
   if (JSON.stringify(extensionPermissions) !== JSON.stringify(expectedPermissions)) {
     push('extension_permissions_mismatch');
@@ -92,23 +99,27 @@ function validate(product, release, extension) {
     }
   }
 
-  const result = {
+  return {
     status: errors.length === 0 ? 'VERIFIED' : 'INVALID',
     errors: sortedUnique(errors),
     product: product?.id ?? null,
     release: release?.version ?? null,
   };
-  return result;
 }
 
 function main() {
   try {
     const args = parseArgs(process.argv);
-    const required = ['product', 'release', 'extension'];
+    const required = ['product', 'release', 'extension', 'package'];
     for (const key of required) {
       if (!isString(args[key])) throw new Error(`missing_argument:--${key}`);
     }
-    const result = validate(readJson(args.product), readJson(args.release), readJson(args.extension));
+    const result = validate(
+      readJson(args.product),
+      readJson(args.release),
+      readJson(args.extension),
+      readJson(args.package),
+    );
     process.stdout.write(`${JSON.stringify(result)}\n`);
     process.exitCode = result.status === 'VERIFIED' ? 0 : 1;
   } catch (error) {
