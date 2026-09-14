@@ -52,7 +52,7 @@ function testTauriContract() {
   assert.match(cargo, /tauri\s*=\s*\{\s*version\s*=\s*"=2\.11\.5"/);
   assert.doesNotMatch(cargo, /tauri-plugin-(shell|fs|updater)/);
 
-  const lock = readText('src-tauri/Cargo.lock');
+  const lock = readText('src-tauri/Cargo.lock').replace(/\r\n/g, '\n');
   assert.match(lock, /^version = 4$/m);
   assert.match(lock, /name = "tauri"\nversion = "2\.11\.5"/);
   assert.match(lock, /name = "tauri-build"\nversion = "2\.6\.3"/);
