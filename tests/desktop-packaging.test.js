@@ -43,6 +43,7 @@ function testTauriContract() {
   assert.equal(config.build.beforeBuildCommand, 'node tools/build-desktop-assets.mjs');
   assert.deepEqual(config.bundle.targets, ['nsis']);
   assert.equal(config.plugins?.updater, undefined, 'updater must remain disabled in v1');
+  assert.match(config.app.security.csp, /connect-src 'none'/);
 
   const cargo = readText('src-tauri/Cargo.toml');
   assert.match(cargo, /edition\s*=\s*"2021"/);
@@ -73,7 +74,8 @@ function testDesktopWorkflowContract() {
   assert.match(workflow, /npm run release:validate/);
   assert.match(workflow, /node tests\/desktop-packaging\.test\.js/);
   assert.match(workflow, /cargo check/);
-  assert.match(workflow, /cargo tauri build/);
+  assert.match(workflow, /npx --yes @tauri-apps\/cli@2\.11\.4 build --bundles nsis/);
+  assert.doesNotMatch(workflow, /cargo install tauri-cli/);
   assert.match(workflow, /actions\/upload-artifact@v4/);
   assert.doesNotMatch(workflow, /TAURI_SIGNING_PRIVATE_KEY/);
   assert.doesNotMatch(workflow, /softprops\/action-gh-release|gh release create/);
