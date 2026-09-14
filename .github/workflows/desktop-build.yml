@@ -9,7 +9,7 @@ on:
       - packaging/desktop-foundation-v1
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows-nsis:
@@ -36,6 +36,20 @@ jobs:
 
       - name: Generate Rust lockfile candidate
         run: cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+
+      - name: Persist Rust lockfile candidate on branch
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/Cargo.lock
+          if git diff --cached --quiet; then
+            echo "Cargo.lock already committed"
+          else
+            git commit -m "chore(desktop): lock Rust dependency graph"
+            git push origin HEAD:packaging/desktop-foundation-v1
+          fi
 
       - name: Check Rust shell
         run: cargo check --locked --manifest-path src-tauri/Cargo.toml
