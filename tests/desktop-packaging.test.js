@@ -29,6 +29,7 @@ function testDesktopProductContract() {
 function testTauriContract() {
   for (const rel of [
     'src-tauri/Cargo.toml',
+    'src-tauri/Cargo.lock',
     'src-tauri/build.rs',
     'src-tauri/src/main.rs',
     'src-tauri/tauri.conf.json',
@@ -50,6 +51,11 @@ function testTauriContract() {
   assert.match(cargo, /tauri-build\s*=\s*\{\s*version\s*=\s*"=2\.6\.3"/);
   assert.match(cargo, /tauri\s*=\s*\{\s*version\s*=\s*"=2\.11\.5"/);
   assert.doesNotMatch(cargo, /tauri-plugin-(shell|fs|updater)/);
+
+  const lock = readText('src-tauri/Cargo.lock');
+  assert.match(lock, /^version = 4$/m);
+  assert.match(lock, /name = "tauri"\nversion = "2\.11\.5"/);
+  assert.match(lock, /name = "tauri-build"\nversion = "2\.6\.3"/);
 
   const main = readText('src-tauri/src/main.rs');
   assert.doesNotMatch(main, /invoke_handler/);
@@ -73,11 +79,15 @@ function testDesktopWorkflowContract() {
   mustExist('.github/workflows/desktop-build.yml');
   const workflow = readText('.github/workflows/desktop-build.yml');
   assert.match(workflow, /windows-latest/);
-  assert.match(workflow, /node-version:\s*['"]?22/);
+  assert.match(workflow, /node-version:\s*['"]22\.23\.2['"]/);
+  assert.match(workflow, /dtolnay\/rust-toolchain@1\.98\.1/);
   assert.match(workflow, /npm run release:validate/);
   assert.match(workflow, /node tests\/desktop-packaging\.test\.js/);
   assert.match(workflow, /cargo check --locked/);
   assert.match(workflow, /npx --yes @tauri-apps\/cli@2\.11\.4 build --bundles nsis -- --locked/);
+  assert.match(workflow, /permissions:\s*\n\s*contents:\s*read/);
+  assert.doesNotMatch(workflow, /cargo generate-lockfile/);
+  assert.doesNotMatch(workflow, /git push/);
   assert.doesNotMatch(workflow, /cargo install tauri-cli/);
   assert.match(workflow, /actions\/upload-artifact@v4/);
   assert.doesNotMatch(workflow, /TAURI_SIGNING_PRIVATE_KEY/);
