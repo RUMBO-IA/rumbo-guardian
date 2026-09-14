@@ -64,6 +64,8 @@ function testAssetBuilderContract() {
   ];
   for (const file of expected) assert.match(source, new RegExp(file.replace('.', '\\.')));
   assert.match(source, /desktop-build\.json/);
+  assert.match(source, /src-tauri.*icons.*icon\.ico/s);
+  assert.match(source, /Buffer\.from/);
 }
 
 function testDesktopWorkflowContract() {
