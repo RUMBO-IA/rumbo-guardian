@@ -24,10 +24,10 @@ for (const file of files) {
   }
 }
 
-// Deterministic 1x1 PNG wrapped in an ICO container. This is a build placeholder,
-// not a branded production icon. A branded icon is a separate release asset gate.
+// Deterministic 32x32 RGBA PNG wrapped in an ICO container. This is a build
+// placeholder only; branded production artwork remains a separate release gate.
 const png = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlA7gAAAABJRU5ErkJggg==',
+  'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAMUlEQVR4nO3OMQEAMAzDsKxAwp/lCqOPTMB6bX8Om8s5AAAAAAAAAAAAAAAAAABAkizL6QGZbUrJDQAAAABJRU5ErkJggg==',
   'base64',
 );
 const header = Buffer.alloc(6);
@@ -35,8 +35,8 @@ header.writeUInt16LE(0, 0);
 header.writeUInt16LE(1, 2);
 header.writeUInt16LE(1, 4);
 const entry = Buffer.alloc(16);
-entry.writeUInt8(1, 0);
-entry.writeUInt8(1, 1);
+entry.writeUInt8(32, 0);
+entry.writeUInt8(32, 1);
 entry.writeUInt8(0, 2);
 entry.writeUInt8(0, 3);
 entry.writeUInt16LE(1, 4);
