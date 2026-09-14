@@ -1,0 +1,32 @@
+{
+  "$schema": "rumbo.release/v1",
+  "schema": "rumbo.release/v1",
+  "product": "rumbo-guardian",
+  "version": "1.0.0",
+  "state": "DRAFT",
+  "source": {
+    "repository": "RUMBO-IA/rumbo-guardian",
+    "commit_sha": "b9e332fc93fc62bbe1c0004019e1fa1dfccd1991",
+    "tree_sha": "1cdbd48be5a31273006438bb6fcf2ac09bd199c6"
+  },
+  "artifact": {
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "trust": {
+    "sbom": false,
+    "provenance": false,
+    "signature": false
+  },
+  "verification": {
+    "tests": false,
+    "install": false,
+    "upgrade": false,
+    "rollback": false
+  },
+  "distribution": {
+    "github": false,
+    "chrome_web_store": false,
+    "microsoft_store": false,
+    "direct_download": false
+  }
+}
