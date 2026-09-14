@@ -89,7 +89,7 @@ function testDesktopWorkflowContract() {
   assert.doesNotMatch(workflow, /cargo generate-lockfile/);
   assert.doesNotMatch(workflow, /git push/);
   assert.doesNotMatch(workflow, /cargo install tauri-cli/);
-  assert.match(workflow, /actions\/upload-artifact@v4/);
+  assert.match(workflow, /actions\/upload-artifact@(v4|ea165f8d65b6e75b540449e92b4886f43607fa02)/);
   assert.doesNotMatch(workflow, /TAURI_SIGNING_PRIVATE_KEY/);
   assert.doesNotMatch(workflow, /softprops\/action-gh-release|gh release create/);
 }
