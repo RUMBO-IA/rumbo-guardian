@@ -1,0 +1,48 @@
+name: B9 external TSA probe
+
+on:
+  push:
+    branches: ["b9-external-tsa-probe"]
+
+permissions:
+  contents: read
+
+jobs:
+  tsa-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare commitment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          printf '%s\n' 'd04262a81f461faa6f92e3ff307c01202a59851fb1161e746d9032eeb042ea34' > evidence/statement-sha256.txt
+          printf '%s\n' '38e2f15dbe2142666e48142c3a7d3b82f19599a9' > evidence/source-commit.txt
+          sha256sum evidence/statement-sha256.txt evidence/source-commit.txt | tee evidence/input-files.sha256
+
+      - name: Request RFC3161 timestamp
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl ts -query -data evidence/statement-sha256.txt -sha256 -cert -out evidence/statement.tsq
+          curl --fail --silent --show-error --location --max-time 30 \
+            --header 'Content-Type: application/timestamp-query' \
+            --data-binary @evidence/statement.tsq \
+            https://timestamp.sigstore.dev/api/v1/timestamp \
+            --output evidence/statement.tsr
+          test -s evidence/statement.tsr
+          openssl ts -reply -in evidence/statement.tsr -text > evidence/statement.tsr.txt
+
+      - name: Record external receipt metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum evidence/statement.tsq evidence/statement.tsr > evidence/receipts.sha256
+          printf '%s\n' '{"kind":"RUMBO_B9_EXTERNAL_TSA_RECEIPT","tsa":"timestamp.sigstore.dev","source_commit":"38e2f15dbe2142666e48142c3a7d3b82f19599a9","statement_sha256":"d04262a81f461faa6f92e3ff307c01202a59851fb1161e746d9032eeb042ea34","status":"ACQUIRED_FROM_GITHUB_RUNNER"}' > evidence/receipt.json
+
+      - name: Upload receipt artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: b9-external-tsa-receipt
+          path: evidence/
+          if-no-files-found: error
