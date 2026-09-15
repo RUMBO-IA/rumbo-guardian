@@ -28,7 +28,7 @@ jobs:
           targets: x86_64-pc-windows-msvc
 
       - name: Validate release foundation
-        run: npm run release:validate
+        run: node tools/validate-release.mjs --product packaging/product.json --release packaging/release.json --extension extension/manifest.json --package package.json --allow-historical-baseline
 
       - name: Validate desktop packaging policy
         run: node tests/desktop-packaging.test.js

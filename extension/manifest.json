@@ -1,19 +1,4 @@
 {
-  "manifest_version": 3,
-  "name": "RUMBO Guardian",
-  "version": "1.0.0",
-  "description": "RUMBO Security Intelligence para inspección local de pestañas, enlaces y texto seleccionado.",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage",
-    "contextMenus"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "action": {
-    "default_title": "RUMBO Guardian",
-    "default_popup": "popup.html"
-  }
+  "manifest_version":3,"name":"RUMBO Guardian","version":"1.1.0-rc.1","description":"RUMBO Security Intelligence para inspección local de pestañas, enlaces y texto seleccionado.",
+  "permissions":["activeTab","scripting","storage","contextMenus"],"background":{"service_worker":"background.js"},"action":{"default_title":"RUMBO Guardian","default_popup":"popup.html"}
 }

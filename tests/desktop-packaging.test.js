@@ -36,9 +36,10 @@ function testTauriContract() {
     'src-tauri/capabilities/default.json',
   ]) mustExist(rel);
 
+  const product = readJson('packaging/product.json');
   const config = readJson('src-tauri/tauri.conf.json');
   assert.equal(config.productName, 'RUMBO Guardian');
-  assert.equal(config.version, '1.0.0');
+  assert.equal(config.version, product.version);
   assert.equal(config.identifier, 'com.rumbo.guardian');
   assert.equal(config.build.frontendDist, '../desktop-dist');
   assert.equal(config.build.beforeBuildCommand, 'node tools/build-desktop-assets.mjs');
@@ -81,7 +82,7 @@ function testDesktopWorkflowContract() {
   assert.match(workflow, /windows-latest/);
   assert.match(workflow, /node-version:\s*['"]22\.23\.2['"]/);
   assert.match(workflow, /dtolnay\/rust-toolchain@1\.98\.1/);
-  assert.match(workflow, /npm run release:validate/);
+  assert.match(workflow, /node tools\/validate-release\.mjs .*--allow-historical-baseline/);
   assert.match(workflow, /node tests\/desktop-packaging\.test\.js/);
   assert.match(workflow, /cargo check --locked/);
   assert.match(workflow, /npx --yes @tauri-apps\/cli@2\.11\.4 build --bundles nsis -- --locked/);

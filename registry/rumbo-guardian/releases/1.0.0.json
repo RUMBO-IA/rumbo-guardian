@@ -1,0 +1,12 @@
+{
+  "schema": "rumbo.product-registry.release/v1",
+  "product": "rumbo-guardian",
+  "version": "1.0.0",
+  "channel": "historical",
+  "state": "VERIFIED",
+  "predecessor": null,
+  "source": {"repository":"RUMBO-IA/rumbo-guardian","commit_sha":"43bc3354924220ba76161891a1b48108ffda17b4","tree_sha":"c74c58df8fbc7ddd017e4ba18cceee1cfb08b5df"},
+  "artifact": {"name":"RUMBO_Guardian_V1.0.0.zip","sha256":"1d81530ea463a1a59034ed772889712d103237ce6dc588903419eb13234f8eeb"},
+  "evidence": {"sbom":"NOT_PROVEN","provenance":"NOT_PROVEN","install":"NOT_PROVEN","upgrade":"NOT_PROVEN","rollback":"NOT_PROVEN"},
+  "authorization": {"publication_authorized":false,"production_go":false}
+}

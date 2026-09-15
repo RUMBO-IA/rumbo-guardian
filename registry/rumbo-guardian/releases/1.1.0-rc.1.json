@@ -1,0 +1,12 @@
+{
+  "schema": "rumbo.product-registry.release/v1",
+  "product": "rumbo-guardian",
+  "version": "1.1.0-rc.1",
+  "channel": "candidate",
+  "state": "RC",
+  "predecessor": "1.0.0",
+  "source": {"repository":"RUMBO-IA/rumbo-guardian","commit_sha":"c86fea667ed20fee00af724e5d8d8e98d6d08b94"},
+  "artifact": {"platform":"windows-x86_64","format":"nsis","sha256":null},
+  "evidence": {"sbom":"PENDING","provenance":"PENDING","install":"PENDING","upgrade":"PENDING","rollback":"PENDING"},
+  "authorization": {"publication_authorized":false,"production_go":false}
+}

@@ -14,9 +14,14 @@ function parseArgs(argv) {
   for (let index = 2; index < argv.length; index += 1) {
     const key = argv[index];
     if (!key.startsWith('--')) throw new Error(`unexpected_argument:${key}`);
+    const name = key.slice(2);
+    if (name === 'allow-historical-baseline') {
+      args[name] = true;
+      continue;
+    }
     const value = argv[index + 1];
     if (!value || value.startsWith('--')) throw new Error(`missing_value:${key}`);
-    args[key.slice(2)] = value;
+    args[name] = value;
     index += 1;
   }
   return args;
@@ -34,9 +39,10 @@ function sortedUnique(values) {
   return [...new Set(values)].sort();
 }
 
-function validate(product, release, extension, packageJson) {
+function validate(product, release, extension, packageJson, options = {}) {
   const errors = [];
   const push = (code) => errors.push(code);
+  const historicalBaseline = options.allowHistoricalBaseline === true;
 
   if (product?.schema !== 'rumbo.product/v1') push('product_schema_invalid');
   if (product?.id !== 'rumbo-guardian') push('product_id_invalid');
@@ -47,7 +53,8 @@ function validate(product, release, extension, packageJson) {
 
   if (release?.schema !== 'rumbo.release/v1') push('release_schema_invalid');
   if (release?.product !== product?.id) push('product_mismatch');
-  if (release?.version !== product?.version) push('version_mismatch');
+  if (!historicalBaseline && release?.version !== product?.version) push('version_mismatch');
+  if (historicalBaseline && release?.version === product?.version) push('historical_baseline_not_distinct');
   if (!RELEASE_STATES.has(release?.state)) push('release_state_invalid');
 
   const declaredPermissions = Array.isArray(product?.browser?.permissions)
@@ -92,6 +99,14 @@ function validate(product, release, extension, packageJson) {
     push('distribution_block_missing');
   }
 
+  if (historicalBaseline) {
+    const verification = release.verification ?? {};
+    if (release.state !== 'VERIFIED') push('historical_baseline_state_invalid');
+    if (verification.upgrade !== false || verification.rollback !== false) {
+      push('historical_baseline_verification_invalid');
+    }
+  }
+
   if (PUBLISHED_STATES.has(release?.state)) {
     const trust = release.trust ?? {};
     if (trust.sbom !== true || trust.provenance !== true || trust.signature !== true) {
@@ -104,6 +119,7 @@ function validate(product, release, extension, packageJson) {
     errors: sortedUnique(errors),
     product: product?.id ?? null,
     release: release?.version ?? null,
+    ...(historicalBaseline ? {mode: 'HISTORICAL_BASELINE'} : {}),
   };
 }
 
@@ -119,6 +135,7 @@ function main() {
       readJson(args.release),
       readJson(args.extension),
       readJson(args.package),
+      {allowHistoricalBaseline: args['allow-historical-baseline'] === true},
     );
     process.stdout.write(`${JSON.stringify(result)}\n`);
     process.exitCode = result.status === 'VERIFIED' ? 0 : 1;

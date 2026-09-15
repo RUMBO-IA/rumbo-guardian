@@ -1,0 +1,43 @@
+name: Product Registry
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [packaging/product-registry-v1]
+
+permissions:
+  contents: read
+
+jobs:
+  registry:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.23.2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      # Explicit re-trigger commit keeps verification attached to current PR head.
+      - name: Registry policy tests
+        run: npm run registry:test
+      - name: Registry validation
+        run: npm run registry:validate
+      - name: Historical release baseline policy
+        run: node tests/release-historical-baseline.test.js
+      - name: Release validation
+        run: node tools/validate-release.mjs --product packaging/product.json --release packaging/release.json --extension extension/manifest.json --package package.json --allow-historical-baseline
+      - name: Desktop packaging policy
+        run: npm run desktop:test
+      - name: Desktop trust policy
+        run: node tests/desktop-trust.test.js
+      - name: Desktop install policy
+        run: node tests/desktop-install-lab.test.js
+      - name: Cargo locked check
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - name: Syntax
+        run: npm run check
+      - name: Full regression
+        run: npm test
