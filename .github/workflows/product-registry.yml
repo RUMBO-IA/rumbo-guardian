@@ -1,6 +1,7 @@
 name: Product Registry
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [packaging/product-registry-v1]
