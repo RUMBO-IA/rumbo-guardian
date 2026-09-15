@@ -53,10 +53,13 @@ The validator is deterministic Node.js standard-library code and performs no net
 - product id: `rumbo-guardian`
 - display name: `RUMBO Guardian`
 - registry schema version
-- current stable: `1.0.0`
+- historical baseline: `1.0.0`
+- current stable: `null` until a release is explicitly promoted under this registry
 - current candidate: `1.1.0-rc.1`
 - allowed release states
 - production authority remains false
+
+This distinction prevents the registry from retroactively asserting that the historical `1.0.0` release satisfied the new `STABLE` gate.
 
 ## Release record
 
@@ -93,11 +96,11 @@ Each `releases/<version>.json` uses schema `rumbo.product-registry.release/v1` a
 }
 ```
 
-A candidate may begin with artifact/evidence fields pending. It cannot transition to `VERIFIED`, `APPROVED`, `CANARY`, or `STABLE` unless the requirements for that state are satisfied.
+A candidate may begin with artifact/evidence fields pending. It cannot transition to `APPROVED`, `CANARY`, or `STABLE` unless the requirements for that state are satisfied. `RC` is allowed to contain pending runtime/distribution evidence because it is the state in which those gates are exercised.
 
 ## Historical 1.0.0 treatment
 
-The `1.0.0` record is a historical registry import, not a retroactive claim. It records the already-known source/artifact identity and explicitly marks evidence that did not exist at release time as absent/not-proven. Its state remains `VERIFIED` only to reflect the existing historical release contract; it must not be silently upgraded to `STABLE` under the new registry semantics unless a separate policy decision explicitly maps the historical release.
+The `1.0.0` record is a historical registry import, not a retroactive claim. It records the already-known source/artifact identity and explicitly marks evidence that did not exist at release time as absent/not-proven. Its state is `VERIFIED` only to reflect the existing historical release contract; it is the `historical_baseline`, not `current_stable`, and it must not be silently upgraded to `STABLE` under the new registry semantics.
 
 Known historical identity:
 
@@ -125,7 +128,8 @@ SUPERSEDED
 
 Rules:
 
-- No state skipping.
+- No state skipping for new transitions governed by this registry.
+- Historical import at `VERIFIED` is a declared migration exception, not a replayed transition history.
 - `REVOKED` cannot return to an active state.
 - `SUPERSEDED` cannot become current candidate/stable.
 - `APPROVED`, `CANARY`, and `STABLE` require human/policy authority outside the validator.
@@ -134,7 +138,7 @@ Rules:
 
 ## Versioning
 
-Guardian moves from historical `1.0.0` to candidate `1.1.0-rc.1`. The version must be consistent across the candidate registry record, `package.json`, browser extension manifest, Tauri config, and release/product contracts that represent the candidate.
+Guardian moves from historical baseline `1.0.0` to candidate `1.1.0-rc.1`. The version must be consistent across the candidate registry record, `package.json`, browser extension manifest, Tauri config, and release/product contracts that represent the candidate.
 
 The version bump is a candidate identity change, not a production release. It must not create a GitHub Release or publish to any store.
 
@@ -145,7 +149,8 @@ The lab runs only on an ephemeral GitHub-hosted Windows runner.
 Sequence:
 
 ```text
-build/obtain N-1 1.0.0 candidate fixture
+obtain exact N-1 1.0.0 artifact
+-> verify historical hash before execution
 -> install N-1 silently/currentUser
 -> verify N-1 executable identity
 -> create controlled user-state fixture
@@ -166,7 +171,7 @@ The lab must distinguish application upgrade/rollback from Tauri remote updater 
 
 ## N-1 source integrity
 
-The lab must never rebuild `1.0.0` from current source and call that N-1. It must consume either the exact historical artifact when retrievable and hash-matching, or a separately documented fixture whose limitations are explicit. If the exact historical artifact cannot be obtained and verified, `HISTORICAL_N_MINUS_1_ARTIFACT=NOT_PROVEN` and the full real upgrade/rollback claim remains blocked.
+The lab must never rebuild `1.0.0` from current source and call that N-1. It must consume the exact historical artifact and verify SHA-256 `1d81530ea463a1a59034ed772889712d103237ce6dc588903419eb13234f8eeb` before executing it. If that artifact cannot be obtained and verified, `HISTORICAL_N_MINUS_1_ARTIFACT=NOT_PROVEN` and the full real upgrade/rollback claim remains blocked. A synthetic fixture may be used only for plumbing tests and can never satisfy the real upgrade/rollback gate.
 
 ## Evidence receipt
 
@@ -214,7 +219,7 @@ Fail closed on:
 - missing predecessor for non-root releases
 - predecessor not found
 - lineage cycles
-- state skipping
+- state skipping for governed transitions
 - artifact hash malformed when present
 - source SHA malformed
 - candidate version disagreement across product surfaces
@@ -237,7 +242,7 @@ Fail closed on:
 Product Registry v1 is technically PASS only when:
 
 - registry validator is deterministic and green;
-- historical 1.0.0 record is evidence-honest;
+- historical 1.0.0 record is evidence-honest and is not represented as `STABLE`;
 - candidate 1.1.0-rc.1 identity is consistent across required surfaces;
 - invalid transitions/lineage/authorization fail closed;
 - all inherited regression suites pass.
