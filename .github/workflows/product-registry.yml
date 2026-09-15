@@ -23,8 +23,10 @@ jobs:
         run: npm run registry:test
       - name: Registry validation
         run: npm run registry:validate
+      - name: Historical release baseline policy
+        run: node tests/release-historical-baseline.test.js
       - name: Release validation
-        run: npm run release:validate
+        run: node tools/validate-release.mjs --product packaging/product.json --release packaging/release.json --extension extension/manifest.json --package package.json --allow-historical-baseline
       - name: Desktop packaging policy
         run: npm run desktop:test
       - name: Desktop trust policy
