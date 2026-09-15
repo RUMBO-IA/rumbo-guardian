@@ -20,6 +20,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.98.1
+      # Explicit re-trigger commit keeps verification attached to current PR head.
       - name: Registry policy tests
         run: npm run registry:test
       - name: Registry validation
