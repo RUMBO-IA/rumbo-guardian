@@ -36,9 +36,10 @@ function testTauriContract() {
     'src-tauri/capabilities/default.json',
   ]) mustExist(rel);
 
+  const product = readJson('packaging/product.json');
   const config = readJson('src-tauri/tauri.conf.json');
   assert.equal(config.productName, 'RUMBO Guardian');
-  assert.equal(config.version, '1.0.0');
+  assert.equal(config.version, product.version);
   assert.equal(config.identifier, 'com.rumbo.guardian');
   assert.equal(config.build.frontendDist, '../desktop-dist');
   assert.equal(config.build.beforeBuildCommand, 'node tools/build-desktop-assets.mjs');
