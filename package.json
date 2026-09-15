@@ -1,6 +1,6 @@
 {
   "name": "rumbo-guardian",
-  "version": "1.0.0",
+  "version": "1.1.0-rc.1",
   "private": true,
   "description": "RUMBO Security Intelligence — explainable phishing, fraud and suspicious-navigation analysis.",
   "scripts": {

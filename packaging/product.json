@@ -1,32 +1,6 @@
 {
-  "$schema": "rumbo.product/v1",
-  "schema": "rumbo.product/v1",
-  "id": "rumbo-guardian",
-  "name": "RUMBO Guardian",
-  "version": "1.0.0",
-  "surfaces": ["web", "pwa", "browser-extension", "desktop-windows"],
-  "browser": {
-    "manifest_version": 3,
-    "permissions": [
-      "activeTab",
-      "contextMenus",
-      "scripting",
-      "storage"
-    ],
-    "host_permissions": []
-  },
-  "desktop": {
-    "windows": {
-      "framework": "tauri-2",
-      "target": "x86_64-pc-windows-msvc",
-      "bundle": "nsis",
-      "signing": "not-proven",
-      "updater": "disabled"
-    }
-  },
-  "trust": {
-    "sbom": "required",
-    "provenance": "required",
-    "artifact_sha256": "required"
-  }
+  "$schema":"rumbo.product/v1","schema":"rumbo.product/v1","id":"rumbo-guardian","name":"RUMBO Guardian","version":"1.1.0-rc.1","surfaces":["web","pwa","browser-extension","desktop-windows"],
+  "browser":{"manifest_version":3,"permissions":["activeTab","contextMenus","scripting","storage"],"host_permissions":[]},
+  "desktop":{"windows":{"framework":"tauri-2","target":"x86_64-pc-windows-msvc","bundle":"nsis","signing":"not-proven","updater":"disabled"}},
+  "trust":{"sbom":"required","provenance":"required","artifact_sha256":"required"}
 }
