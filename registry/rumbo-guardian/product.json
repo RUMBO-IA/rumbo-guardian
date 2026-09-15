@@ -1,0 +1,11 @@
+{
+  "$schema": "rumbo.product-registry.product/v1",
+  "schema": "rumbo.product-registry.product/v1",
+  "id": "rumbo-guardian",
+  "name": "RUMBO Guardian",
+  "historical_baseline": "1.0.0",
+  "current_stable": null,
+  "current_candidate": "1.1.0-rc.1",
+  "allowed_release_states": ["DRAFT", "VERIFYING", "VERIFIED", "RC", "APPROVED", "CANARY", "STABLE", "REVOKED", "SUPERSEDED"],
+  "production_authority": false
+}
