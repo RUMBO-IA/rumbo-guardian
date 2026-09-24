@@ -3,6 +3,8 @@ name: RUMBO Governor Transport Probe R1
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
