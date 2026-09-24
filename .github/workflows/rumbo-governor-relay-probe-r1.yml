@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - ops/governor-relay-probe-20260924
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
