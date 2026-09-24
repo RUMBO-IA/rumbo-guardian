@@ -1,0 +1,90 @@
+name: RUMBO Governor Relay Probe R1
+
+on:
+  push:
+    branches:
+      - ops/governor-relay-probe-20260924
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: [self-hosted, Linux, X64, rumbo-ci-linux]
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Prove runner identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUNNER_NAME=$RUNNER_NAME"
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          echo "HOSTNAME=$(hostname)"
+          uname -a
+          id
+
+      - name: Probe shared governor state without secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          candidates = [
+              Path("/mnt/c/Users/Usuario/.rumbo/github-mutation-governor.json"),
+              Path.home() / ".rumbo" / "github-mutation-governor.json",
+          ]
+          found = None
+          for candidate in candidates:
+              if candidate.is_file():
+                  found = candidate
+                  break
+
+          if found is None:
+              print("GOVERNOR_STATE_FOUND=false")
+              raise SystemExit(0)
+
+          print("GOVERNOR_STATE_FOUND=true")
+          print("GOVERNOR_STATE_PATH_KIND=" + ("windows_mount" if str(found).startswith("/mnt/c/") else "runner_home"))
+          try:
+              obj = json.loads(found.read_text(encoding="utf-8"))
+          except Exception as exc:
+              print("GOVERNOR_STATE_READABLE=false")
+              print("GOVERNOR_STATE_ERROR=" + type(exc).__name__)
+              raise SystemExit(0)
+
+          print("GOVERNOR_STATE_READABLE=true")
+          print("GOVERNOR_SCHEMA=" + str(obj.get("schema")))
+          print("GOVERNOR_HARD_STOP=" + str(bool(obj.get("hard_stop"))).lower())
+          print("GOVERNOR_COOLDOWN_ACTIVE=" + str(float(obj.get("cooldown_until", 0) or 0) > 0).lower())
+          for key in ("mutation_events", "content_events", "pr_create_events"):
+              value = obj.get(key)
+              print(f"GOVERNOR_{key.upper()}_COUNT={len(value) if isinstance(value, list) else -1}")
+          lock = found.with_name(found.name + ".lock")
+          print("GOVERNOR_LOCK_EXISTS=" + str(lock.exists()).lower())
+          if lock.exists():
+              print("GOVERNOR_LOCK_SIZE=" + str(lock.stat().st_size))
+          PY
+
+      - name: Probe GitHub identity and target read access
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "GUARDIAN_TOKEN_IDENTITY:"
+          gh api user --jq '{login,id}'
+          echo "TARGET_REPO_READ:"
+          if gh api repos/RUMBO-IA/rumbo-control-queue --jq '{full_name,default_branch,private}' ; then
+            echo "TARGET_REPO_READ=true"
+          else
+            echo "TARGET_REPO_READ=false"
+          fi
+
+      - name: Emit bounded probe verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUMBO_GOVERNOR_RELAY_PROBE_COMPLETE"
