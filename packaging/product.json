@@ -1,0 +1,23 @@
+{
+  "$schema": "rumbo.product/v1",
+  "schema": "rumbo.product/v1",
+  "id": "rumbo-guardian",
+  "name": "RUMBO Guardian",
+  "version": "1.0.0",
+  "surfaces": ["web", "pwa", "browser-extension"],
+  "browser": {
+    "manifest_version": 3,
+    "permissions": [
+      "activeTab",
+      "contextMenus",
+      "scripting",
+      "storage"
+    ],
+    "host_permissions": []
+  },
+  "trust": {
+    "sbom": "required",
+    "provenance": "required",
+    "artifact_sha256": "required"
+  }
+}
