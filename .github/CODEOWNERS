@@ -1,0 +1,13 @@
+# RUMBO Guardian security ownership
+# Enforcement requires protected-branch/ruleset configuration with required code-owner review.
+
+# Default owner
+* @fscfede-beep
+
+# Security-sensitive control surfaces
+/.github/ @fscfede-beep
+/src/ @fscfede-beep
+/tests/ @fscfede-beep
+/package.json @fscfede-beep
+/package-lock.json @fscfede-beep
+/SECURITY.md @fscfede-beep
