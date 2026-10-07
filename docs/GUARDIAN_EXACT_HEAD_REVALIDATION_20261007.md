@@ -12,3 +12,8 @@ This file is non-authoritative and introduces no runtime, network, credential, b
 `EXACT_HEAD_CI=NOT_PROVEN_UNTIL_CURRENT_PR_CHECKS_EXECUTE`
 `PRODUCTION=NO_GO`
 `EXTERNAL_SPEND_USD=0`
+
+## Revalidation trigger note
+
+At the first PR-open readback, GitHub reported zero workflow runs/check-runs for this exact candidate despite `.github/workflows/ci.yml` declaring `pull_request: branches: [main]`.
+This commit intentionally changes documentation only and creates a `synchronize` event so the absence/presence of required checks can be re-observed without touching runtime code.
