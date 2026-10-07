@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   inventory:
-    runs-on: rumbo-ci-linux
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Inventory Actions caches read-only
