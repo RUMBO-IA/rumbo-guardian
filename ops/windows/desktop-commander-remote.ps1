@@ -31,7 +31,7 @@ function Get-RemoteAgentProcesses {
   try {
     @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
       $_.ProcessId -ne $PID -and
-      $_.Name -in @('node.exe','cmd.exe') -and
+      $_.Name -eq 'node.exe' -and
       $_.CommandLine -and
       $_.CommandLine -match 'desktop-commander' -and
       $_.CommandLine -match '(^|\s)remote(\s|$)'
@@ -39,6 +39,26 @@ function Get-RemoteAgentProcesses {
   } catch {
     Write-State 'process_enumeration_failed'
     throw "Refusing remote-agent startup: process enumeration failed: $($_.Exception.Message)"
+  }
+}
+
+# -RecoverExisting must not terminate a PID based only on a stale WMI snapshot.
+# Require a fresh, exact process identity read immediately before any termination.
+function Assert-RemoteAgentIdentity {
+  param([object]$Candidate)
+  try {
+    $current = @(Get-CimInstance Win32_Process -Filter ("ProcessId={0}" -f $Candidate.ProcessId) -ErrorAction Stop)
+  } catch {
+    Write-State 'process_identity_recheck_failed'
+    throw "Refusing process termination: identity recheck failed: $($_.Exception.Message)"
+  }
+  if ($current.Count -ne 1 -or
+      $current[0].ProcessId -ne $Candidate.ProcessId -or
+      $current[0].CreationDate -ne $Candidate.CreationDate -or
+      $current[0].Name -ne $Candidate.Name -or
+      $current[0].CommandLine -ne $Candidate.CommandLine) {
+    Write-State 'process_identity_drift'
+    throw 'Refusing process termination: target process identity changed'
   }
 }
 
@@ -83,8 +103,13 @@ try {
     }
 
     foreach ($proc in $existing) {
+      Assert-RemoteAgentIdentity -Candidate $proc
       Write-Host "Stopping matched Desktop Commander remote process tree PID $($proc.ProcessId)..."
       & taskkill.exe /PID $proc.ProcessId /T /F | Out-Null
+      if ($LASTEXITCODE -ne 0) {
+        Write-State 'process_termination_failed' @{ pid = $proc.ProcessId; exit_code = $LASTEXITCODE }
+        throw "Refusing agent restart: taskkill failed for PID $($proc.ProcessId)"
+      }
     }
     Start-Sleep -Seconds 2
   }
