@@ -40,7 +40,7 @@ function hasStableAuthorizationBinding(rawAction){
     if(!Object.prototype.hasOwnProperty.call(authDescriptor,'value')) return false;
     const auth=authDescriptor.value;
     if(auth!==undefined&&auth!==null){
-      if(!isPlainDataRecord(auth)) return false;
+      if(!isPlainDataRecord(auth)||Object.getOwnPropertySymbols(auth).length) return false;
       for(const descriptor of Object.values(Object.getOwnPropertyDescriptors(auth))){
         if(!Object.prototype.hasOwnProperty.call(descriptor,'value')) return false;
         const value=descriptor.value;
