@@ -151,6 +151,17 @@ function signedAction(id='auth-1'){
   const accessor={keyId:'trusted'};
   Object.defineProperty(accessor,'actionDigest',{enumerable:true,get(){hooks++;return 'forged';}});
   assert.deepEqual(sanitizeMetadata(accessor),{keyId:'trusted'});
+  let proxyTraps=0;
+  const hostileProxy=new Proxy({keyId:'forged'},{
+    getPrototypeOf(){proxyTraps++;return Object.prototype;},
+    ownKeys(){proxyTraps++;return ['keyId'];},
+    getOwnPropertyDescriptor(target,key){proxyTraps++;return Object.getOwnPropertyDescriptor(target,key);}
+  });
+  assert.deepEqual(sanitizeMetadata(hostileProxy),{});
+  assert.equal(proxyTraps,0,'Proxy reflection traps must never execute');
+  const revoked=Proxy.revocable({keyId:'forged'},{});
+  revoked.revoke();
+  assert.deepEqual(sanitizeMetadata(revoked.proxy),{});
   const store=new FileAuthorizationReplayStore(path.join(tmp,'data-only-replay.jsonl'));
   assert.deepEqual(store.consume(coercive),{consumed:false,reason:'invalid_authorization_id'});
   assert.equal(hooks,0,'Untrusted value hooks must never execute');
