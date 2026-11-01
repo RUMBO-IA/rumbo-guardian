@@ -1,5 +1,6 @@
 const fs=require('node:fs');
 const path=require('node:path');
+const {types}=require('node:util');
 
 function validId(value){ return typeof value==='string'&&/^[A-Za-z0-9._:-]{1,200}$/.test(value); }
 function boundedText(value,max=512){
@@ -9,7 +10,7 @@ function boundedText(value,max=512){
 }
 function sanitizeMetadata(metadata={}){
   const out={};
-  if(!metadata||typeof metadata!=='object'||Array.isArray(metadata)) return out;
+  if(!metadata||typeof metadata!=='object'||types.isProxy(metadata)||Array.isArray(metadata)) return out;
   const proto=Object.getPrototypeOf(metadata);
   if(proto!==Object.prototype&&proto!==null) return out;
   const descriptors=Object.getOwnPropertyDescriptors(metadata);
