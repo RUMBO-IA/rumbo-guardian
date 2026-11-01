@@ -1,6 +1,6 @@
 name: Guardian CI
 
-on:
+'on':
   push:
     branches: [main]
   pull_request:
@@ -9,15 +9,28 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: guardian-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
+    # Only use the repository's own branch for PR jobs; no fork code or credentials.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout isolated source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Syntax checks
-        run: npm run check
-      - name: Unit and portfolio tests
+      - name: Install locked dependencies (no lifecycle scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run the two Turborepo CI tasks
+        run: TURBO_TELEMETRY_DISABLED=1 npx --no-install turbo run check test:unit
+      - name: Preserve the existing full test suite
         run: npm test
