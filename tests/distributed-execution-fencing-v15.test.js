@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {InMemoryFencingStore,computeFencingBinding,createFencedDestination}=require('../distributed-execution-fencing-v15.js');
+const {InMemoryFencingStore,MAX_TTL_MS,computeFencingBinding,createFencedDestination,createAtomicFencedDestination}=require('../distributed-execution-fencing-v15.js');
 
 async function main(){
  let passed=0;const ok=()=>passed++;
@@ -18,7 +18,22 @@ async function main(){
  const released=await store.release(b);assert.equal(released.released,true);ok();
  const reacquired=await store.acquire({resourceId:'r1',executionId:'e3',ownerId:'host-c'},{nowMs:202,ttlMs:100});assert.equal(reacquired.acquired,true);assert.equal(reacquired.fencingToken,3);ok();
  const staleRelease=await store.release(b);assert.equal(staleRelease.released,false);ok();
- assert.equal(passed,13);
- console.log('RUMBO Distributed Execution Fencing V15: 13/13 PASS + stale-token rejection + lease expiry + reacquisition fencing');
+ {
+   assert.equal(MAX_TTL_MS,300000);
+   await assert.rejects(()=>store.renew(reacquired,{nowMs:203,ttlMs:MAX_TTL_MS+1}),/lease_ttl_invalid/);
+   ok();
+ }
+ {
+   const store2=new InMemoryFencingStore();const leaseA=await store2.acquire({resourceId:'r2',executionId:'e1',ownerId:'host-a'},{nowMs:0,ttlMs:10});let applied=0;
+   const atomic=createAtomicFencedDestination({fencingStore:store2,apply:async(_input,ctx)=>{applied++;const valid=await store2.validate({...leaseA,fencingToken:ctx.fencingToken},{nowMs:0});return {fencingAccepted:valid.valid};}});
+   const okApply=await atomic.applyWithLease(leaseA,{}, {}, {nowMs:0});assert.equal(okApply.decision,'ALLOW');assert.equal(applied,1);ok();
+ }
+ {
+   const store3=new InMemoryFencingStore();const lease=await store3.acquire({resourceId:'r3',executionId:'e1',ownerId:'host-a'},{nowMs:0,ttlMs:10});let applied=0;
+   const atomic=createAtomicFencedDestination({fencingStore:store3,apply:async(_input)=>{applied++;return {fencingAccepted:false};}});
+   const denied=await atomic.applyWithLease(lease,{}, {}, {nowMs:0});assert.equal(denied.decision,'DENY');assert.equal(denied.reason,'fencing_not_enforced_at_mutation_boundary');assert.equal(applied,1);ok();
+ }
+ assert.equal(passed,16);
+ console.log('RUMBO Distributed Execution Fencing V15: 16/16 PASS + stale-token rejection + lease expiry + atomic mutation-boundary fencing');
 }
 main().catch(err=>{console.error(err);process.exit(1);});
