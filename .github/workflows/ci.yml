@@ -2,7 +2,9 @@ name: Guardian CI
 
 'on':
   push:
-    branches: [main]
+    branches:
+      - main
+      - chore/vercel-ci-guardian-beta-pilot-20261101
   pull_request:
     branches: [main]
 
