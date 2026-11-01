@@ -6,6 +6,12 @@
         "ci"
       ],
       "outputs": []
+    },
+    "test:unit": {
+      "tags": [
+        "ci"
+      ],
+      "outputs": []
     }
   }
 }
