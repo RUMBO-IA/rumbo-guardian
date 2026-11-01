@@ -8,8 +8,33 @@ function isPlainDataRecord(value){
   return proto===Object.prototype||proto===null;
 }
 
+const ACTION_SCALARS=new Set([
+  'id','effect','target','purpose','parametersDigest','toolBindingDigest',
+  'replayKey','amount','spendLimit','evidenceCount'
+]);
+const REPLAY_LISTS=new Set(['previouslyExecutedReplayKeys','previouslyExecutedAuthorizationIds']);
+function isStableReplayList(value){
+  if(types.isProxy(value)||!Array.isArray(value)||Object.getPrototypeOf(value)!==Array.prototype) return false;
+  const descriptors=Object.getOwnPropertyDescriptors(value);
+  const entries=Object.keys(descriptors).filter(k=>k!=='length');
+  if(entries.length!==value.length) return false;
+  for(let i=0;i<value.length;i++){
+    const d=descriptors[i];
+    if(!d||!Object.prototype.hasOwnProperty.call(d,'value')) return false;
+    if(typeof d.value!=='string'&&typeof d.value!=='number') return false;
+  }
+  return entries.every((key,index)=>key===String(index));
+}
+
 function hasStableAuthorizationBinding(rawAction){
   if(!isPlainDataRecord(rawAction)) return false;
+  for(const [key,descriptor] of Object.entries(Object.getOwnPropertyDescriptors(rawAction))){
+    if(!Object.prototype.hasOwnProperty.call(descriptor,'value')) return false;
+    const value=descriptor.value;
+    if(ACTION_SCALARS.has(key)&&value!==undefined&&value!==null&&
+      typeof value!=='string'&&typeof value!=='number'&&typeof value!=='boolean') return false;
+    if(REPLAY_LISTS.has(key)&&value!==undefined&&value!==null&&!isStableReplayList(value)) return false;
+  }
   const authDescriptor=Object.getOwnPropertyDescriptor(rawAction,'authorization');
   if(authDescriptor){
     if(!Object.prototype.hasOwnProperty.call(authDescriptor,'value')) return false;
