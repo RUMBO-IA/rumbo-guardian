@@ -1,4 +1,5 @@
 'use strict';
+require('./authorization-binding-inherited-proxy.test.js');
 const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
 const Gate=require('../agent-action-gate.js');
