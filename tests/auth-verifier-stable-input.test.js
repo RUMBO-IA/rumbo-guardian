@@ -40,6 +40,10 @@ test('proxy authorization input never invokes traps',()=>{
   assert.deepEqual(Auth.verifyAuthorizationProof(evil,{trustedPublicKeys:{operator:publicPem}}).reasons,['invalid_authorization_envelope']);
   assert.equal(traps,0);
 });
+test('revoked proxy fails closed without throwing',()=>{
+  const {proxy,revoke}=Proxy.revocable(signed,{});revoke();
+  assert.deepEqual(Auth.verifyAuthorizationProof(proxy,{trustedPublicKeys:{operator:publicPem}}).reasons,['invalid_authorization_envelope']);
+});
 test('prototype-inherited trusted key is rejected',()=>{
   const inherited=Object.create({operator:publicPem});
   assert.deepEqual(Auth.verifyAuthorizationProof(signed,{trustedPublicKeys:inherited}).reasons,['untrusted_authorizer_key']);
@@ -57,5 +61,5 @@ test('null-prototype primitive envelope remains supported',()=>{
   const env=Object.assign(Object.create(null),signed);
   assert.equal(Auth.verifyAuthorizationProof(env,{trustedPublicKeys:{operator:publicPem}}).verified,true);
 });
-assert.equal(tests,10);
-console.log('Authorization data-only verifier: 10/10 PASS');
+assert.equal(tests,11);
+console.log('Authorization data-only verifier: 11/11 PASS');
