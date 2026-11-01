@@ -1,7 +1,42 @@
 const Gate=require('./agent-action-gate.js');
 const Auth=require('./agent-authorization-v3.js');
+const {types}=require('node:util');
+
+function isPlainDataRecord(value){
+  if(!value||typeof value!=='object'||Array.isArray(value)||types.isProxy(value)) return false;
+  const proto=Object.getPrototypeOf(value);
+  return proto===Object.prototype||proto===null;
+}
+
+function hasStableAuthorizationBinding(rawAction){
+  if(!isPlainDataRecord(rawAction)) return false;
+  const authDescriptor=Object.getOwnPropertyDescriptor(rawAction,'authorization');
+  if(authDescriptor){
+    if(!Object.prototype.hasOwnProperty.call(authDescriptor,'value')) return false;
+    const auth=authDescriptor.value;
+    if(auth!==undefined&&auth!==null){
+      if(!isPlainDataRecord(auth)) return false;
+      for(const descriptor of Object.values(Object.getOwnPropertyDescriptors(auth))){
+        if(!Object.prototype.hasOwnProperty.call(descriptor,'value')) return false;
+        const value=descriptor.value;
+        if(value!==undefined&&value!==null&&typeof value!=='string'&&typeof value!=='number') return false;
+      }
+    }
+  }
+  const observedDescriptor=Object.getOwnPropertyDescriptor(rawAction,'authorizationObservedAt');
+  if(observedDescriptor){
+    if(!Object.prototype.hasOwnProperty.call(observedDescriptor,'value')) return false;
+    const observed=observedDescriptor.value;
+    if(observed!==undefined&&observed!==null&&typeof observed!=='string'&&typeof observed!=='number') return false;
+  }
+  return true;
+}
+
 
 function prepareAuthorizedAction(rawAction={},options={}){
+  if(!hasStableAuthorizationBinding(rawAction)){
+    return {decision:'DENY',stage:'authorization_input',gate:null,authorization:{verified:false,reasons:['unstable_authorization_input']},reservation:null,ticket:null};
+  }
   const gate=Gate.assessAgentAction(rawAction,options.gateOptions||{});
   if(gate.decision!=='ALLOW'){
     return {decision:gate.decision,stage:'policy',gate,authorization:null,reservation:null,ticket:null};
