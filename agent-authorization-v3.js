@@ -5,7 +5,7 @@ const SIGNED_FIELDS=['authorizationId','actionDigest','observedAt','expiresAt','
 
 // Reject all accessor/proxy/object-coercion input before any signing or verification.
 function stableEnvelope(envelope,includeSignature=false){
-  if(!envelope||typeof envelope!=='object'||Array.isArray(envelope)||types.isProxy(envelope)) return null;
+  if(!envelope||typeof envelope!=='object'||types.isProxy(envelope)||Array.isArray(envelope)) return null;
   const proto=Object.getPrototypeOf(envelope);
   if(proto!==Object.prototype&&proto!==null) return null;
   if(Object.getOwnPropertySymbols(envelope).length!==0) return null;
