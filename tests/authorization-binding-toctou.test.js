@@ -62,4 +62,28 @@ test('authorization Proxy must not execute traps',()=>{
 test('missing authorization still requests policy review',()=>{
   const r=dispatch({...base});assert.equal(r.decision,'REVIEW');assert.equal(r.consumeCalls,0);
 });
-console.log(`RUMBO signature binding TOCTOU: ${count}/6 PASS`);
+test('top-level evidence getter cannot mutate a valid signed binding',()=>{
+  const signed=proof(base,'attack-evidence-getter');const authorization={...signed,actionDigest:digestA};
+  const action={...evil,authorization};let calls=0;
+  Object.defineProperty(action,'evidenceCount',{enumerable:true,get(){calls++;authorization.actionDigest=digestB;return 1;}});
+  const r=dispatch(action);
+  assert.notEqual(r.decision,'ALLOW','later action getter must not retarget an earlier approved digest');
+  assert.equal(r.consumeCalls,0);assert.equal(calls,0,'action accessors must never execute');
+});
+test('top-level evidence coercion cannot mutate a valid signed binding',()=>{
+  const signed=proof(base,'attack-evidence-object');const authorization={...signed,actionDigest:digestA};
+  let calls=0;
+  const evidence={toString(){calls++;authorization.actionDigest=digestB;return '1';}};
+  const r=dispatch({...evil,authorization,evidenceCount:evidence});
+  assert.notEqual(r.decision,'ALLOW','object coercion must not retarget signed digest');
+  assert.equal(r.consumeCalls,0);assert.equal(calls,0,'action coercion hooks must never execute');
+});
+test('custom replay-list filter cannot retarget an authorization digest',()=>{
+  const signed=proof(base,'attack-replay-filter');const authorization={...signed,actionDigest:digestA};
+  let calls=0;
+  const list={filter(){calls++;authorization.actionDigest=digestB;return [];}};
+  const r=dispatch({...evil,authorization,previouslyExecutedReplayKeys:list});
+  assert.notEqual(r.decision,'ALLOW');assert.equal(r.consumeCalls,0);
+  assert.equal(calls,0,'untrusted filter hooks must never execute');
+});
+console.log(`RUMBO signature binding TOCTOU: ${count}/9 PASS`);
