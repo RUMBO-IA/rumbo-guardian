@@ -86,4 +86,19 @@ test('custom replay-list filter cannot retarget an authorization digest',()=>{
   assert.notEqual(r.decision,'ALLOW');assert.equal(r.consumeCalls,0);
   assert.equal(calls,0,'untrusted filter hooks must never execute');
 });
-console.log(`RUMBO signature binding TOCTOU: ${count}/9 PASS`);
+test('symbol-keyed getter cannot replace authorization observation time during spread',()=>{
+  const signed=proof(base,'attack-symbol-observed');
+  const future='2026-09-07T09:45:00Z';
+  signed.observedAt=future;
+  signed.signature=crypto.sign(null,Buffer.from(Auth.authorizationMessage(signed)),privateKey).toString('base64');
+  const authorization={...signed};
+  const action={...base,authorization};
+  let symbolHooks=0;
+  const marker=Symbol('unguarded-enumerable-authorization');
+  Object.defineProperty(authorization,marker,{enumerable:true,get(){symbolHooks++;action.authorizationObservedAt=future;return 'indirect mutation';}});
+  const r=dispatch(action);
+  assert.notEqual(r.decision,'ALLOW','unsigned gate observation must not diverge from signed observedAt');
+  assert.equal(r.consumeCalls,0);
+  assert.equal(symbolHooks,0,'symbol-keyed authorization accessors must not execute');
+});
+console.log(`RUMBO signature binding TOCTOU: ${count}/10 PASS`);
