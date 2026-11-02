@@ -1,4 +1,5 @@
 const crypto=require('node:crypto');
+const {types}=require('node:util');
 const {canonicalizeJcs}=require('./jcs-canonicalize-v8.js');
 const {decodeCanonicalEd25519Signature,publicKeyFingerprint}=require('./agent-authorization-v3.js');
 
@@ -14,7 +15,7 @@ const bounded=(v,n=200)=>typeof v==='string'&&v.length>0&&v.length<=n;
 const sha256=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v.toLowerCase());
 
 function dataEntriesExact(raw,expectedKeys,error='invalid_provider_conformance'){
-  if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.getPrototypeOf(raw)!==Object.prototype) throw new Error(error);
+  if(!raw||typeof raw!=='object'||types.isProxy(raw)||Array.isArray(raw)||Object.getPrototypeOf(raw)!==Object.prototype) throw new Error(error);
   if(Object.getOwnPropertySymbols(raw).length) throw new Error(error);
   const keys=Object.keys(raw).sort();
   if(keys.length!==expectedKeys.length||keys.some((key,index)=>key!==expectedKeys[index])) throw new Error(error);
