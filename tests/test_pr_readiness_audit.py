@@ -1,0 +1,88 @@
+import sys
+import unittest
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+from pr_readiness_audit import analyze_pr, audit_organization, BudgetExceeded, pages
+
+
+def pr(number=1, draft=False, base='main', head='a'*40):
+    return {'number':number, 'draft':draft, 'head':{'sha':head},
+            'base':{'ref':base,'sha':'b'*40}, 'updated_at':'2026-11-01T00:00:00Z',
+            'html_url':f'https://github.com/RUMBO-IA/demo/pull/{number}'}
+
+class FakeGitHub:
+    def __init__(self, responses, limit=1000):
+        self.responses=responses
+        self.calls=[]
+        self.limit=limit
+    def get(self,path):
+        if len(self.calls)>=self.limit:
+            raise BudgetExceeded('request budget reached')
+        self.calls.append(path)
+        if path not in self.responses:
+            raise AssertionError(f'unexpected request: {path}')
+        return self.responses[path]
+
+class TestReadiness(unittest.TestCase):
+    def test_green_checks_are_not_merge_authorization(self):
+        res=analyze_pr('RUMBO-IA/demo',pr(),[{'name':'test','status':'completed','conclusion':'success'}],
+                       [{'user':{'login':'reviewer'},'state':'APPROVED','submitted_at':'2026-11-01T01:00:00Z'}])
+        self.assertFalse(res['merge_authorized'])
+        self.assertEqual(res['check_state'],'GREEN_UNATTESTED')
+        self.assertIn('PROVENANCE_UNVERIFIED',res['blockers'])
+    def test_failed_duplicated_check_is_not_hidden_by_pass(self):
+        res=analyze_pr('RUMBO-IA/demo',pr(),[
+            {'name':'privacy','status':'completed','conclusion':'success'},
+            {'name':'privacy','status':'completed','conclusion':'failure'}],[])
+        self.assertEqual(res['check_state'],'FAILED')
+        self.assertIn('FAILED_CHECK',res['blockers'])
+    def test_latest_review_per_reviewer_wins(self):
+        checks=[{'name':'unit','status':'completed','conclusion':'success'}]
+        reviews=[{'user':{'login':'alice'},'state':'APPROVED','submitted_at':'2026-11-01T01:00:00Z'},
+                 {'user':{'login':'alice'},'state':'CHANGES_REQUESTED','submitted_at':'2026-11-01T02:00:00Z'}]
+        res=analyze_pr('RUMBO-IA/demo',pr(),checks,reviews)
+        self.assertEqual(res['approvals'],0)
+        self.assertEqual(res['changes_requested'],1)
+    def test_stacked_draft_separate_blockers(self):
+        res=analyze_pr('RUMBO-IA/demo',pr(draft=True,base='feature-parent'),[],[])
+        self.assertIn('DRAFT',res['blockers'])
+        self.assertIn('STACKED_BASE',res['blockers'])
+        self.assertIn('NO_CHECK_RUNS',res['blockers'])
+    def test_scan_org_pages_and_audits_exact_sha(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        paths={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr()],
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[], 'total_count':0},
+            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[]}
+        c=FakeGitHub(paths)
+        report=audit_organization(c,'RUMBO-IA',max_prs=30)
+        self.assertTrue(report['complete'])
+        self.assertEqual(report['count'],1)
+        self.assertEqual(report['items'][0]['head_sha'],'a'*40)
+    def test_pagination_does_not_drop_page_two(self):
+        key='/repos/RUMBO-IA/demo/pulls?state=open'
+        mock=FakeGitHub({key+'&per_page=100&page=1':[{'number':i} for i in range(100)],
+                         key+'&per_page=100&page=2':[{'number':100}]})
+        self.assertEqual(len(list(pages(mock,key))),101)
+        self.assertEqual(len(mock.calls),2)
+    def test_scan_cap_returns_partial_not_complete(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        checks='/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1'
+        paths={'/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+               '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr(number=1),pr(number=2)],
+               checks:{'check_runs':[], 'total_count':0},
+               '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[]}
+        result=audit_organization(FakeGitHub(paths),'RUMBO-IA',max_prs=1)
+        self.assertEqual(result['count'],1)
+        self.assertFalse(result['complete'])
+        self.assertIn('PR scan cap',result['error'])
+    def test_budget_fails_closed_not_false_complete(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        c=FakeGitHub({'/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo]},limit=1)
+        report=audit_organization(c,'RUMBO-IA',max_prs=30)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertEqual(report['error'],'request budget reached')
+
+if __name__=='__main__': unittest.main()
