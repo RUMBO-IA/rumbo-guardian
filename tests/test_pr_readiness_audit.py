@@ -2,7 +2,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from pr_readiness_audit import analyze_pr, audit_organization, BudgetExceeded, pages
+from pr_readiness_audit import analyze_pr, audit_organization, BudgetExceeded, pages, require_unchanged_pr_snapshot
 
 
 def pr(number=1, draft=False, base='main', head='a'*40):
@@ -54,12 +54,42 @@ class TestReadiness(unittest.TestCase):
             '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
             '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr()],
             '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[], 'total_count':0},
-            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[]}
+            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1':pr()}
         c=FakeGitHub(paths)
         report=audit_organization(c,'RUMBO-IA',max_prs=30)
         self.assertTrue(report['complete'])
         self.assertEqual(report['count'],1)
         self.assertEqual(report['items'][0]['head_sha'],'a'*40)
+    def test_snapshot_detects_inflight_head_change(self):
+        old=pr()
+        new={**old,'head':{'sha':'c'*40}}
+        with self.assertRaisesRegex(ValueError,'state changed during audit'):
+            require_unchanged_pr_snapshot(old,new)
+    def test_snapshot_detects_inflight_base_change(self):
+        old=pr()
+        new={**old,'base':{'ref':'feature-parent','sha':'b'*40}}
+        with self.assertRaisesRegex(ValueError,'state changed during audit'):
+            require_unchanged_pr_snapshot(old,new)
+    def test_snapshot_detects_inflight_review_update(self):
+        old=pr()
+        new={**old,'updated_at':'2026-11-01T00:01:00Z'}
+        with self.assertRaisesRegex(ValueError,'state changed during audit'):
+            require_unchanged_pr_snapshot(old,new)
+    def test_changed_head_report_fails_closed_without_stale_row(self):
+        old=pr()
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[old],
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[]},
+            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1':{**old,'head':{'sha':'c'*40}},
+        }
+        report=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=30)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('state changed during audit',report['error'])
     def test_pagination_does_not_drop_page_two(self):
         key='/repos/RUMBO-IA/demo/pulls?state=open'
         mock=FakeGitHub({key+'&per_page=100&page=1':[{'number':i} for i in range(100)],
@@ -72,7 +102,8 @@ class TestReadiness(unittest.TestCase):
         paths={'/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
                '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr(number=1),pr(number=2)],
                checks:{'check_runs':[], 'total_count':0},
-               '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[]}
+               '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1':pr()}
         result=audit_organization(FakeGitHub(paths),'RUMBO-IA',max_prs=1)
         self.assertEqual(result['count'],1)
         self.assertFalse(result['complete'])
