@@ -34,8 +34,8 @@ class TestReadiness(unittest.TestCase):
         res=analyze_pr('RUMBO-IA/demo',pr(),[
             {'name':'privacy','status':'completed','conclusion':'success'},
             {'name':'privacy','status':'completed','conclusion':'failure'}],[])
-        self.assertEqual(res['check_state'],'FAILED')
-        self.assertIn('FAILED_CHECK',res['blockers'])
+        self.assertEqual(res['check_state'],'CONFLICTING_CHECK_CONTEXT')
+        self.assertIn('CHECK_EVENT_PROVENANCE_UNVERIFIED',res['blockers'])
     def test_latest_review_per_reviewer_wins(self):
         checks=[{'name':'unit','status':'completed','conclusion':'success'}]
         reviews=[{'user':{'login':'alice'},'state':'APPROVED','submitted_at':'2026-11-01T01:00:00Z'},
@@ -90,6 +90,35 @@ class TestReadiness(unittest.TestCase):
         self.assertFalse(report['complete'])
         self.assertEqual(report['count'],0)
         self.assertIn('state changed during audit',report['error'])
+    def test_conflicting_check_names_are_provenance_unknown_not_merge_ready(self):
+        pull=pr()
+        checks=[{'name':'privacy','status':'completed','conclusion':'failure'},
+                {'name':'privacy','status':'completed','conclusion':'success'}]
+        row=analyze_pr('RUMBO-IA/demo',pull,checks,[])
+        self.assertEqual(row['check_state'],'CONFLICTING_CHECK_CONTEXT')
+        self.assertEqual(row['conflicting_check_names'],['privacy'])
+        self.assertIn('CHECK_EVENT_PROVENANCE_UNVERIFIED',row['blockers'])
+        self.assertFalse(row['merge_authorized'])
+    def test_old_commit_approval_is_not_current_head_approval(self):
+        reviews=[{'user':{'login':'alice'},'state':'APPROVED',
+                  'submitted_at':'2026-11-01T02:00:00Z','commit_id':'c'*40}]
+        row=analyze_pr('RUMBO-IA/demo',pr(head='a'*40),[],reviews)
+        self.assertEqual(row['approvals'],0)
+        self.assertEqual(row['stale_or_unbound_approvals'],1)
+        self.assertIn('STALE_OR_UNBOUND_APPROVAL',row['blockers'])
+    def test_missing_commit_binding_not_counted_as_approval(self):
+        reviews=[{'user':{'login':'alice'},'state':'APPROVED',
+                  'submitted_at':'2026-11-01T02:00:00Z'}]
+        row=analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+        self.assertEqual(row['approvals'],0)
+        self.assertEqual(row['stale_or_unbound_approvals'],1)
+    def test_matching_head_approval_observed_without_merge_authority(self):
+        reviews=[{'user':{'login':'alice'},'state':'APPROVED',
+                  'submitted_at':'2026-11-01T02:00:00Z','commit_id':'a'*40}]
+        row=analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+        self.assertEqual(row['approvals'],1)
+        self.assertEqual(row['stale_or_unbound_approvals'],0)
+        self.assertFalse(row['merge_authorized'])
     def test_pagination_does_not_drop_page_two(self):
         key='/repos/RUMBO-IA/demo/pulls?state=open'
         mock=FakeGitHub({key+'&per_page=100&page=1':[{'number':i} for i in range(100)],
