@@ -2,8 +2,8 @@
 """Read-only, fail-closed GitHub org PR triage. Never grants merge authority.
 
 Usage:
-  GITHUB_TOKEN=... python scripts/pr_readiness_audit.py --org RUMBO-IA --max-prs 50
-  GITHUB_TOKEN=... python scripts/pr_readiness_audit.py --org RUMBO-IA --all --max-requests 1500
+  GITHUB_TOKEN=... python tools/pr_readiness_audit.py --org RUMBO-IA --max-prs 50
+  GITHUB_TOKEN=... python tools/pr_readiness_audit.py --org RUMBO-IA --all --max-requests 1500
 
 Requires only Python standard library. Stdout JSON is inspectable and machine-readable.
 No credentials are logged or stored. No mutations, reviews, re-runs or billing actions.
