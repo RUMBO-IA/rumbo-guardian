@@ -17,4 +17,6 @@ All GitHub requests are GET and bounded. On 403/transport/rate exhaustion/cap, t
 
 Observed check conclusions are not signed exact-HEAD workflow provenance. A green check is GREEN_UNATTESTED, not permission to merge. Duplicate check names are retained, including a failure alongside success. Latest submitted review per reviewer wins. Draft, stacked base, missing checks, failed checks and changed-request reviews are blockers.
 
+After reading checks and reviews, the scanner re-fetches the PR and rejects changes to HEAD SHA, base, draft status, state or update timestamp. This adds one GitHub GET per PR; keep --max-requests high enough for a full 407-PR scan (roughly 1,250 calls before any extra paginated results). A changed PR yields a partial report rather than stale merge-readiness evidence.
+
 Every row reports merge_authorized=false. A separate governed process must establish exact-head checks, branch rules, trusted runners, merge-queue attestations and required reviewer approvals. No production or billing action is implemented.
