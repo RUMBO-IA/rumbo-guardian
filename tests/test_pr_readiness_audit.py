@@ -1,7 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from pr_readiness_audit import analyze_pr, audit_organization, BudgetExceeded, pages, require_unchanged_pr_snapshot
 
 
