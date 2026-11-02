@@ -118,6 +118,24 @@ def analyze_pr(repo, pull, checks, reviews):
     }
 
 
+def require_unchanged_pr_snapshot(original, refreshed):
+    """Fail closed when a PR moves while checks/reviews are being inspected."""
+    if not isinstance(original, dict) or not isinstance(refreshed, dict):
+        raise ValueError('invalid PR readback')
+
+    def identity(item):
+        head, base = item.get('head') or {}, item.get('base') or {}
+        if not isinstance(head, dict) or not isinstance(base, dict):
+            raise ValueError('invalid PR readback')
+        return (
+            item.get('number'), item.get('state'), item.get('draft'),
+            head.get('sha'), base.get('ref'), base.get('sha'),
+            item.get('updated_at'),
+        )
+    if identity(original) != identity(refreshed):
+        raise ValueError('PR state changed during audit: exact HEAD or review snapshot stale')
+
+
 def audit_organization(client, org, max_prs=50):
     report={'schema':'rumbo.pr-readiness-readonly/v1','org':org,'complete':False,
             'generated_at':datetime.now(timezone.utc).isoformat(),
@@ -143,6 +161,8 @@ def audit_organization(client, org, max_prs=50):
                     raise ValueError('invalid PR number or head sha')
                 checks=list(pages(client,path+'/commits/'+sha+'/check-runs',key='check_runs'))
                 reviews=list(pages(client,path+'/pulls/'+str(number)+'/reviews'))
+                fresh=client.get(path+'/pulls/'+str(number))
+                require_unchanged_pr_snapshot(pull,fresh)
                 report['items'].append(analyze_pr(full,pull,checks,reviews))
                 report['count']+=1
         report['complete']=True
