@@ -73,9 +73,19 @@ def analyze_pr(repo, pull, checks, reviews):
     # Duplicate check names may represent distinct push/PR suites; never collapse them.
     states = [str(x.get('status','')).lower() for x in checks]
     conclusions = [str(x.get('conclusion') or '').lower() for x in checks]
+    failed_states = {'failure','timed_out','cancelled','action_required','startup_failure'}
+    by_name = {}
+    for check in checks:
+        name = check.get('name')
+        if isinstance(name,str) and name:
+            by_name.setdefault(name,set()).add(str(check.get('conclusion') or '').lower())
+    conflicting_names = sorted(name for name,states_for_name in by_name.items()
+                               if 'success' in states_for_name and states_for_name & failed_states)
     if not checks:
         check_state = 'ABSENT'
-    elif any(v in {'failure','timed_out','cancelled','action_required','startup_failure'} for v in conclusions):
+    elif conflicting_names:
+        check_state = 'CONFLICTING_CHECK_CONTEXT'
+    elif any(v in failed_states for v in conclusions):
         check_state = 'FAILED'
     elif any(s != 'completed' for s in states) or any(v == '' for v in conclusions):
         check_state = 'PENDING'
@@ -91,21 +101,24 @@ def analyze_pr(repo, pull, checks, reviews):
         user = (review.get('user') or {}).get('login')
         state = str(review.get('state') or '').upper()
         if user and state in {'APPROVED','CHANGES_REQUESTED','DISMISSED'}:
-            newest_by_user[user] = state
-    approved=sum(s=='APPROVED' for s in newest_by_user.values())
-    changes=sum(s=='CHANGES_REQUESTED' for s in newest_by_user.values())
+            newest_by_user[user] = (state,review.get('commit_id'))
     base=(pull.get('base') or {}).get('ref')
     head=(pull.get('head') or {}).get('sha')
+    approved=sum(state=='APPROVED' and commit==head for state,commit in newest_by_user.values())
+    stale_approvals=sum(state=='APPROVED' and commit!=head for state,commit in newest_by_user.values())
+    changes=sum(state=='CHANGES_REQUESTED' for state,_ in newest_by_user.values())
     blockers=[]
     if pull.get('draft') is True:blockers.append('DRAFT')
     if base!='main':blockers.append('STACKED_BASE')
     if not head or len(head)!=40: blockers.append('HEAD_UNVERIFIED')
     if check_state=='ABSENT':blockers.append('NO_CHECK_RUNS')
     if check_state=='FAILED':blockers.append('FAILED_CHECK')
+    if check_state=='CONFLICTING_CHECK_CONTEXT':blockers.append('CHECK_EVENT_PROVENANCE_UNVERIFIED')
     if check_state=='PENDING':blockers.append('PENDING_CHECK')
     if check_state in {'UNVERIFIED','NO_EXECUTED_PASS'}:blockers.append('INSUFFICIENT_CHECKS')
     if changes:blockers.append('CHANGES_REQUESTED')
-    if not approved:blockers.append('NO_APPROVAL_OBSERVED')
+    if stale_approvals:blockers.append('STALE_OR_UNBOUND_APPROVAL')
+    if not approved:blockers.append('NO_HEAD_BOUND_APPROVAL_OBSERVED')
     blockers.append('PROVENANCE_UNVERIFIED')
     blockers.append('RULESET_AND_QUEUE_UNVERIFIED')
     return {
@@ -113,7 +126,9 @@ def analyze_pr(repo, pull, checks, reviews):
         'head_sha':head,'base':base,'base_sha':(pull.get('base') or {}).get('sha'),
         'updated_at':pull.get('updated_at'),'draft':pull.get('draft'),
         'check_count':len(checks),'check_state':check_state,
-        'approvals':approved,'changes_requested':changes,
+        'conflicting_check_names':conflicting_names,
+        'approvals':approved,'stale_or_unbound_approvals':stale_approvals,
+        'changes_requested':changes,
         'blockers':blockers,'merge_authorized':False
     }
 
