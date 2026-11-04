@@ -3,7 +3,7 @@ const Auth=require('./agent-authorization-v3.js');
 const {types}=require('node:util');
 
 function isPlainDataRecord(value){
-  if(!value||typeof value!=='object'||Array.isArray(value)||types.isProxy(value)) return false;
+  if(!value||typeof value!=='object'||types.isProxy(value)||Array.isArray(value)) return false;
   const proto=Object.getPrototypeOf(value);
   return proto===Object.prototype||proto===null;
 }
@@ -27,7 +27,7 @@ function isStableReplayList(value){
 }
 
 function hasStableAuthorizationBinding(rawAction){
-  if(!isPlainDataRecord(rawAction)) return false;
+  if(!isPlainDataRecord(rawAction)||Object.getOwnPropertySymbols(rawAction).length) return false;
   for(const [key,descriptor] of Object.entries(Object.getOwnPropertyDescriptors(rawAction))){
     if(!Object.prototype.hasOwnProperty.call(descriptor,'value')) return false;
     const value=descriptor.value;
@@ -62,14 +62,17 @@ function prepareAuthorizedAction(rawAction={},options={}){
   if(!hasStableAuthorizationBinding(rawAction)){
     return {decision:'DENY',stage:'authorization_input',gate:null,authorization:{verified:false,reasons:['unstable_authorization_input']},reservation:null,ticket:null};
   }
-  const gate=Gate.assessAgentAction(rawAction,options.gateOptions||{});
+  const safeAction=Object.assign(Object.create(null),rawAction);
+  if(safeAction.authorization!==undefined&&safeAction.authorization!==null)
+    safeAction.authorization=Object.assign(Object.create(null),safeAction.authorization);
+  const gate=Gate.assessAgentAction(safeAction,options.gateOptions||{});
   if(gate.decision!=='ALLOW'){
     return {decision:gate.decision,stage:'policy',gate,authorization:null,reservation:null,ticket:null};
   }
 
   const envelope={
-    ...(rawAction.authorization||{}),
-    observedAt:rawAction.authorizationObservedAt
+    ...(safeAction.authorization||{}),
+    observedAt:safeAction.authorizationObservedAt
   };
   const authorization=Auth.verifyAuthorizationProof(envelope,{trustedPublicKeys:options.trustedPublicKeys||{}});
   if(!authorization.verified){
