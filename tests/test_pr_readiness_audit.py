@@ -1,5 +1,8 @@
 import sys
 import unittest
+import io
+import urllib.error
+from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from pr_readiness_audit import analyze_pr, audit_organization, BudgetExceeded, pages, require_unchanged_pr_snapshot
@@ -24,6 +27,33 @@ class FakeGitHub:
         return self.responses[path]
 
 class TestReadiness(unittest.TestCase):
+    def test_transient_502_retries_without_false_success(self):
+        from pr_readiness_audit import GithubReader
+        first = urllib.error.HTTPError('https://api.github.com/a', 502, 'Bad Gateway', {}, None)
+        self.addCleanup(first.close)
+        count = {'n': 0}
+        def fake_open(request, timeout=15):
+            count['n'] += 1
+            if count['n'] == 1:
+                raise first
+            return io.BytesIO(b'{"ok":true}')
+        reader = GithubReader('test-token', max_requests=2)
+        with patch('urllib.request.urlopen', side_effect=fake_open):
+            self.assertEqual(reader.get('/a'), {'ok': True})
+        self.assertEqual(reader.count, 2)
+        self.assertEqual(count['n'], 2)
+
+    def test_transient_502_cannot_exceed_request_budget(self):
+        from pr_readiness_audit import GithubReader
+        first = urllib.error.HTTPError('https://api.github.com/a', 502, 'Bad Gateway', {}, None)
+        self.addCleanup(first.close)
+        reader = GithubReader('test-token', max_requests=1)
+        with patch('urllib.request.urlopen', side_effect=first) as opened:
+            with self.assertRaisesRegex(BudgetExceeded, 'request budget reached'):
+                reader.get('/a')
+        self.assertEqual(reader.count, 1)
+        self.assertEqual(opened.call_count, 1)
+
     def test_green_checks_are_not_merge_authorization(self):
         res=analyze_pr('RUMBO-IA/demo',pr(),[{'name':'test','status':'completed','conclusion':'success'}],
                        [{'user':{'login':'reviewer'},'state':'APPROVED','submitted_at':'2026-11-01T01:00:00Z'}])
