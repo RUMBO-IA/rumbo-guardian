@@ -141,8 +141,24 @@ async function main(){
       const listed=strictDispatcher(null,adapter()).listTools()[0];assert.equal(listed.destinationCapabilityDigest,DIGEST_V1);assert.equal(listed.destinationCapabilityVersion,'cap-v1');ok();
     }
 
-    assert.equal(passed,15);
-    console.log('RUMBO Trusted Destination Capability V12: 15/15 PASS + explicit V12 compatibility mode + fail-closed exact-schema manifests + V11 DB migration + signed capability rotation + legacy downgrade guards');
+    {
+      // No supplied manifest field may call a user-defined toString or valueOf.
+      const keys=['adapterId','capabilityVersion','protocolVersion','idempotencyMode','reconciliationMode','schema'];
+      let calls=0;
+      for(const field of keys){
+        const hostile={toString(){calls++;return POLICY_V1[field];},valueOf(){calls++;return POLICY_V1[field];}};
+        const policy={...POLICY_V1,[field]:hostile};
+        assert.throws(()=>Cap.normalizeTrustedDestinationCapability(policy,'adapter-a','send-v12'),/invalid_destination_capability/);
+        assert.equal(calls,0,field+' must not execute user-defined coercion');
+      }
+      for(const field of keys){
+        const policy={...POLICY_V1,[field]:1};
+        assert.throws(()=>Cap.normalizeTrustedDestinationCapability(policy,'adapter-a','send-v12'),/invalid_destination_capability/);
+      }
+      ok();
+    }
+    assert.equal(passed,16);
+    console.log('RUMBO Trusted Destination Capability V12: 16/16 PASS + explicit V12 compatibility mode + fail-closed exact-schema manifests + V11 DB migration + signed capability rotation + legacy downgrade guards');
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 main().catch(err=>{console.error(err);process.exit(1);});
