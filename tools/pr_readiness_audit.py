@@ -11,6 +11,7 @@ No credentials are logged or stored. No mutations, reviews, re-runs or billing a
 import argparse
 import csv
 import json
+import http.client
 import os
 import sys
 import urllib.error
@@ -48,7 +49,7 @@ class GithubReader:
                 if error.code in (500, 502, 503, 504) and attempt < 2:
                     continue
                 raise RuntimeError('GitHub API HTTP '+str(error.code)+' (audit incomplete)') from None
-            except (TimeoutError,urllib.error.URLError) as error:
+            except (TimeoutError,urllib.error.URLError,http.client.IncompleteRead) as error:
                 raise RuntimeError('GitHub API transport failed: '+type(error).__name__) from None
 
 
@@ -166,7 +167,7 @@ def audit_organization(client, org, max_prs=50):
             raise ValueError('invalid organization name')
         for repo in pages(client,'/orgs/'+org+'/repos?type=all'):
             full=repo.get('full_name')
-            if not full or not full.startswith(org+'/') or repo.get('archived'):
+            if not isinstance(full,str) or not full.casefold().startswith((org+'/').casefold()) or repo.get('archived'):
                 continue
             report['repos_scanned']+=1
             path='/repos/'+full
