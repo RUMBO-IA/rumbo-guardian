@@ -1,0 +1,17 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "check": {
+      "tags": [
+        "ci"
+      ],
+      "outputs": []
+    },
+    "test:unit": {
+      "tags": [
+        "ci"
+      ],
+      "outputs": []
+    }
+  }
+}
