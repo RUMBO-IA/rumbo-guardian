@@ -203,4 +203,5 @@ function bind(action,overrides={}){
   assert.equal(plan.decision,'REVIEW','a review child action must propagate review to the plan');
 }
 
+require('./purchase-validation-v2.test.js');
 console.log('RUMBO Agent Action Gate V2: 25/25 PASS');

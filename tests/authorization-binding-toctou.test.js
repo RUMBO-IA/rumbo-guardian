@@ -102,4 +102,45 @@ test('symbol-keyed getter cannot replace authorization observation time during s
   assert.equal(r.consumeCalls,0);
   assert.equal(symbolHooks,0,'symbol-keyed authorization accessors must not execute');
 });
-console.log(`RUMBO signature binding TOCTOU: ${count}/10 PASS`);
+test('revoked action proxy denies without throwing',()=>{
+  const x=Proxy.revocable({id:'act-1'},{}); x.revoke();
+  const r=dispatch(x.proxy);
+  assert.equal(r.decision,'DENY');
+  assert.equal(r.stage,'authorization_input');
+  assert.equal(r.consumeCalls,0);
+});
+test('revoked authorization proxy denies without throwing',()=>{
+  const x=Proxy.revocable({authorizationId:'auth-1'},{}); x.revoke();
+  const r=dispatch({...base,authorization:x.proxy});
+  assert.equal(r.decision,'DENY');
+  assert.equal(r.stage,'authorization_input');
+  assert.equal(r.consumeCalls,0);
+});
+test('action symbols are rejected without executing hooks',()=>{
+  const action={...base}; let hits=0;
+  Object.defineProperty(action,Symbol('security'),{enumerable:true,get(){hits++;return 'x';}});
+  const r=dispatch(action);
+  assert.equal(r.decision,'DENY');
+  assert.equal(r.consumeCalls,0);
+  assert.equal(hits,0);
+});
+test('inherited observation getter cannot affect the signed action',()=>{
+  let hits=0;
+  const original=Object.getOwnPropertyDescriptor(Object.prototype,'authorizationObservedAt');
+  Object.defineProperty(Object.prototype,'authorizationObservedAt',{
+    configurable:true,get(){hits++;return NOW;}
+  });
+  try {
+    const signed=proof(base,'inherited-field');
+    const action={...base,authorization:signed};
+    delete action.authorizationObservedAt;
+    const r=dispatch(action);
+    assert.notEqual(r.decision,'ALLOW');
+    assert.equal(r.consumeCalls,0);
+    assert.equal(hits,0);
+  } finally {
+    if(original) Object.defineProperty(Object.prototype,'authorizationObservedAt',original);
+    else delete Object.prototype.authorizationObservedAt;
+  }
+});
+console.log(`RUMBO signature binding TOCTOU: ${count}/14 PASS`);
