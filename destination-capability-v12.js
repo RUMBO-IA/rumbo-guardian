@@ -37,12 +37,14 @@ function denseStringArray(raw){
 function normalizeTrustedDestinationCapability(raw,expectedAdapterId,implementationId){
   const descriptors=plainDataObject(raw);
   if(!descriptors||!exactKeys(descriptors,CAPABILITY_KEYS)) throw new Error('invalid_destination_capability');
-  const adapterId=String(descriptors.adapterId.value||'').trim();
-  const capabilityVersion=String(descriptors.capabilityVersion.value||'').trim();
-  const protocolVersion=String(descriptors.protocolVersion.value||'').trim();
-  const idempotencyMode=String(descriptors.idempotencyMode.value||'').trim();
-  const reconciliationMode=String(descriptors.reconciliationMode.value||'').trim();
-  const schema=String(descriptors.schema.value||'').trim();
+  const scalarFields=['adapterId','capabilityVersion','protocolVersion','idempotencyMode','reconciliationMode','schema'];
+  if(scalarFields.some(key=>typeof descriptors[key].value!=='string')) throw new Error('invalid_destination_capability');
+  const adapterId=descriptors.adapterId.value.trim();
+  const capabilityVersion=descriptors.capabilityVersion.value.trim();
+  const protocolVersion=descriptors.protocolVersion.value.trim();
+  const idempotencyMode=descriptors.idempotencyMode.value.trim();
+  const reconciliationMode=descriptors.reconciliationMode.value.trim();
+  const schema=descriptors.schema.value.trim();
   if(adapterId!==String(expectedAdapterId||'').trim()) throw new Error('destination_capability_adapter_mismatch');
   if(!bounded(adapterId)||!bounded(capabilityVersion)||!bounded(protocolVersion)||schema!==CAPABILITY_SCHEMA) throw new Error('invalid_destination_capability');
   if(idempotencyMode!==IDEMPOTENCY_MODE||reconciliationMode!==RECONCILIATION_MODE) throw new Error('unsupported_destination_capability');

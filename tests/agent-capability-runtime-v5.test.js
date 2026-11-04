@@ -195,6 +195,10 @@ function attestation(adapterId,nonce,overrides={}){
     assert.equal(probe.fsDenied,true);
     assert.equal(probe.childDenied,true);
     assert.equal(probe.workerDenied,true);
+    if(/^v26\./.test(process.version)){
+      assert.equal(probe.networkDenied,true);
+      assert.equal(probe.hardConfinement,true);
+    }
     if(/^v22\./.test(process.version)){
       assert.equal(probe.networkDenied,false);
       assert.equal(probe.hardConfinement,false);
