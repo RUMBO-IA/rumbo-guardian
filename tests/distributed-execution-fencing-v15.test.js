@@ -33,7 +33,34 @@ async function main(){
    const atomic=createAtomicFencedDestination({fencingStore:store3,apply:async(_input)=>{applied++;return {fencingAccepted:false};}});
    const denied=await atomic.applyWithLease(lease,{}, {}, {nowMs:0});assert.equal(denied.decision,'DENY');assert.equal(denied.reason,'fencing_not_enforced_at_mutation_boundary');assert.equal(applied,1);ok();
  }
- assert.equal(passed,16);
- console.log('RUMBO Distributed Execution Fencing V15: 16/16 PASS + stale-token rejection + lease expiry + atomic mutation-boundary fencing');
+ {
+   const counter=new InMemoryFencingStore();
+   counter.resources.set('r-overflow',{token:Number.MAX_SAFE_INTEGER,ownerId:null,executionId:null,expiresAt:0});
+   await assert.rejects(()=>counter.acquire({resourceId:'r-overflow',executionId:'e',ownerId:'host-a'},{nowMs:100,ttlMs:50}),/fencing_token_exhausted/);
+   assert.equal(counter.resources.get('r-overflow').token,Number.MAX_SAFE_INTEGER);ok();
+ }
+ {
+   const clock=new InMemoryFencingStore(),identity={resourceId:'r-clock',executionId:'e',ownerId:'host-a'};
+   for(const nowMs of [NaN,Infinity,-Infinity,-1,Number.MAX_SAFE_INTEGER+1])
+     await assert.rejects(()=>clock.acquire(identity,{nowMs,ttlMs:100}),/lease_time_invalid/);
+   const lease=await clock.acquire(identity,{nowMs:1000,ttlMs:100});
+   for(const nowMs of [NaN,Infinity,-Infinity,-1,Number.MAX_SAFE_INTEGER+1]){
+     await assert.rejects(()=>clock.renew(lease,{nowMs,ttlMs:100}),/lease_time_invalid/);
+     await assert.rejects(()=>clock.validate(lease,{nowMs}),/lease_time_invalid/);
+   }ok();
+ }
+ {
+   const clock=new InMemoryFencingStore();
+   const lease=await clock.acquire({resourceId:'r-extend',executionId:'e',ownerId:'host-a'},{nowMs:1000,ttlMs:1000});
+   const renewed=await clock.renew(lease,{nowMs:1100,ttlMs:10});
+   assert.equal(renewed.renewed,true);assert.equal(renewed.expiresAt,2000);
+   assert.equal((await clock.validate(lease,{nowMs:1999})).valid,true);ok();
+ }
+ {
+   const clock=new InMemoryFencingStore();
+   await assert.rejects(()=>clock.acquire({resourceId:'r-edge',executionId:'e',ownerId:'host-a'},{nowMs:Number.MAX_SAFE_INTEGER-1,ttlMs:100}),/lease_time_invalid/);ok();
+ }
+ assert.equal(passed,20);
+ console.log('RUMBO Distributed Execution Fencing V15: 20/20 PASS + stale-token rejection + lease expiry + atomic mutation-boundary fencing');
 }
 main().catch(err=>{console.error(err);process.exit(1);});
