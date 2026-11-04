@@ -49,6 +49,10 @@ class GithubReader:
                 if error.code in (500, 502, 503, 504) and attempt < 2:
                     continue
                 raise RuntimeError('GitHub API HTTP '+str(error.code)+' (audit incomplete)') from None
+            except http.client.RemoteDisconnected as error:
+                if attempt < 2:
+                    continue
+                raise RuntimeError('GitHub API transport failed: '+type(error).__name__) from None
             except (TimeoutError,urllib.error.URLError,http.client.IncompleteRead) as error:
                 raise RuntimeError('GitHub API transport failed: '+type(error).__name__) from None
 
