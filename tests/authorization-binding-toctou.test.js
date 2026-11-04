@@ -143,4 +143,20 @@ test('inherited observation getter cannot affect the signed action',()=>{
     else delete Object.prototype.authorizationObservedAt;
   }
 });
-console.log(`RUMBO signature binding TOCTOU: ${count}/14 PASS`);
+test('non-enumerable handlesSecrets fails closed before authorization',()=>{
+  const action={...base,authorization:proof(base,'hidden-secrets')};
+  Object.defineProperty(action,'handlesSecrets',{value:true,enumerable:false});
+  const r=dispatch(action);
+  assert.equal(r.decision,'DENY');
+  assert.equal(r.stage,'authorization_input');
+  assert.equal(r.consumeCalls,0);
+});
+test('non-enumerable nested authorization key fails closed',()=>{
+  const authorization=proof(base,'hidden-auth-key');
+  Object.defineProperty(authorization,'keyId',{value:authorization.keyId,enumerable:false});
+  const r=dispatch({...base,authorization});
+  assert.equal(r.decision,'DENY');
+  assert.equal(r.stage,'authorization_input');
+  assert.equal(r.consumeCalls,0);
+});
+console.log(`RUMBO signature binding TOCTOU: ${count}/16 PASS`);

@@ -43,7 +43,7 @@ function hasStableAuthorizationBinding(rawAction){
   if(!isPlainDataRecord(rawAction)||Object.getOwnPropertySymbols(rawAction).length) return false;
   if(hasInheritedSecurityField(rawAction,ACTION_READ_FIELDS)) return false;
   for(const [key,descriptor] of Object.entries(Object.getOwnPropertyDescriptors(rawAction))){
-    if(!Object.prototype.hasOwnProperty.call(descriptor,'value')) return false;
+    if(!Object.prototype.hasOwnProperty.call(descriptor,'value')||descriptor.enumerable!==true) return false;
     const value=descriptor.value;
     if(ACTION_SCALARS.has(key)&&value!==undefined&&value!==null&&
       typeof value!=='string'&&typeof value!=='number'&&typeof value!=='boolean') return false;
@@ -57,7 +57,7 @@ function hasStableAuthorizationBinding(rawAction){
       if(!isPlainDataRecord(auth)||Object.getOwnPropertySymbols(auth).length) return false;
       if(hasInheritedSecurityField(auth,AUTH_READ_FIELDS)) return false;
       for(const descriptor of Object.values(Object.getOwnPropertyDescriptors(auth))){
-        if(!Object.prototype.hasOwnProperty.call(descriptor,'value')) return false;
+        if(!Object.prototype.hasOwnProperty.call(descriptor,'value')||descriptor.enumerable!==true) return false;
         const value=descriptor.value;
         if(value!==undefined&&value!==null&&typeof value!=='string'&&typeof value!=='number') return false;
       }
