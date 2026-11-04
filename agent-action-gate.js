@@ -15,6 +15,8 @@
   const asBool=v=>v===true;
   const asFinite=v=>{
     if(v===undefined||v===null||v==='') return null;
+    if(typeof v!=='string'&&typeof v!=='number') return null;
+    if(typeof v==='string'&&!v.trim()) return null;
     const n=Number(v);
     return Number.isFinite(n)?n:null;
   };
@@ -153,7 +155,9 @@
 
     if(action.effect==='purchase'){
       if(action.amount===null) review('missing_amount','Purchase amount is missing or invalid.','amount');
+      else if(action.amount<0) deny('invalid_purchase_amount','Purchase amount must not be negative.');
       if(action.spendLimit===null) review('missing_spend_limit','Purchase has no explicit spend limit.','spend_limit');
+      else if(action.spendLimit<0) deny('invalid_spend_limit','Purchase spend limit must not be negative.');
       if(action.amount!==null&&action.spendLimit!==null&&action.amount>action.spendLimit) deny('spend_limit_exceeded',`Purchase amount ${action.amount} exceeds spend limit ${action.spendLimit}.`);
     }
 
