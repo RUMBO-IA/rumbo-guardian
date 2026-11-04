@@ -30,23 +30,26 @@ class GithubReader:
         self.count = 0
 
     def get(self, path):
-        if self.count >= self.max_requests:
-            raise BudgetExceeded('request budget reached')
         if not path.startswith('/') or '://' in path or '\\' in path or '#' in path:
             raise ValueError('invalid GitHub path')
-        self.count += 1
         headers = {'Accept':'application/vnd.github+json', 'User-Agent':'RUMBO-readonly-pr-audit/1',
                    'X-GitHub-Api-Version':'2022-11-28'}
         if self.token:
             headers['Authorization'] = 'Bearer ' + self.token
         request = urllib.request.Request('https://api.github.com'+path, headers=headers, method='GET')
-        try:
-            with urllib.request.urlopen(request,timeout=15) as response:
-                return json.load(response)
-        except urllib.error.HTTPError as error:
-            raise RuntimeError('GitHub API HTTP '+str(error.code)+' (audit incomplete)') from None
-        except (TimeoutError,urllib.error.URLError) as error:
-            raise RuntimeError('GitHub API transport failed: '+type(error).__name__) from None
+        for attempt in range(3):
+            if self.count >= self.max_requests:
+                raise BudgetExceeded('request budget reached')
+            self.count += 1
+            try:
+                with urllib.request.urlopen(request,timeout=15) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                if error.code in (500, 502, 503, 504) and attempt < 2:
+                    continue
+                raise RuntimeError('GitHub API HTTP '+str(error.code)+' (audit incomplete)') from None
+            except (TimeoutError,urllib.error.URLError) as error:
+                raise RuntimeError('GitHub API transport failed: '+type(error).__name__) from None
 
 
 def pages(client, path, key=None):
