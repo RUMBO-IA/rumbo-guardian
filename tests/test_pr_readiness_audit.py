@@ -28,6 +28,29 @@ class FakeGitHub:
         return self.responses[path]
 
 class TestReadiness(unittest.TestCase):
+    def test_remote_disconnected_recovers_with_bounded_retry(self):
+        from pr_readiness_audit import GithubReader
+        calls={'count':0}
+        def fake_urlopen(request,timeout=15):
+            calls['count']+=1
+            if calls['count']==1:
+                raise http.client.RemoteDisconnected('Remote end closed connection without response')
+            return io.BytesIO(b'{"ok":true}')
+        reader=GithubReader('test-token',max_requests=2)
+        with patch('urllib.request.urlopen',side_effect=fake_urlopen):
+            self.assertEqual(reader.get('/example'),{'ok':True})
+        self.assertEqual(reader.count,2)
+        self.assertEqual(calls['count'],2)
+
+    def test_remote_disconnected_obeys_budget_without_false_success(self):
+        from pr_readiness_audit import GithubReader
+        reader=GithubReader('test-token',max_requests=1)
+        with patch('urllib.request.urlopen',side_effect=http.client.RemoteDisconnected('connection closed')) as fake:
+            with self.assertRaisesRegex(BudgetExceeded,'request budget reached'):
+                reader.get('/example')
+        self.assertEqual(reader.count,1)
+        self.assertEqual(fake.call_count,1)
+
     def test_org_name_case_does_not_silently_skip_repo(self):
         repo={'full_name':'RUMBO-IA/demo','archived':False}
         fake=FakeGitHub({
