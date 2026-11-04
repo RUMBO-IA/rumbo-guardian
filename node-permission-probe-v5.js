@@ -18,6 +18,14 @@ server.once('error',err=>{
   out.hardConfinement=out.fsDenied&&out.childDenied&&out.workerDenied&&out.networkDenied;
   console.log(JSON.stringify(out));
 });
+// Node 26 can surface a denied listen as an uncaught next-tick exception
+// instead of Server 'error'. Accept ONLY the explicit Net permission denial.
+process.once('uncaughtException',err=>{
+  if(!err||err.code!=='ERR_ACCESS_DENIED'||err.permission!=='Net') throw err;
+  out.networkDenied=true;
+  out.hardConfinement=out.fsDenied&&out.childDenied&&out.workerDenied;
+  console.log(JSON.stringify(out));
+});
 server.listen(0,'127.0.0.1',()=>{
   out.networkDenied=false;
   out.hardConfinement=false;
