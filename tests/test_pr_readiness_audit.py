@@ -1,6 +1,7 @@
 import sys
 import unittest
 import io
+import http.client
 import urllib.error
 from unittest.mock import patch
 from pathlib import Path
@@ -27,6 +28,35 @@ class FakeGitHub:
         return self.responses[path]
 
 class TestReadiness(unittest.TestCase):
+    def test_org_name_case_does_not_silently_skip_repo(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        fake=FakeGitHub({
+            '/orgs/rumbo-ia/repos?type=all&per_page=100&page=1':[repo],
+            '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr()],
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[]},
+            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1':pr(),
+        })
+        report=audit_organization(fake,'rumbo-ia',max_prs=30)
+        self.assertTrue(report['complete'],report['error'])
+        self.assertEqual(report['count'],1)
+        self.assertEqual(report['items'][0]['repo'],'RUMBO-IA/demo')
+
+    def test_incomplete_http_response_is_a_handled_audit_error(self):
+        from pr_readiness_audit import GithubReader
+        class TruncatedResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, exception_type, exception, traceback):
+                return False
+            def read(self):
+                raise http.client.IncompleteRead(b'{"partial":', 10)
+        client=GithubReader('fake-token',max_requests=2)
+        with patch('urllib.request.urlopen',return_value=TruncatedResponse()):
+            with self.assertRaisesRegex(RuntimeError,'transport failed: IncompleteRead'):
+                client.get('/example')
+        self.assertEqual(client.count,1)
+
     def test_transient_502_retries_without_false_success(self):
         from pr_readiness_audit import GithubReader
         first = urllib.error.HTTPError('https://api.github.com/a', 502, 'Bad Gateway', {}, None)
