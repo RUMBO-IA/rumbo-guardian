@@ -27,7 +27,7 @@ START_DESKTOP_COMMANDER_REMOTE.cmd
 The launcher invokes the supervisor with `-RecoverExisting`. The supervisor only targets `node.exe`/`cmd.exe` process trees whose command line contains both `desktop-commander` and the `remote` argument. It then starts:
 
 ```text
-npx --yes @wonderwhy-er/desktop-commander@0.2.48 remote
+npx --yes @wonderwhy-er/desktop-commander@0.2.52 remote
 ```
 
 If authorization is required, complete the normal browser device flow and keep the process running until it reports `Device ready`.

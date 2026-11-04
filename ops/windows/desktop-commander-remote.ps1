@@ -1,5 +1,5 @@
 param(
-  [string]$PackageVersion = '0.2.48',
+  [string]$PackageVersion = '0.2.52',
   [switch]$RecoverExisting
 )
 

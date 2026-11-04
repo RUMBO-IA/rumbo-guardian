@@ -13,7 +13,7 @@ const expected = [
   ['Lock is acquired before checking processes', /\$supervisorLock\s*=\s*\[System\.IO\.File\]::Open[\s\S]*?\$existing\s*=\s*Get-RemoteAgentProcesses/],
   ['Lock is held through agent process', /\$existing\s*=\s*Get-RemoteAgentProcesses[\s\S]*?&\s*\$npx\.Source[\s\S]*?\$supervisorLock\.Dispose\(\)/],
   ['Lock is released through finally', /\}\s*finally\s*\{\s*if\s*\(\$null\s+-ne\s+\$supervisorLock\)\s*\{\s*\$supervisorLock\.Dispose\(\)/],
-  ['Startup never blindly guesses latest package', /\[string\]\$PackageVersion\s*=\s*'0\.2\.48'/],
+  ['Startup never blindly guesses latest package', /\[string\]\$PackageVersion\s*=\s*'0\.2\.52'/],
   ['No privileged Windows logon task invoked from supervisor', /Get-Command\s+node\.exe/]
 ];
 for (const [label, rule] of expected) assert.match(source, rule, label);
