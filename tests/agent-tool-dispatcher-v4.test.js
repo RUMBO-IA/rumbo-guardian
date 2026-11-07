@@ -1,3 +1,4 @@
+require('./authorization-binding-toctou.test.js');
 const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
 const Gate=require('../agent-action-gate.js');

@@ -1,16 +1,23 @@
 const fs=require('node:fs');
 const path=require('node:path');
+const {types}=require('node:util');
 
-function validId(value){ return /^[A-Za-z0-9._:-]{1,200}$/.test(String(value||'')); }
+function validId(value){ return typeof value==='string'&&/^[A-Za-z0-9._:-]{1,200}$/.test(value); }
 function boundedText(value,max=512){
   if(value===undefined||value===null) return null;
-  const text=String(value);
-  return text.length<=max?text:null;
+  if(typeof value!=='string') return null;
+  return value.length<=max?value:null;
 }
 function sanitizeMetadata(metadata={}){
   const out={};
+  if(!metadata||typeof metadata!=='object'||types.isProxy(metadata)||Array.isArray(metadata)) return out;
+  const proto=Object.getPrototypeOf(metadata);
+  if(proto!==Object.prototype&&proto!==null) return out;
+  const descriptors=Object.getOwnPropertyDescriptors(metadata);
   for(const key of ['actionDigest','keyId','authorizerFingerprint','correlationId']){
-    const value=boundedText(metadata[key]);
+    const descriptor=descriptors[key];
+    if(!descriptor||!Object.prototype.hasOwnProperty.call(descriptor,'value')) continue;
+    const value=boundedText(descriptor.value);
     if(value!==null) out[key]=value;
   }
   return out;
@@ -39,7 +46,7 @@ class FileAuthorizationReplayStore{
   }
 
   consume(authorizationId,metadata={}){
-    const id=String(authorizationId||'').trim();
+    const id=typeof authorizationId==='string'?authorizationId.trim():'';
     if(!validId(id)) return {consumed:false,reason:'invalid_authorization_id'};
     fs.mkdirSync(path.dirname(this.filePath),{recursive:true});
     let lockFd;
