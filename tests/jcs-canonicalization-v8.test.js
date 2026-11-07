@@ -1,4 +1,7 @@
 const assert=require('node:assert/strict');
+const {execFileSync}=require('node:child_process');
+// Security regression remains an independent process and is part of npm test/test:unit.
+execFileSync(process.execPath,[require.resolve('./auth-verifier-stable-input.test.js')],{stdio:'inherit',timeout:30000});
 const crypto=require('node:crypto');
 const JCS=require('../jcs-canonicalize-v8.js');
 const Dispatch=require('../agent-tool-dispatcher-v4.js');
