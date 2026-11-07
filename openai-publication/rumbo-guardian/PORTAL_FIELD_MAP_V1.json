@@ -1,0 +1,85 @@
+{
+  "schema": "rumbo.openai-plugin-portal-field-map/v1",
+  "candidate": "RUMBO Guardian",
+  "submission_type": "WITH_MCP",
+  "publishing_target": {
+    "organization_name": "Rumbo",
+    "organization_id": "org-xql5Kakv9j6c2qucAqkvSnig",
+    "project_name": "Default project",
+    "project_id": "proj_JcDpv5GX0WVzThCSAnhbP8fy",
+    "target_discovery": "PASS_CONNECTOR_READBACK",
+    "apps_management_write": "UNVERIFIED_ACCOUNT_GATE",
+    "developer_identity": "UNVERIFIED_ACCOUNT_GATE",
+    "data_residency": "UNVERIFIED_ACCOUNT_GATE",
+    "mcp_submission_required_residency": "GLOBAL"
+  },
+  "info": {
+    "plugin_name": "RUMBO Guardian",
+    "short_description": "Explainable defensive analysis of user-supplied suspicious URLs, messages, signals, and Evidence Ledgers.",
+    "category": "PRODUCTIVITY",
+    "website_url": "https://rumbo.verso.fans/",
+    "support_url": "https://rumbo-openai-support.val.run/",
+    "privacy_url": "https://rumbo.verso.fans/openai-privacy",
+    "terms_url": "https://rumbo.verso.fans/openai-terms",
+    "support_semantic_verification": "PASS_INDEPENDENT_CI",
+    "publisher_identity_match": "UNVERIFIED_ACCOUNT_GATE"
+  },
+  "mcp": {
+    "url_type": "UNIVERSAL",
+    "server_url": "https://rumbo-guardian-openai.val.run/",
+    "protocol": "2025-06-18",
+    "authentication": "noauth",
+    "scan_tools": "NOT_EXECUTED_PORTAL_GATE",
+    "tools": ["analyze_url", "analyze_text", "verify_ledger", "explain_signal"],
+    "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
+    "output_schemas": "PASS_4_OF_4",
+    "independent_host_verification": "PASS",
+    "last_exact_head_receipt": {
+      "head": "df22236ab36dd16d824dd47d47c63dcccb2e6305",
+      "guardian_ci": 34460310404,
+      "hosted_mcp_conformance": 34460310396,
+      "openai_plugin_contract": 34460310358,
+      "all_success": true
+    }
+  },
+  "domain_verification": {
+    "challenge_url": "https://rumbo-guardian-openai.val.run/.well-known/openai-apps-challenge",
+    "token_state": "NOT_ISSUED_NOT_CONFIGURED",
+    "expected_without_token": "HTTP_404_EMPTY",
+    "action_if_portal_issues_token": "INSTALL_EXACT_TOKEN_AND_VERIFY_PLAINTEXT_RESPONSE",
+    "action_without_portal_token": "DO_NOT_CONFIGURE_OR_FABRICATE_TOKEN"
+  },
+  "testing": {
+    "submission_packet": "chatgpt-app-submission.json",
+    "positive_test_cases": 5,
+    "negative_test_cases": 3
+  },
+  "availability": {
+    "state": "UNSET_FAIL_CLOSED",
+    "countries_or_regions": [],
+    "decision_owner": "PUBLISHER"
+  },
+  "attestation_and_submission": {
+    "policy_attestations": "NOT_EXECUTED_PORTAL_GATE",
+    "submit_for_review": false,
+    "approved": false,
+    "published": false
+  },
+  "remaining_gates": [
+    "APPS_MANAGEMENT_WRITE",
+    "VERIFIED_PUBLISHER_IDENTITY",
+    "GLOBAL_DATA_RESIDENCY_PROJECT",
+    "AVAILABILITY_SELECTION",
+    "PORTAL_SCAN_TOOLS",
+    "DOMAIN_CHALLENGE_IF_ISSUED",
+    "POLICY_ATTESTATIONS",
+    "SUBMIT_REVIEW_PUBLISH"
+  ],
+  "budget": {
+    "money_spend": 0,
+    "paid_plan_changes": false,
+    "billing_changes": false,
+    "api_credit_purchase": false,
+    "auto_recharge_change": false
+  }
+}

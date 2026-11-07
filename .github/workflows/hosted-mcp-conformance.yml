@@ -1,0 +1,31 @@
+name: Hosted MCP Conformance
+
+on:
+  push:
+    branches:
+      - fix/mcp-vercel-stateless-adapter-v1
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify-hosted-mcp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify public OpenAI submission MCP candidate
+        env:
+          RUMBO_GUARDIAN_MCP_BASE: https://rumbo-guardian-openai.val.run
+          RUMBO_GUARDIAN_SOURCE_SHA: 89cbd20685604a01be8b17a09584a1e7364b4fb0
+        run: node tools/verify-hosted-mcp-staging.js
+      - name: Verify publisher support semantics
+        env:
+          RUMBO_PUBLISHER_SUPPORT_URL: https://rumbo-openai-support.val.run/
+        run: node tools/verify-publisher-support.js
