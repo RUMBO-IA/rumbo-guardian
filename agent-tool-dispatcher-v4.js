@@ -16,7 +16,8 @@ function snapshotDispatchRecord(value){
   if(Object.getOwnPropertySymbols(value).length) throw new Error('invalid_request_record');
   const record=Object.create(null);
   for(const [key,descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))){
-    if(!Object.prototype.hasOwnProperty.call(descriptor,'value')) throw new Error('invalid_request_record');
+    // Hidden own properties must not be promoted to enumerable authorization fields.
+    if(!Object.prototype.hasOwnProperty.call(descriptor,'value')||descriptor.enumerable!==true) throw new Error('invalid_request_record');
     record[key]=descriptor.value;
   }
   return record;

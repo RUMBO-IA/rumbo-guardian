@@ -35,11 +35,29 @@ async function run(){
   Object.defineProperty(dangerous,sym,{enumerable:true,get(){calls++;return 'send';}});
   await check('symbol getter rejected before spread',{tool:'read',action:dangerous},'request_binding',0,()=>calls);
 
+  // A non-enumerable own property previously became enumerable in the ingress
+  // snapshot, bypassing descriptor checks in prepareAuthorizedAction.
+  const hiddenTool={};
+  Object.defineProperty(hiddenTool,'tool',{value:'read',enumerable:false});
+  await check('non-enumerable top-level tool rejected',hiddenTool,'request_binding');
+
+  const hiddenAction={effect:'read'};
+  Object.defineProperty(hiddenAction,'handlesSecrets',{value:false,enumerable:false});
+  await check('non-enumerable action authorization flag rejected',{tool:'read',action:hiddenAction},'request_binding');
+
+  const hiddenAuth={};
+  Object.defineProperty(hiddenAuth,'authorizationId',{value:'auth-covert',enumerable:false});
+  await check('non-enumerable nested authorization ID rejected',{tool:'read',action:{authorization:hiddenAuth}},'request_binding');
+
+  const hiddenExtra={tool:'read'};
+  Object.defineProperty(hiddenExtra,'undisclosed',{value:123,enumerable:false});
+  await check('non-enumerable unrecognized request field rejected',hiddenExtra,'request_binding');
+
   const ordinary=await dispatcher.dispatch({tool:'read',action:{id:'r1',effect:'read',purpose:'Inspect',intentAligned:true}});
   assert.notEqual(ordinary.stage,'request_binding','ordinary data-only requests still reach authorization policy');
   assert.equal(ordinary.executed,false);
   count++;console.log('PASS ordinary data-only request passes ingress');
-  assert.equal(count,10);
-  console.log('RUMBO dispatcher ingress hardening: 10/10 PASS');
+  assert.equal(count,14);
+  console.log('RUMBO dispatcher ingress hardening: 14/14 PASS');
 }
 run().catch(err=>{console.error(err);process.exitCode=1});
