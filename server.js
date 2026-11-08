@@ -7,6 +7,7 @@ const publicAssets=new Map([
   ['/styles.css','styles.css'],
   ['/guardian-core.js','guardian-core.js'],
   ['/evidence-chain.js','evidence-chain.js'],
+  ['/domain-vault.js','domain-vault.js'],
   ['/app.js','app.js'],
   ['/manifest.webmanifest','manifest.webmanifest'],
   ['/sw.js','sw.js']

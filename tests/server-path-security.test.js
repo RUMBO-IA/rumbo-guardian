@@ -69,6 +69,10 @@ async function waitForServer(){
       assert.ok(!symlinkEscape.includes(secret),'response must not disclose symlink target content');
     }
 
+    const vaultAsset=await rawRequest('/domain-vault.js');
+    assert.ok(vaultAsset.startsWith('HTTP/1.1 200'),'encrypted domain module must be publicly served');
+    assert.ok(vaultAsset.includes('RumboGuardianDomainVault'),'served vault script must match module');
+
     const privateFile=await rawRequest('/package.json');
     assert.ok(privateFile.startsWith('HTTP/1.1 404'),'non-public repository files must not be served');
 

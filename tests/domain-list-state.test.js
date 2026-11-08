@@ -1,30 +1,19 @@
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
-const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-const start = source.indexOf('function getLists(){');
-const end = source.indexOf('\nfunction saveLists', start);
-assert.ok(start >= 0 && end > start, 'getLists function must remain present');
-const functionSource = source.slice(start, end);
-
-function loadGetLists(value) {
-  const getLists = Function('localStorage', `const LIST_KEY='rumboGuardianDomainListsV03'; return (${functionSource});`)({
-    getItem: () => value,
-  });
-  return getLists();
-}
-
-function assertLists(value, expected) {
-  assert.deepStrictEqual(loadGetLists(value), expected);
-}
-
-assertLists(JSON.stringify({ trusted: {}, blocked: null }), { trusted: [], blocked: [] });
-assertLists(JSON.stringify({ trusted: ['safe.example', 42, null], blocked: ['evil.test', {}] }), {
-  trusted: ['safe.example'],
-  blocked: ['evil.test'],
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..');
+const Vault=require('../domain-vault.js');
+const source=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const start=source.indexOf('function getLists(){');
+const end=source.indexOf('\nfunction setVaultStatus(',start);
+assert.ok(start>=0&&end>start,'getLists must remain present');
+const getLists=Function('Vault','state','return ('+source.slice(start,end)+');')(Vault,{
+  domainLists:{trusted:['safe.example',null,5,'safe.example'],blocked:['bad.example',{}]}
 });
-assertLists(JSON.stringify({ trusted: 'safe.example', blocked: 'evil.test' }), { trusted: [], blocked: [] });
-assertLists('not-json', { trusted: [], blocked: [] });
-
+assert.deepStrictEqual(getLists(),{trusted:['safe.example'],blocked:['bad.example']});
+assert.deepStrictEqual(Vault.cleanLists({trusted:['one.example','two.example'],blocked:['two.example']}),
+  {trusted:['one.example'],blocked:['two.example']});
+assert.doesNotMatch(source,/localStorage\.setItem\s*\(\s*LIST_KEY\s*,/,'legacy cleartext writes must be absent');
+assert.match(source,/localStorage\.removeItem\s*\(\s*LIST_KEY\s*\)/,'legacy key must be cleared after migration');
 console.log('RUMBO Guardian domain-list state tests: PASS');

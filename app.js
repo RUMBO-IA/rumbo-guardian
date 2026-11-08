@@ -1,23 +1,127 @@
 const $=id=>document.getElementById(id);
 const Core=globalThis.RumboGuardianCore;
 const Chain=globalThis.RumboGuardianEvidenceChain;
-const state={last:null,installPrompt:null};
-const LIST_KEY='rumboGuardianDomainListsV03';
+const Vault=globalThis.RumboGuardianDomainVault;
+const state={last:null,installPrompt:null,domainLists:{trusted:[],blocked:[]},vaultKey:null,vaultSalt:null,vaultBusy:false,vaultQueue:Promise.resolve(),legacyPending:false};
+const LIST_KEY='rumboGuardianDomainListsV03'; // legacy read-only; deleted after encrypted migration
+const ENCRYPTED_LIST_KEY='rumboGuardianDomainVaultV1';
 const HISTORY_KEY='rumboGuardianHistory';
 
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function getLists(){
-  try{
-    const parsed=JSON.parse(localStorage.getItem(LIST_KEY)||'{}');
-    return {
-      trusted:Array.isArray(parsed?.trusted)?parsed.trusted.filter(x=>typeof x==='string'):[],
-      blocked:Array.isArray(parsed?.blocked)?parsed.blocked.filter(x=>typeof x==='string'):[]
-    };
-  }
-  catch{return {trusted:[],blocked:[]};}
+  return Vault.cleanLists(state.domainLists);
 }
-function saveLists(lists){localStorage.setItem(LIST_KEY,JSON.stringify(lists));drawLists();}
+function setVaultStatus(message){
+  $('vaultStatus').textContent=message;
+}
+function saveLists(lists){
+  state.domainLists=Vault.cleanLists(lists);
+  drawLists();
+  if(!state.vaultKey)return; // without a passphrase, domain context lives in memory only
+  const snapshot=getLists(),key=state.vaultKey,salt=state.vaultSalt;
+  state.vaultQueue=state.vaultQueue.catch(()=>{}).then(async()=>{
+    const encrypted=await Vault.seal(snapshot,key,salt);
+    localStorage.setItem(ENCRYPTED_LIST_KEY,JSON.stringify(encrypted));
+    setVaultStatus('Listas guardadas con AES-GCM. La clave permanece solo en esta pestaña.');
+  }).catch(()=>{
+    setVaultStatus('No se pudo guardar el cambio cifrado: exportá un respaldo antes de cerrar.');
+  });
+}
+function initializeDomainVault(){
+  try{
+    const previous=localStorage.getItem(LIST_KEY);
+    if(previous){
+      state.domainLists=Vault.cleanLists(JSON.parse(previous));
+      state.legacyPending=true;
+      setVaultStatus('Atención: hay listas antiguas sin cifrar. Ingresá una frase secreta para migrarlas y borrar la copia anterior.');
+    }else if(localStorage.getItem(ENCRYPTED_LIST_KEY)){
+      setVaultStatus('Hay listas cifradas guardadas. Ingresá tu frase secreta para desbloquearlas.');
+    }else{
+      setVaultStatus('Las listas son temporales hasta que las guardes cifradas con una frase secreta.');
+    }
+  }catch{
+    setVaultStatus('No se pudo leer el almacenamiento local. Las listas actuales son temporales.');
+  }
+}
+async function unlockOrCreateVault(){
+  if(state.vaultBusy)return;
+  const passphrase=$('vaultPassphrase').value;
+  if(!passphrase){setVaultStatus('Ingresá la frase secreta para guardar o desbloquear.');return;}
+  state.vaultBusy=true;
+  $('vaultSaveBtn').disabled=true;
+  try{
+    await state.vaultQueue;
+    const current=getLists();
+    const saved=localStorage.getItem(ENCRYPTED_LIST_KEY);
+    let key,salt,lists;
+    if(saved){
+      const opened=await Vault.open(passphrase,JSON.parse(saved));
+      key=opened.key;salt=opened.salt;
+      lists=Vault.cleanLists({
+        trusted:[...opened.lists.trusted,...current.trusted],
+        blocked:[...opened.lists.blocked,...current.blocked]
+      });
+    }else{
+      const created=await Vault.create(passphrase,current);
+      key=created.key;salt=created.salt;
+      lists=current;
+    }
+    const encrypted=await Vault.seal(lists,key,salt);
+    localStorage.setItem(ENCRYPTED_LIST_KEY,JSON.stringify(encrypted));
+    const confirmed=await Vault.open(passphrase,JSON.parse(localStorage.getItem(ENCRYPTED_LIST_KEY)));
+    if(JSON.stringify(confirmed.lists)!==JSON.stringify(lists)){
+      throw new Error('Error en la verificación del archivo cifrado');
+    }
+    // Remove legacy plaintext only after the encrypted content was saved AND decrypted correctly.
+    if(state.legacyPending)localStorage.removeItem(LIST_KEY);
+    state.domainLists=lists;
+    state.vaultKey=key;
+    state.vaultSalt=salt;
+    state.legacyPending=false;
+    drawLists();
+    setVaultStatus('Contexto desbloqueado y guardado cifrado (AES-GCM). Recordá tu frase secreta.');
+  }catch(error){
+    setVaultStatus('No se pudo guardar o desbloquear: '+(error?.message||'clave incorrecta / almacenamiento bloqueado'));
+  }finally{
+    $('vaultPassphrase').value='';
+    state.vaultBusy=false;
+    $('vaultSaveBtn').disabled=false;
+  }
+}
+async function lockVault(){
+  if(state.vaultBusy)return;
+  state.vaultBusy=true;
+  try{
+    await state.vaultQueue;
+    state.vaultKey=null;
+    state.vaultSalt=null;
+    state.domainLists={trusted:[],blocked:[]};
+    drawLists();
+    setVaultStatus('Listas bloqueadas en esta pestaña. La copia cifrada permanece guardada.');
+  }finally{state.vaultBusy=false;}
+}
+async function clearDomainVault(){
+  if(state.vaultBusy)return;
+  if(!window.confirm('¿Eliminar las listas cifradas y las copias antiguas de este navegador? Esta acción no se puede deshacer.'))return;
+  state.vaultBusy=true;
+  try{
+    await state.vaultQueue;
+    localStorage.removeItem(ENCRYPTED_LIST_KEY);
+    localStorage.removeItem(LIST_KEY);
+    state.vaultKey=null;
+    state.vaultSalt=null;
+    state.domainLists={trusted:[],blocked:[]};
+    state.legacyPending=false;
+    drawLists();
+    setVaultStatus('Se eliminaron las copias locales de listas de dominios.');
+    state.vaultBusy=false;
+  }catch{
+    setVaultStatus('No se pudo eliminar el almacenamiento. Revisá los permisos del navegador.');
+    state.vaultBusy=false;
+  }
+}
 function addDomain(kind){
+  if(state.vaultBusy)return;
   const domain=Core.normalizeDomain($('domainInput').value);
   if(!domain)return;
   const lists=getLists(),other=kind==='trusted'?'blocked':'trusted';
@@ -25,7 +129,7 @@ function addDomain(kind){
   if(!lists[kind].includes(domain))lists[kind].push(domain);
   lists[kind].sort();saveLists(lists);$('domainInput').value='';
 }
-function removeDomain(kind,domain){const lists=getLists();lists[kind]=lists[kind].filter(x=>x!==domain);saveLists(lists);}
+function removeDomain(kind,domain){if(state.vaultBusy)return;const lists=getLists();lists[kind]=lists[kind].filter(x=>x!==domain);saveLists(lists);}
 function drawLists(){
   const lists=getLists();
   for(const [kind,id] of [['trusted','trustedList'],['blocked','blockedList']]){
@@ -92,6 +196,10 @@ $('analyzeBtn').addEventListener('click',async()=>{const r=currentAnalysis();ren
 $('clearBtn').addEventListener('click',()=>{$('input').value='';$('input').focus();});
 $('trustBtn').addEventListener('click',()=>addDomain('trusted'));
 $('blockBtn').addEventListener('click',()=>addDomain('blocked'));
+$('vaultSaveBtn').addEventListener('click',unlockOrCreateVault);
+$('vaultLockBtn').addEventListener('click',lockVault);
+$('vaultEraseBtn').addEventListener('click',clearDomainVault);
+$('vaultExportBtn').addEventListener('click',()=>{downloadJson('guardian-domain-context-UNENCRYPTED.json',getLists());setVaultStatus('Se exportó un archivo SIN CIFRAR. Guardalo en un lugar seguro.');});
 $('domainInput').addEventListener('keydown',e=>{if(e.key==='Enter')addDomain('trusted');});
 $('clearHistoryBtn').addEventListener('click',()=>{localStorage.removeItem(HISTORY_KEY);drawHistory();});
 $('exportBtn').addEventListener('click',async()=>{const history=await ensureHistoryChain(),integrity=await Chain.verifyChain(history);downloadJson('rumbo-guardian-evidence-ledger.json',{product:'RUMBO Guardian',version:'1.0.0',exportedAt:new Date().toISOString(),domainContext:getLists(),integrity:integrity,history});});
@@ -106,4 +214,4 @@ $('installBtn').addEventListener('click',async()=>{if(!state.installPrompt)retur
 const incoming=new URLSearchParams(location.search).get('scan');
 if(incoming){$('input').value=incoming;const result={...Core.analyzeMessage(incoming,'auto',getLists()),text:incoming,date:new Date().toISOString()};render(result);}
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
-drawLists();drawHistory();
+initializeDomainVault();drawLists();drawHistory();

@@ -1,5 +1,5 @@
-const CACHE='rumbo-guardian-v070';
-const ASSETS=['./','./index.html','./styles.css','./guardian-core.js','./evidence-chain.js','./app.js','./manifest.webmanifest'];
+const CACHE='rumbo-guardian-v071';
+const ASSETS=['./','./index.html','./styles.css','./guardian-core.js','./evidence-chain.js','./domain-vault.js','./app.js','./manifest.webmanifest'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
 self.addEventListener('fetch',event=>{

@@ -63,6 +63,14 @@
       <button id="trustBtn" class="ghost" type="button">Agregar a confianza</button>
       <button id="blockBtn" class="ghost danger-text" type="button">Agregar a bloqueo</button>
     </div>
+    <div class="vault-controls" aria-label="Protección del contexto de dominios">
+      <input id="vaultPassphrase" type="password" minlength="12" autocomplete="new-password" placeholder="Frase secreta (mínimo 12 caracteres)" aria-label="Frase secreta del contexto cifrado" />
+      <button id="vaultSaveBtn" class="ghost" type="button">Guardar cifrado / Desbloquear</button>
+      <button id="vaultLockBtn" class="ghost" type="button">Bloquear</button>
+      <button id="vaultExportBtn" class="ghost" type="button">Exportar sin cifrar</button>
+      <button id="vaultEraseBtn" class="ghost danger-text" type="button">Eliminar copias locales</button>
+    </div>
+    <p id="vaultStatus" class="privacy-note" role="status" aria-live="polite">El contexto es temporal hasta que lo guardes cifrado.</p>
     <div class="domain-grid">
       <div><h3>Trusted context</h3><div id="trustedList" class="chips empty">Sin dominios definidos.</div></div>
       <div><h3>Blocked context</h3><div id="blockedList" class="chips empty">Sin dominios definidos.</div></div>
@@ -85,6 +93,7 @@
 </main>
 <script src="guardian-core.js"></script>
 <script src="evidence-chain.js"></script>
+<script src="domain-vault.js"></script>
 <script src="app.js"></script>
 </body></html>
 
