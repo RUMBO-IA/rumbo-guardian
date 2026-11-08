@@ -5,6 +5,24 @@ const {computeIdempotencyKey,validateDestinationAdapter,normalizeEvidence}=requi
 const {resolveTrustedDestinationCapability}=require('./destination-capability-v12.js');
 const {resolveProviderConformance,verifyProviderConformanceReceipt}=require('./provider-conformance-v13.js');
 
+const {types}=require('node:util');
+
+// Snapshot untrusted dispatch records without invoking getters, proxy traps or coercion.
+function snapshotDispatchRecord(value){
+  if(value===null||value===undefined) return Object.create(null);
+  if(typeof value!=='object'||types.isProxy(value)||Array.isArray(value)) throw new Error('invalid_request_record');
+  const prototype=Object.getPrototypeOf(value);
+  if(prototype!==Object.prototype&&prototype!==null) throw new Error('invalid_request_record');
+  if(Object.getOwnPropertySymbols(value).length) throw new Error('invalid_request_record');
+  const record=Object.create(null);
+  for(const [key,descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))){
+    // Hidden own properties must not be promoted to enumerable authorization fields.
+    if(!Object.prototype.hasOwnProperty.call(descriptor,'value')||descriptor.enumerable!==true) throw new Error('invalid_request_record');
+    record[key]=descriptor.value;
+  }
+  return record;
+}
+
 const DEFAULT_LIMITS=Object.freeze({maxDepth:64,maxNodes:10000});
 
 function assertDensePlainArray(value){
@@ -189,11 +207,23 @@ function createToolDispatcher(options={}){
     return {decision:'ALLOW',authorizationDecision:'ALLOW',stage:'destination_terminal',executed:true,invocationAttempted:true,effectOutcome:terminal,destinationEvidence:evidence.evidence,finalization:finalized,receipt};
   }
 
-  async function dispatch(request={}){
-    const toolName=String(request.tool||'').trim();
+  async function dispatch(inboundRequest={}){
+    let request,rawAction;
+    try{
+      request=snapshotDispatchRecord(inboundRequest);
+      rawAction=snapshotDispatchRecord(request.action);
+      if(rawAction.authorization!==undefined&&rawAction.authorization!==null){
+        rawAction.authorization=snapshotDispatchRecord(rawAction.authorization);
+      }
+      if(request.tool!==null&&request.tool!==undefined&&typeof request.tool!=='string') throw new Error('invalid_tool_name');
+      if(rawAction.effect!==null&&rawAction.effect!==undefined&&typeof rawAction.effect!=='string') throw new Error('invalid_action_effect');
+    }catch{
+      return denied('request_binding','invalid_request_record');
+    }
+    const toolName=(request.tool||'').trim();
     const def=defs.get(toolName);
     if(!def) return denied('tool_lookup','unknown_tool');
-    const claimedEffect=String(request.action&&request.action.effect||'').trim().toLowerCase();
+    const claimedEffect=(rawAction.effect||'').trim().toLowerCase();
     if(claimedEffect&&claimedEffect!==def.effect) return denied('tool_binding','tool_effect_mismatch');
     if(journalCapable&&!def.implementationId) return denied('execution_binding','missing_tool_implementation_id');
     if(def.destinationAdapter&&!destinationCapable) return denied('destination_binding','destination_store_unavailable');
@@ -203,7 +233,7 @@ function createToolDispatcher(options={}){
     let frozenInput,inputDigest;
     try{frozenInput=deepCloneAndFreeze(request.input===undefined?null:request.input);inputDigest=computeParametersDigest(frozenInput);}catch(err){return denied('input_binding',String(err&&err.message||'invalid_input'));}
     const toolBindingDigest=journalCapable?computeToolBindingDigest(def):'';
-    const effectiveAction={...(request.action||{}),effect:def.effect,parametersDigest:inputDigest,...(journalCapable?{toolBindingDigest}:{})};
+    const effectiveAction={...rawAction,effect:def.effect,parametersDigest:inputDigest,...(journalCapable?{toolBindingDigest}:{})};
     let destination=null;
     if(def.destinationAdapter){
       try{

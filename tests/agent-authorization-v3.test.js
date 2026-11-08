@@ -141,6 +141,40 @@ function signedAction(id='auth-1'){
   assert.deepEqual(result.authorization.reasons,['invalid_signature_encoding']);ok();
 }
 
+{
+  const {validId,sanitizeMetadata}=require('../authorization-replay-store.js');
+  let hooks=0;
+  const coercive={toString(){hooks++;return 'auth-impersonated';},valueOf(){hooks++;return 12;}};
+  assert.equal(validId(coercive),false);
+  assert.equal(hooks,0);
+  assert.deepEqual(sanitizeMetadata({actionDigest:coercive,keyId:'trusted'}),{keyId:'trusted'});
+  const accessor={keyId:'trusted'};
+  Object.defineProperty(accessor,'actionDigest',{enumerable:true,get(){hooks++;return 'forged';}});
+  assert.deepEqual(sanitizeMetadata(accessor),{keyId:'trusted'});
+  let proxyTraps=0;
+  const hostileProxy=new Proxy({keyId:'forged'},{
+    getPrototypeOf(){proxyTraps++;return Object.prototype;},
+    ownKeys(){proxyTraps++;return ['keyId'];},
+    getOwnPropertyDescriptor(target,key){proxyTraps++;return Object.getOwnPropertyDescriptor(target,key);}
+  });
+  assert.deepEqual(sanitizeMetadata(hostileProxy),{});
+  assert.equal(proxyTraps,0,'Proxy reflection traps must never execute');
+  const revoked=Proxy.revocable({keyId:'forged'},{});
+  revoked.revoke();
+  assert.deepEqual(sanitizeMetadata(revoked.proxy),{});
+  const store=new FileAuthorizationReplayStore(path.join(tmp,'data-only-replay.jsonl'));
+  assert.deepEqual(store.consume(coercive),{consumed:false,reason:'invalid_authorization_id'});
+  assert.equal(hooks,0,'Untrusted value hooks must never execute');
+  assert.equal(fs.existsSync(path.join(tmp,'data-only-replay.jsonl')),false);
+  const result=store.consume('auth-data-only',{actionDigest:coercive,keyId:'trusted'});
+  assert.equal(result.consumed,true);
+  assert.equal(result.entry.keyId,'trusted');
+  assert.equal(Object.hasOwn(result.entry,'actionDigest'),false);
+  assert.equal(hooks,0);
+  assert.equal(store.consume('auth-data-only').reason,'authorization_replay_detected');
+  ok();
+}
+
 fs.rmSync(tmp,{recursive:true,force:true});
-assert.equal(passed,12);
-console.log('RUMBO Agent Authorization V3/V6 hardening: 12/12 PASS');
+assert.equal(passed,13);
+console.log('RUMBO Agent Authorization V3/V6 hardening: 13/13 PASS');

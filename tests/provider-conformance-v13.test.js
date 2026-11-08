@@ -1,4 +1,7 @@
 const assert=require('node:assert/strict');
+const {execFileSync}=require('node:child_process');
+// Run the isolated ingress regressions synchronously before provider tests.
+execFileSync(process.execPath,[require.resolve('./dispatcher-request-ingress.test.js')],{stdio:'inherit',timeout:30000});
 const crypto=require('node:crypto');
 const fs=require('node:fs');
 const os=require('node:os');

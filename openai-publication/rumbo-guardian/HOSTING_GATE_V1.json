@@ -1,0 +1,42 @@
+{
+  "schema": "rumbo.openai-plugin-hosting-gate/v1",
+  "candidate": "RUMBO Guardian",
+  "repository": "RUMBO-IA/rumbo-guardian",
+  "branch": "fix/mcp-vercel-stateless-adapter-v1",
+  "submission_host": {
+    "provider": "Val Town",
+    "public_url": "https://rumbo-guardian-openai.val.run/",
+    "money_spend": 0,
+    "deployed_source_sha": "89cbd20685604a01be8b17a09584a1e7364b4fb0",
+    "protocol": "2025-06-18",
+    "tools": ["analyze_url", "analyze_text", "verify_ledger", "explain_signal"],
+    "noauth": "PASS",
+    "output_schemas": "PASS_4_OF_4",
+    "origin_validation": "PASS",
+    "functional_smoke": "PASS",
+    "publisher_support_semantic": "PASS"
+  },
+  "latest_verified_receipt": {
+    "head": "99186c42ffe7e431d8d9ddc19ce49c9ee3f527ea",
+    "guardian_ci": 34460407700,
+    "hosted_mcp_conformance": 34460407621,
+    "openai_plugin_contract": 34460407422,
+    "all_success": true
+  },
+  "openai_account_gates": {
+    "apps_management_write": "UNVERIFIED_ACCOUNT_GATE",
+    "publisher_identity": "UNVERIFIED_ACCOUNT_GATE",
+    "project_data_residency": "UNVERIFIED_ACCOUNT_GATE",
+    "required_for_mcp_submission": "GLOBAL"
+  },
+  "availability": "UNSET_FAIL_CLOSED",
+  "portal_scan_tools": "NOT_EXECUTED",
+  "domain_challenge": "INSTALL_ONLY_IF_ISSUED",
+  "policy_attestations": "NOT_EXECUTED",
+  "submission": false,
+  "approved": false,
+  "published": false,
+  "production_deploy_authority": false,
+  "openai_submission_authority": false,
+  "no_spend_policy": "ENFORCED"
+}
