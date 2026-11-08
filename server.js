@@ -1,5 +1,5 @@
 const http=require('http'),fs=require('fs'),path=require('path');
-const root=path.resolve(__dirname),port=8766;
+const root=path.resolve(__dirname),port=process.env.GUARDIAN_TEST_EPHEMERAL_PORT==='1'?0:8766;
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8'};
 const publicAssets=new Map([
   ['/','index.html'],
@@ -24,4 +24,4 @@ http.createServer((req,res)=>{
     res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'});
     fs.createReadStream(file).pipe(res);
   });
-}).listen(port,'127.0.0.1',()=>console.log(`RUMBO Guardian V0.3 · http://127.0.0.1:${port}/`));
+}).listen(port,'127.0.0.1',function(){console.log(`RUMBO Guardian V0.3 · http://127.0.0.1:${this.address().port}/`);});

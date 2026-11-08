@@ -1,4 +1,5 @@
 const crypto=require('node:crypto');
+const {types}=require('node:util');
 const {canonicalizeJcs}=require('./jcs-canonicalize-v8.js');
 const {decodeCanonicalEd25519Signature,publicKeyFingerprint}=require('./agent-authorization-v3.js');
 
@@ -14,7 +15,7 @@ const bounded=(v,n=200)=>typeof v==='string'&&v.length>0&&v.length<=n;
 const sha256=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v.toLowerCase());
 
 function dataEntriesExact(raw,expectedKeys,error='invalid_provider_conformance'){
-  if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.getPrototypeOf(raw)!==Object.prototype) throw new Error(error);
+  if(!raw||typeof raw!=='object'||types.isProxy(raw)||Array.isArray(raw)||Object.getPrototypeOf(raw)!==Object.prototype) throw new Error(error);
   if(Object.getOwnPropertySymbols(raw).length) throw new Error(error);
   const keys=Object.keys(raw).sort();
   if(keys.length!==expectedKeys.length||keys.some((key,index)=>key!==expectedKeys[index])) throw new Error(error);
@@ -80,7 +81,7 @@ function verifyProviderConformanceReceipt(raw,options={}){
   if(observed>now+MAX_FUTURE_SKEW_MS) return {verified:false,reason:'provider_conformance_not_yet_valid'};
   if(now>=expires) return {verified:false,reason:'provider_conformance_expired'};
   const trusted=options.trustedPublicKeys||{};
-  const keyDescriptor=trusted&&typeof trusted==='object'?Object.getOwnPropertyDescriptor(trusted,receipt.keyId):null;
+  const keyDescriptor=trusted&&typeof trusted==='object'&&!types.isProxy(trusted)?Object.getOwnPropertyDescriptor(trusted,receipt.keyId):null;
   if(!keyDescriptor||typeof keyDescriptor.get==='function'||typeof keyDescriptor.set==='function'||!keyDescriptor.value) return {verified:false,reason:'untrusted_provider_conformance_key'};
   let signatureBytes;
   try{signatureBytes=decodeCanonicalEd25519Signature(receipt.signature);}catch{return {verified:false,reason:'invalid_provider_conformance_signature_encoding',keyId:receipt.keyId,fingerprint:publicKeyFingerprint(keyDescriptor.value)};}
@@ -91,7 +92,7 @@ function verifyProviderConformanceReceipt(raw,options={}){
 }
 
 function resolveProviderConformance(adapter,capability,policies,options={}){
-  if(!policies||typeof policies!=='object'||Array.isArray(policies)) throw new Error('trusted_provider_conformance_required');
+  if(!policies||typeof policies!=='object'||types.isProxy(policies)||Array.isArray(policies)) throw new Error('trusted_provider_conformance_required');
   const descriptor=Object.getOwnPropertyDescriptor(policies,adapter.adapterId);
   if(!descriptor||typeof descriptor.get==='function'||typeof descriptor.set==='function'||!descriptor.value) throw new Error('trusted_provider_conformance_required');
   const entry=dataEntriesExact(descriptor.value,ENTRY_KEYS,'invalid_provider_conformance_entry');

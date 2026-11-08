@@ -37,7 +37,7 @@ class TestReadiness(unittest.TestCase):
                 raise http.client.RemoteDisconnected('Remote end closed connection without response')
             return io.BytesIO(b'{"ok":true}')
         reader=GithubReader('test-token',max_requests=2)
-        with patch('urllib.request.urlopen',side_effect=fake_urlopen):
+        with patch('urllib.request.OpenerDirector.open',side_effect=fake_urlopen):
             self.assertEqual(reader.get('/example'),{'ok':True})
         self.assertEqual(reader.count,2)
         self.assertEqual(calls['count'],2)
@@ -45,7 +45,7 @@ class TestReadiness(unittest.TestCase):
     def test_remote_disconnected_obeys_budget_without_false_success(self):
         from pr_readiness_audit import GithubReader
         reader=GithubReader('test-token',max_requests=1)
-        with patch('urllib.request.urlopen',side_effect=http.client.RemoteDisconnected('connection closed')) as fake:
+        with patch('urllib.request.OpenerDirector.open',side_effect=http.client.RemoteDisconnected('connection closed')) as fake:
             with self.assertRaisesRegex(BudgetExceeded,'request budget reached'):
                 reader.get('/example')
         self.assertEqual(reader.count,1)
@@ -56,7 +56,8 @@ class TestReadiness(unittest.TestCase):
         fake=FakeGitHub({
             '/orgs/rumbo-ia/repos?type=all&per_page=100&page=1':[repo],
             '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr()],
-            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[]},
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[],'total_count':0},
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
             '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
             '/repos/RUMBO-IA/demo/pulls/1':pr(),
         })
@@ -75,7 +76,7 @@ class TestReadiness(unittest.TestCase):
             def read(self):
                 raise http.client.IncompleteRead(b'{"partial":', 10)
         client=GithubReader('fake-token',max_requests=2)
-        with patch('urllib.request.urlopen',return_value=TruncatedResponse()):
+        with patch('urllib.request.OpenerDirector.open',return_value=TruncatedResponse()):
             with self.assertRaisesRegex(RuntimeError,'transport failed: IncompleteRead'):
                 client.get('/example')
         self.assertEqual(client.count,1)
@@ -91,7 +92,7 @@ class TestReadiness(unittest.TestCase):
                 raise first
             return io.BytesIO(b'{"ok":true}')
         reader = GithubReader('test-token', max_requests=2)
-        with patch('urllib.request.urlopen', side_effect=fake_open):
+        with patch('urllib.request.OpenerDirector.open', side_effect=fake_open):
             self.assertEqual(reader.get('/a'), {'ok': True})
         self.assertEqual(reader.count, 2)
         self.assertEqual(count['n'], 2)
@@ -101,7 +102,7 @@ class TestReadiness(unittest.TestCase):
         first = urllib.error.HTTPError('https://api.github.com/a', 502, 'Bad Gateway', {}, None)
         self.addCleanup(first.close)
         reader = GithubReader('test-token', max_requests=1)
-        with patch('urllib.request.urlopen', side_effect=first) as opened:
+        with patch('urllib.request.OpenerDirector.open', side_effect=first) as opened:
             with self.assertRaisesRegex(BudgetExceeded, 'request budget reached'):
                 reader.get('/a')
         self.assertEqual(reader.count, 1)
@@ -137,6 +138,7 @@ class TestReadiness(unittest.TestCase):
             '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
             '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr()],
             '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[], 'total_count':0},
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
             '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
             '/repos/RUMBO-IA/demo/pulls/1':pr()}
         c=FakeGitHub(paths)
@@ -165,7 +167,8 @@ class TestReadiness(unittest.TestCase):
         responses={
             '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
             '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[old],
-            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[]},
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{'check_runs':[],'total_count':0},
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
             '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
             '/repos/RUMBO-IA/demo/pulls/1':{**old,'head':{'sha':'c'*40}},
         }
@@ -214,7 +217,8 @@ class TestReadiness(unittest.TestCase):
         paths={'/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
                '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[pr(number=1),pr(number=2)],
                checks:{'check_runs':[], 'total_count':0},
-               '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
+               '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
             '/repos/RUMBO-IA/demo/pulls/1':pr()}
         result=audit_organization(FakeGitHub(paths),'RUMBO-IA',max_prs=1)
         self.assertEqual(result['count'],1)
@@ -227,5 +231,452 @@ class TestReadiness(unittest.TestCase):
         self.assertFalse(report['complete'])
         self.assertEqual(report['count'],0)
         self.assertEqual(report['error'],'request budget reached')
+
+    def test_truncated_check_run_count_fails_closed(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[old],
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'total_count':2,'check_runs':[{'id':1,'name':'verify','status':'completed','conclusion':'success'}]},
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1':old,
+        }
+        report=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('incomplete check-runs',report['error'])
+
+    def test_missing_check_run_count_fails_closed(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[old],
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'check_runs':[{'id':1,'name':'verify','status':'completed','conclusion':'success'}]},
+            '/repos/RUMBO-IA/demo/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1/reviews?per_page=100&page=1':[],
+            '/repos/RUMBO-IA/demo/pulls/1':old,
+        }
+        report=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('missing or invalid total_count',report['error'])
+
+    def test_failed_commit_status_is_not_hidden_by_green_check_run(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        prefix='/repos/RUMBO-IA/demo'
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            prefix+'/pulls?state=open&per_page=100&page=1':[old],
+            prefix+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'check_runs':[{'id':1,'name':'verify','status':'completed','conclusion':'success'}],
+                'total_count':1},
+            prefix+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[
+                {'context':'legacy-security','state':'failure',
+                 'created_at':'2026-11-01T01:00:00Z'}],
+            prefix+'/pulls/1/reviews?per_page=100&page=1':[],
+            prefix+'/pulls/1':old,
+        }
+        report=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=10)
+        self.assertTrue(report['complete'],report['error'])
+        row=report['items'][0]
+        self.assertEqual(row['check_state'],'FAILED')
+        self.assertIn('FAILED_CHECK',row['blockers'])
+        self.assertFalse(row['merge_authorized'])
+
+    def test_newest_commit_status_overrides_older_failure(self):
+        from pr_readiness_audit import latest_commit_status_checks
+        statuses=[
+            {'context':'legacy-ci','state':'success','created_at':'2026-11-08T03:00:00Z'},
+            {'context':'legacy-ci','state':'failure','created_at':'2026-11-07T03:00:00Z'},
+        ]
+        converted=latest_commit_status_checks(statuses)
+        self.assertEqual(converted,[{'name':'legacy-ci','status':'completed','conclusion':'success'}])
+        row=analyze_pr('RUMBO-IA/demo',pr(),converted,[])
+        self.assertEqual(row['check_state'],'GREEN_UNATTESTED')
+        self.assertFalse(row['merge_authorized'])
+
+    def test_unknown_commit_status_fails_closed(self):
+        from pr_readiness_audit import latest_commit_status_checks
+        with self.assertRaisesRegex(ValueError,'invalid commit status context or state'):
+            latest_commit_status_checks([{'context':'legacy-ci','state':'mystery'}])
+        with self.assertRaisesRegex(ValueError,'invalid commit status context or state'):
+            latest_commit_status_checks([{'context':'legacy-ci','state':[]}])
+        with self.assertRaisesRegex(ValueError,'invalid commit status record'):
+            latest_commit_status_checks(['untrusted status record'])
+
+    def test_malformed_check_run_fails_closed_with_partial_report(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        prefix='/repos/RUMBO-IA/demo'
+        fake=FakeGitHub({
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            prefix+'/pulls?state=open&per_page=100&page=1':[old],
+            prefix+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'total_count':1,'check_runs':[None]},
+            prefix+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            prefix+'/pulls/1/reviews?per_page=100&page=1':[],
+            prefix+'/pulls/1':old,
+        })
+        report=audit_organization(fake,'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('invalid check-run record',report['error'])
+
+    def test_malformed_review_fails_closed_with_partial_report(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        prefix='/repos/RUMBO-IA/demo'
+        fake=FakeGitHub({
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            prefix+'/pulls?state=open&per_page=100&page=1':[old],
+            prefix+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'total_count':0,'check_runs':[]},
+            prefix+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            prefix+'/pulls/1/reviews?per_page=100&page=1':[None],
+            prefix+'/pulls/1':old,
+        })
+        report=audit_organization(fake,'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('invalid review record',report['error'])
+
+    def test_malformed_repository_node_fails_closed(self):
+        fake=FakeGitHub({
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[None],
+        })
+        report=audit_organization(fake,'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('invalid repository record',report['error'])
+
+    def test_malformed_pull_node_fails_closed(self):
+        fake=FakeGitHub({
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[
+                {'full_name':'RUMBO-IA/demo','archived':False}],
+            '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[None],
+        })
+        report=audit_organization(fake,'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('invalid pull request record',report['error'])
+
+    def test_malformed_review_user_fails_closed(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        prefix='/repos/RUMBO-IA/demo'
+        fake=FakeGitHub({
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            prefix+'/pulls?state=open&per_page=100&page=1':[old],
+            prefix+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'total_count':0,'check_runs':[]},
+            prefix+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            prefix+'/pulls/1/reviews?per_page=100&page=1':[
+                {'state':'APPROVED','submitted_at':'2026-11-01T01:00:00Z',
+                 'user':['unexpected'],'commit_id':'a'*40}],
+            prefix+'/pulls/1':old,
+        })
+        report=audit_organization(fake,'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('invalid review user',report['error'])
+
+    def test_invalid_reviewer_login_fails_closed(self):
+        review={'user':{'login':['bad']},'state':'APPROVED',
+                'submitted_at':'2026-11-08T01:00:00Z','commit_id':'a'*40}
+        with self.assertRaisesRegex(ValueError,'invalid reviewer login'):
+            analyze_pr('RUMBO-IA/demo',pr(),[],[review])
+
+    def test_corrupt_github_json_is_controlled_transport_failure(self):
+        from pr_readiness_audit import GithubReader
+        client=GithubReader('test-token',max_requests=1)
+        with patch('urllib.request.OpenerDirector.open',return_value=io.BytesIO(b'{"incomplete":')):
+            with self.assertRaisesRegex(RuntimeError,'GitHub API invalid JSON'):
+                client.get('/test')
+        self.assertEqual(client.count,1)
+
+    def test_malformed_pull_head_is_partial_not_uncaught_exception(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        old['head']=['not-a-dict']
+        fake=FakeGitHub({
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            '/repos/RUMBO-IA/demo/pulls?state=open&per_page=100&page=1':[old],
+        })
+        report=audit_organization(fake,'RUMBO-IA',max_prs=10)
+        self.assertFalse(report['complete'])
+        self.assertEqual(report['count'],0)
+        self.assertIn('invalid PR head',report['error'])
+
+    def test_authorization_header_not_forwarded_by_urllib_redirect(self):
+        from pr_readiness_audit import GithubReader
+        import urllib.request
+        captured=[]
+        def fake_open(request,timeout=15):
+            captured.append(request)
+            return io.BytesIO(b'{"ok":true}')
+        reader=GithubReader('FAKE_TEST_TOKEN',max_requests=1)
+        with patch('urllib.request.OpenerDirector.open',side_effect=fake_open):
+            self.assertEqual(reader.get('/example'),{'ok':True})
+        first=captured[0]
+        self.assertEqual(dict(first.header_items()).get('Authorization'),'Bearer FAKE_TEST_TOKEN')
+        redirected=urllib.request.HTTPRedirectHandler().redirect_request(
+            first,None,302,'Found',{},'https://untrusted.invalid/collect')
+        self.assertIsNone(redirected.get_header('Authorization'),
+                          'Bearer token must not follow HTTP redirects')
+
+    def test_redirected_response_is_rejected_as_incomplete(self):
+        from pr_readiness_audit import GithubReader
+        class RedirectedResponse(io.BytesIO):
+            def geturl(self):
+                return 'https://untrusted.invalid/forged'
+        reader=GithubReader('FAKE_TEST_TOKEN',max_requests=1)
+        with patch('urllib.request.OpenerDirector.open',return_value=RedirectedResponse(b'{"complete":true}')):
+            with self.assertRaisesRegex(RuntimeError,'GitHub API redirect refused'):
+                reader.get('/example')
+
+    def test_redirect_handler_rejects_before_following(self):
+        from pr_readiness_audit import StrictGitHubNoRedirect
+        import urllib.request
+        request=urllib.request.Request('https://api.github.com/test',method='GET')
+        request.add_unredirected_header('Authorization','Bearer FAKE_TEST_TOKEN')
+        with self.assertRaisesRegex(RuntimeError,'GitHub API redirect refused'):
+            StrictGitHubNoRedirect().redirect_request(
+                request,None,302,'Found',{},'https://untrusted.invalid/collect')
+
+    def test_unnamed_check_run_cannot_claim_green(self):
+        for invalid in (None, '', '   '):
+            with self.subTest(name=invalid):
+                with self.assertRaisesRegex(ValueError,'invalid check-run name'):
+                    analyze_pr('RUMBO-IA/demo',pr(),[
+                        {'name':invalid,'status':'completed','conclusion':'success'}
+                    ],[])
+
+    def test_check_run_wrong_head_sha_fails_closed(self):
+        with self.assertRaisesRegex(ValueError,'check-run HEAD mismatch'):
+            analyze_pr('RUMBO-IA/demo',pr(head='a'*40),[
+                {'name':'verify','status':'completed','conclusion':'success','head_sha':'b'*40}
+            ],[])
+
+    def test_check_run_matching_head_sha_remains_unattested(self):
+        row=analyze_pr('RUMBO-IA/demo',pr(head='a'*40),[
+            {'name':'verify','status':'completed','conclusion':'success','head_sha':'a'*40}
+        ],[])
+        self.assertEqual(row['check_state'],'GREEN_UNATTESTED')
+        self.assertFalse(row['merge_authorized'])
+
+    def test_duplicate_pull_from_pagination_fails_closed(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        prefix='/repos/RUMBO-IA/demo'
+        # A repeated PR from a shifting REST page must not count as a second PR.
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            prefix+'/pulls?state=open&per_page=100&page=1':[old, old],
+            prefix+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'check_runs':[], 'total_count':0},
+            prefix+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            prefix+'/pulls/1/reviews?per_page=100&page=1':[],
+            prefix+'/pulls/1':old,
+        }
+        result=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=10)
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['count'],1)
+        self.assertIn('duplicate PR',result['error'])
+
+    def test_duplicate_repository_listing_fails_closed(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        old=pr()
+        prefix='/repos/RUMBO-IA/demo'
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo, repo],
+            prefix+'/pulls?state=open&per_page=100&page=1':[old],
+            prefix+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'check_runs':[], 'total_count':0},
+            prefix+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            prefix+'/pulls/1/reviews?per_page=100&page=1':[],
+            prefix+'/pulls/1':old,
+        }
+        result=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=10)
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['repos_scanned'],1)
+        self.assertEqual(result['count'],1)
+        self.assertIn('duplicate repository',result['error'])
+
+    def test_duplicate_pr_on_second_rest_page_fails_closed(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        prefix='/repos/RUMBO-IA/demo'
+        first=[pr(number=n) for n in range(1,101)]
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            prefix+'/pulls?state=open&per_page=100&page=1':first,
+            prefix+'/pulls?state=open&per_page=100&page=2':[pr(number=1)],
+            prefix+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'check_runs':[], 'total_count':0},
+            prefix+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+        }
+        for item in first:
+            number=item['number']
+            responses[prefix+f'/pulls/{number}/reviews?per_page=100&page=1']=[]
+            responses[prefix+f'/pulls/{number}']=item
+        result=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=110)
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['count'],100)
+        self.assertEqual(len(set(row['number'] for row in result['items'])),100)
+        self.assertIn('duplicate PR',result['error'])
+
+    def test_check_runs_missing_id_cannot_be_complete(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        original=pr()
+        base='/repos/RUMBO-IA/demo'
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            base+'/pulls?state=open&per_page=100&page=1':[original],
+            base+'/commits/'+'a'*40+'/check-runs?per_page=100&page=1':{
+                'total_count':1,'check_runs':[{
+                    'name':'verify','status':'completed','conclusion':'success'}]},
+            base+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            base+'/pulls/1/reviews?per_page=100&page=1':[],
+            base+'/pulls/1':original,
+        }
+        result=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=10)
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['count'],0)
+        self.assertIn('invalid check-run id',result['error'])
+
+    def test_duplicate_check_run_id_across_pages_fails_closed(self):
+        repo={'full_name':'RUMBO-IA/demo','archived':False}
+        original=pr()
+        base='/repos/RUMBO-IA/demo'
+        check_base=base+'/commits/'+'a'*40+'/check-runs'
+        checks=[{'id':j,'name':'verify','status':'completed','conclusion':'success'}
+                for j in range(1,101)]
+        responses={
+            '/orgs/RUMBO-IA/repos?type=all&per_page=100&page=1':[repo],
+            base+'/pulls?state=open&per_page=100&page=1':[original],
+            check_base+'?per_page=100&page=1':{'total_count':101,'check_runs':checks},
+            check_base+'?per_page=100&page=2':{'total_count':101,'check_runs':[checks[0]]},
+            base+'/commits/'+'a'*40+'/statuses?per_page=100&page=1':[],
+            base+'/pulls/1/reviews?per_page=100&page=1':[],
+            base+'/pulls/1':original,
+        }
+        result=audit_organization(FakeGitHub(responses),'RUMBO-IA',max_prs=10)
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['count'],0)
+        self.assertIn('duplicate check-run id',result['error'])
+
+    def test_unique_check_run_ids_across_pages_are_accepted(self):
+        base='/repos/RUMBO-IA/demo/commits/'+'a'*40+'/check-runs'
+        data=[{'id':i,'name':'unit','status':'completed','conclusion':'success'}
+              for i in range(1,102)]
+        fake=FakeGitHub({
+            base+'?per_page=100&page=1':{'total_count':101,'check_runs':data[:100]},
+            base+'?per_page=100&page=2':{'total_count':101,'check_runs':data[100:]}
+        })
+        self.assertEqual([c['id'] for c in pages(fake,base,key='check_runs')],
+                         list(range(1,102)))
+
+    def test_mixed_case_reviewer_does_not_count_twice(self):
+        head = 'a' * 40
+        reviews = [
+            {'user': {'login': 'SecurityReviewer'}, 'state': 'APPROVED',
+             'commit_id': head, 'submitted_at': '2026-11-08T08:00:00Z'},
+            {'user': {'login': 'securityreviewer'}, 'state': 'APPROVED',
+             'commit_id': head, 'submitted_at': '2026-11-08T09:00:00Z'},
+        ]
+        result = analyze_pr('RUMBO-IA/demo', pr(head=head), [], reviews)
+        self.assertEqual(result['approvals'], 1,
+                         'GitHub reviewer account identity is case insensitive')
+        self.assertFalse(result['merge_authorized'])
+
+    def test_mixed_case_latest_review_change_request_supersedes_approval(self):
+        head = 'a' * 40
+        reviews = [
+            {'user': {'login': 'SecurityReviewer'}, 'state': 'APPROVED',
+             'commit_id': head, 'submitted_at': '2026-11-08T08:00:00Z'},
+            {'user': {'login': 'securityreviewer'}, 'state': 'CHANGES_REQUESTED',
+             'commit_id': head, 'submitted_at': '2026-11-08T09:00:00Z'},
+        ]
+        result = analyze_pr('RUMBO-IA/demo', pr(head=head), [], reviews)
+        self.assertEqual(result['approvals'], 0)
+        self.assertEqual(result['changes_requested'], 1)
+        self.assertIn('CHANGES_REQUESTED', result['blockers'])
+        self.assertFalse(result['merge_authorized'])
+
+    def test_approval_without_submitted_timestamp_fails_closed(self):
+        reviews=[{'user':{'login':'auditor'},'state':'APPROVED',
+                  'commit_id':'a'*40,'submitted_at':None}]
+        with self.assertRaisesRegex(ValueError,'invalid review submitted_at'):
+            analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+
+    def test_review_offset_timezones_order_by_instant(self):
+        reviews=[
+          {'user':{'login':'Auditor'},'state':'APPROVED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T11:30:00+02:00'},
+          {'user':{'login':'auditor'},'state':'CHANGES_REQUESTED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T10:00:00Z'}
+        ]
+        result=analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+        self.assertEqual(result['approvals'],0)
+        self.assertEqual(result['changes_requested'],1)
+        self.assertFalse(result['merge_authorized'])
+
+    def test_same_reviewer_conflicting_review_states_same_instant_fails_closed(self):
+        reviews=[
+          {'user':{'login':'auditor'},'state':'CHANGES_REQUESTED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T10:00:00Z'},
+          {'user':{'login':'AUDITOR'},'state':'APPROVED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T12:00:00+02:00'}
+        ]
+        with self.assertRaisesRegex(ValueError,'ambiguous review ordering'):
+            analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+
+    def test_reviewer_rename_same_account_id_revokes_old_approval(self):
+        reviews=[
+          {'user':{'id':101,'login':'old-reviewer'},'state':'APPROVED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T08:00:00Z'},
+          {'user':{'id':101,'login':'new-reviewer'},'state':'CHANGES_REQUESTED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T09:00:00Z'}
+        ]
+        result=analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+        self.assertEqual(result['approvals'],0)
+        self.assertEqual(result['changes_requested'],1)
+        self.assertIn('CHANGES_REQUESTED',result['blockers'])
+
+    def test_two_distinct_reviewer_ids_are_not_merged_by_reused_login(self):
+        reviews=[
+          {'user':{'id':101,'login':'reviewer'},'state':'APPROVED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T08:00:00Z'},
+          {'user':{'id':202,'login':'REVIEWER'},'state':'CHANGES_REQUESTED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T09:00:00Z'}
+        ]
+        result=analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+        self.assertEqual(result['approvals'],1)
+        self.assertEqual(result['changes_requested'],1)
+        self.assertFalse(result['merge_authorized'])
+
+    def test_invalid_reviewer_account_id_is_fail_closed(self):
+        for invalid in (0, -1, True, '101'):
+            with self.subTest(id=invalid):
+                reviews=[{'user':{'id':invalid,'login':'reviewer'},
+                          'state':'APPROVED','commit_id':'a'*40,
+                          'submitted_at':'2026-11-08T08:00:00Z'}]
+                with self.assertRaisesRegex(ValueError,'invalid reviewer id'):
+                    analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
+
+    def test_mixed_id_and_no_id_same_login_is_ambiguous(self):
+        reviews=[
+          {'user':{'id':101,'login':'reviewer'},'state':'APPROVED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T08:00:00Z'},
+          {'user':{'login':'reviewer'},'state':'CHANGES_REQUESTED',
+           'commit_id':'a'*40,'submitted_at':'2026-11-08T09:00:00Z'}
+        ]
+        with self.assertRaisesRegex(ValueError,'ambiguous reviewer identity'):
+            analyze_pr('RUMBO-IA/demo',pr(),[],reviews)
 
 if __name__=='__main__': unittest.main()

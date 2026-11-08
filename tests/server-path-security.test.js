@@ -19,13 +19,20 @@ try{
   if(process.platform!=='win32')throw error;
 }
 
-const child=spawn(process.execPath,['server.js'],{cwd:root,stdio:['ignore','pipe','pipe']});
+const child=spawn(process.execPath,['server.js'],{cwd:root,stdio:['ignore','pipe','pipe'],env:{...process.env,GUARDIAN_TEST_EPHEMERAL_PORT:'1'}});
 let stderr='';
+let stdout='';
+let activePort=0;
+child.stdout.on('data',chunk=>{
+  stdout+=chunk;
+  const match=stdout.match(/http:\/\/127\.0\.0\.1:(\d+)\//);
+  if(match) activePort=Number(match[1]);
+});
 child.stderr.on('data',chunk=>{stderr+=chunk});
 
 function rawRequest(requestPath){
   return new Promise((resolve,reject)=>{
-    const socket=net.createConnection({host:'127.0.0.1',port:8766});
+    const socket=net.createConnection({host:'127.0.0.1',port:activePort});
     let data='';
     socket.setEncoding('utf8');
     socket.on('connect',()=>socket.write(`GET ${requestPath} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n`));
@@ -37,6 +44,7 @@ function rawRequest(requestPath){
 
 async function waitForServer(){
   for(let i=0;i<40;i++){
+    if(!activePort){await new Promise(r=>setTimeout(r,50));continue;}
     try{
       const response=await rawRequest('/');
       if(response.startsWith('HTTP/1.1 200'))return;
