@@ -12,6 +12,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -21,5 +22,7 @@ jobs:
           node-version: '22'
       - name: Syntax checks
         run: npm run check
+      - name: GitHub Actions supply-chain policy
+        run: node tests/github-actions-supply-chain.test.js
       - name: Unit and portfolio tests
         run: npm test
