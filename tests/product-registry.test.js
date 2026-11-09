@@ -28,6 +28,14 @@ for(const mutate of [
  d=>{const p=path.join(d,'releases/1.1.0-rc.1.json'),x=JSON.parse(fs.readFileSync(p));x.evidence.install='PASS';fs.writeFileSync(p,JSON.stringify(x));},
  d=>{const p=path.join(d,'releases/1.1.0-rc.1.json'),x=JSON.parse(fs.readFileSync(p));x.artifact.sha256='a'.repeat(64);fs.writeFileSync(p,JSON.stringify(x));},
  d=>{const p=path.join(d,'releases/1.0.0.json'),x=JSON.parse(fs.readFileSync(p));x.state='STABLE';fs.writeFileSync(p,JSON.stringify(x));},
- d=>{fs.copyFileSync(path.join(d,'releases/1.0.0.json'),path.join(d,'releases/extra.json'));}
+ d=>{const p=path.join(d,'releases/1.1.0-rc.1.json'),x=JSON.parse(fs.readFileSync(p));delete x.evidence;fs.writeFileSync(p,JSON.stringify(x));},
+ d=>{const p=path.join(d,'releases/1.0.0.json'),x=JSON.parse(fs.readFileSync(p));x.evidence=null;fs.writeFileSync(p,JSON.stringify(x));},
+ d=>{const p=path.join(d,'releases/1.1.0-rc.1.json'),x=JSON.parse(fs.readFileSync(p));x.evidence={};fs.writeFileSync(p,JSON.stringify(x));},
+ d=>{const p=path.join(d,'releases/1.1.0-rc.1.json'),x=JSON.parse(fs.readFileSync(p));x.evidence.sbom='VERIFIED';fs.writeFileSync(p,JSON.stringify(x));},
+ d=>{const p=path.join(d,'releases/1.0.0.json'),x=JSON.parse(fs.readFileSync(p));x.evidence.provenance='PROVEN';fs.writeFileSync(p,JSON.stringify(x));},
+ d=>{const p=path.join(d,'releases/1.1.0-rc.1.json'),x=JSON.parse(fs.readFileSync(p));x.evidence.install='PENDING';fs.writeFileSync(p,JSON.stringify(x));},
+ d=>{const p=path.join(d,'releases/1.1.0-rc.1.json'),x=JSON.parse(fs.readFileSync(p));x.evidence.rollback=true;fs.writeFileSync(p,JSON.stringify(x));},
+ d=>{const p=path.join(d,'releases/1.0.0.json'),x=JSON.parse(fs.readFileSync(p));x.evidence.extra='NOT_PROVEN';fs.writeFileSync(p,JSON.stringify(x));},
+  d=>{fs.copyFileSync(path.join(d,'releases/1.0.0.json'),path.join(d,'releases/extra.json'));}
 ]){const d=fixture();try{mutate(d);assert.notEqual(run(d).status,0);}finally{fs.rmSync(d,{recursive:true,force:true});}}
 console.log('product-registry policy PASS');
