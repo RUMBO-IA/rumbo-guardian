@@ -1,0 +1,110 @@
+name: Guardian Desktop Install Lab
+
+# Explicit manual execution only; no PR-triggered installer execution or signing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-install-lab:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Configure Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Configure pinned Rust
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: '1.98.1'
+          targets: x86_64-pc-windows-msvc
+
+      - name: Validate release and desktop policies
+        shell: pwsh
+        run: |
+          npm run release:validate
+          node tests/desktop-packaging.test.js
+          node tests/desktop-trust.test.js
+          node tests/desktop-install-lab.test.js
+          npm run check
+          npm test
+
+      - name: Verify locked Rust shell
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Build unsigned NSIS candidate
+        run: npx --yes @tauri-apps/cli@2.11.4 build --bundles nsis -- --locked
+
+      - name: Install, smoke, uninstall in ephemeral runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Get-ChildItem 'src-tauri/target/release/bundle/nsis/*-setup.exe' |
+            Sort-Object FullName | Select-Object -First 1
+          if (-not $installer) { throw 'unsigned NSIS candidate missing' }
+          $installDir = Join-Path $env:LOCALAPPDATA 'RUMBO Guardian'
+          $appExe = Join-Path $installDir 'rumbo-guardian-desktop.exe'
+          $report = [ordered]@{
+            schema = 'rumbo.desktop.install-lab/v2'
+            source_sha = '${{ github.sha }}'
+            installation_scope = 'ephemeral-windows-currentUser'
+            installer_signed = $false
+            install = 'NOT_PROVEN'
+            smoke = 'NOT_PROVEN'
+            uninstall = 'NOT_PROVEN'
+            residual_files = 'NOT_PROVEN'
+          }
+          $appProcess = $null
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          try {
+            $install = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+            if ($install.ExitCode -ne 0) { throw "NSIS install exit=$($install.ExitCode)" }
+            if (-not (Test-Path -LiteralPath $appExe -PathType Leaf)) {
+              throw "installed executable missing: $appExe"
+            }
+            $report.install = 'PASS'
+            $appProcess = Start-Process -FilePath $appExe -PassThru
+            Start-Sleep -Seconds 5
+            if ($appProcess.HasExited) { throw 'desktop smoke process exited unexpectedly' }
+            $report.smoke = 'PASS'
+            Stop-Process -Id $appProcess.Id -Force -ErrorAction SilentlyContinue
+            $appProcess.WaitForExit()
+            $appProcess = $null
+            $uninstaller = Get-ChildItem -LiteralPath $installDir -Filter 'uninstall*.exe' |
+              Sort-Object FullName | Select-Object -First 1
+            if (-not $uninstaller) { throw 'uninstaller missing' }
+            $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0) { throw "uninstall exit=$($uninstall.ExitCode)" }
+            for ($i=0; $i -lt 30 -and (Test-Path -LiteralPath $appExe); $i++) {
+              Start-Sleep -Seconds 1
+            }
+            if (Test-Path -LiteralPath $appExe) { throw 'installed executable survives uninstall' }
+            $report.uninstall = 'PASS'
+            $residual = @(Get-ChildItem -LiteralPath $installDir -Force -ErrorAction SilentlyContinue)
+            if ($residual.Count -gt 0) { throw 'uninstall left residual files' }
+            $report.residual_files = 0
+          } finally {
+            if ($appProcess -and -not $appProcess.HasExited) {
+              Stop-Process -Id $appProcess.Id -Force -ErrorAction SilentlyContinue
+            }
+            $report | ConvertTo-Json | Set-Content -Path build/install-lab.json -Encoding utf8
+          }
+
+      - name: Upload install-lab evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rumbo-guardian-windows-install-lab-evidence
+          path: build/install-lab.json
+          if-no-files-found: warn
