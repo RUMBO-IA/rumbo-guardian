@@ -13,3 +13,8 @@ Thumbs.db
 # Browser automation profiles
 portfolio/headless-profile/
 tests/brave-integration-profile/
+
+# Local unsigned desktop build outputs
+desktop-dist/
+src-tauri/target/
+src-tauri/icons/icon.ico
