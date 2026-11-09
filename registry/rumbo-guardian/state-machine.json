@@ -1,0 +1,7 @@
+{
+  "schema": "rumbo.product-registry.state-machine/v1",
+  "active_progression": ["DRAFT", "VERIFYING", "VERIFIED", "RC", "APPROVED", "CANARY", "STABLE"],
+  "terminal_states": ["REVOKED", "SUPERSEDED"],
+  "historical_import_exceptions": [{"version":"1.0.0","state":"VERIFIED"}],
+  "authority_required": ["APPROVED", "CANARY", "STABLE"]
+}
