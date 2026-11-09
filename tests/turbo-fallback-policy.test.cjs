@@ -28,5 +28,5 @@ for (const required of [
   'TURBO_TELEMETRY_DISABLED=1 npx --no-install turbo run check',
   'node tests/github-actions-supply-chain.test.js', 'npm test'
 ]) assert.ok(ci.includes(required), 'missing Guardian CI requirement: '+required);
-assert.doesNotMatch(ci, /pull_request_target:|continue-on-error:\\s*true|contents:\\s*write|id-token:\\s*write|vercel ci enable|TURBO_TOKEN|TURBO_TEAM|force:\\s*true/);
+assert.doesNotMatch(ci, /pull_request_target:|continue-on-error:\s*true|contents:\s*write|id-token:\s*write|vercel ci enable|TURBO_TOKEN|TURBO_TEAM|force:\s*true/);
 console.log('GUARDIAN_PORTABLE_TURBO_FALLBACK_POLICY_PASS');
