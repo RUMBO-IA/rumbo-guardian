@@ -43,8 +43,31 @@ jobs:
       - name: Run Guardian regression suite
         run: npm test
 
-      - name: Build unsigned NSIS installer
-        run: npx --yes @tauri-apps/cli@2.11.4 build --bundles nsis -- --locked
+      - name: Build unsigned NSIS installer with bounded transient-download retries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # A failed native command must be inspected before PowerShell raises an error.
+          $PSNativeCommandUseErrorActionPreference = $false
+          $maxAttempts = 3
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            $log = Join-Path $env:RUNNER_TEMP "guardian-nsis-bundle-attempt-$attempt.log"
+            & npx --yes @tauri-apps/cli@2.11.4 build --bundles nsis -- --locked *> $log
+            $exit = $LASTEXITCODE
+            Get-Content -LiteralPath $log | ForEach-Object { Write-Host $_ }
+            if ($exit -eq 0) {
+              Write-Host "NSIS bundle PASS on bounded attempt $attempt"
+              break
+            }
+            $output = Get-Content -LiteralPath $log -Raw
+            # Retry ONLY transient GitHub binary-release HTTP failures.
+            # All compiler, test, hash or integrity errors fail without retry.
+            if ($attempt -ge $maxAttempts -or $output -notmatch '(?i)\bhttp status:\s*(502|503|504)\b') {
+              throw "NSIS bundle failed (exit=$exit), no further retries permitted"
+            }
+            Write-Warning "Transient NSIS tool download error; retrying bounded attempt $($attempt+1)/$maxAttempts"
+            Start-Sleep -Seconds (5 * $attempt)
+          }
 
       - name: Prepare SBOM output
         shell: pwsh

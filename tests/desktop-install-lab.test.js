@@ -32,4 +32,16 @@ assert.match(source, /if: always\(\)/);
 assert.match(source, /actions\/upload-artifact@[a-f0-9]{40}/);
 assert.doesNotMatch(source, /id-token:\s*write|attestations:\s*write|artifact-metadata:\s*write|contents:\s*write/);
 assert.doesNotMatch(source, /TAURI_SIGNING_PRIVATE_KEY|gh release create|softprops\/action-gh-release|deploy:|git push/);
+// The existing automatic Windows build remains fail-closed. It may retry only
+// transient binary-release server failures; no compiler/hash/test failures.
+const build = fs.readFileSync(path.join(root, '.github/workflows/desktop-build.yml'), 'utf8').replace(/\r\n/g,'\n');
+assert.match(build, /maxAttempts\s*=\s*3/);
+assert.match(build, /if\s*\(\$exit\s+-eq\s+0\)/);
+assert.match(build, /\$LASTEXITCODE/);
+assert.match(build, /\$attempt\s+-ge\s+\$maxAttempts/);
+assert.ok(build.includes('http status:\\s*(502|503|504)'), 'only retry HTTP 502/503/504');
+assert.match(build, /no further retries permitted/);
+assert.match(build, /Start-Sleep -Seconds \(5 \* \$attempt\)/);
+assert.match(build, /npx --yes @tauri-apps\/cli@2\.11\.4 build --bundles nsis -- --locked/);
+assert.doesNotMatch(build, /TAURI_BUNDLER_TOOLS_GITHUB_MIRROR|continue-on-error:\s*true/);
 console.log('GUARDIAN_DESKTOP_INSTALL_LAB_MANUAL_POLICY_PASS');
