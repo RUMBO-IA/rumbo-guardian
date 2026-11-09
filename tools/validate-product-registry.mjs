@@ -33,7 +33,16 @@ try {
   if(r.authorization?.production_go!==false) add(`production_go must be false: ${v}`);
   if(r.authorization?.publication_authorized!==false) add(`publication_authorized must be false: ${v}`);
   if(['APPROVED','CANARY','STABLE'].includes(r.state)) add(`release authority unproven: ${v}`);
-  if(r.evidence && Object.values(r.evidence).some(x=>x==='PASS'||x===true)) add(`unattested evidence claim: ${v}`);
+  // Reject evidence laundering: omission, unknown keys and claims beyond NOT_PROVEN.
+  // This source-only registry does not confer production or release verification.
+  const requiredEvidence=['sbom','provenance','install','upgrade','rollback'];
+  const evidence=r.evidence;
+  if(!evidence || typeof evidence!=='object' || Array.isArray(evidence)) {
+   add(`evidence block missing/invalid: ${v}`);
+  } else {
+   if(JSON.stringify(Object.keys(evidence).sort())!==JSON.stringify([...requiredEvidence].sort())) add(`evidence fields mismatch: ${v}`);
+   for(const field of requiredEvidence) if(evidence[field]!=='NOT_PROVEN') add(`unattested evidence claim: ${v}:${field}`);
+  }
   if(v==='1.1.0-rc.1' && r.state!=='DRAFT') add('candidate cannot be promoted without new receipts');
   if(v==='1.1.0-rc.1' && r.artifact?.sha256!==null) add('legacy candidate artifact hash not verified');
   if(r.predecessor!==null&&!releases.has(r.predecessor)) add(`missing predecessor: ${v}:${r.predecessor}`);
