@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "check": {
+      "outputs": [],
+      "cache": false
+    },
+    "test:unit": {
+      "outputs": [],
+      "cache": false
+    }
+  }
+}
